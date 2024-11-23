@@ -9,7 +9,7 @@ Kaledis is a tool for allowing Luau to be used with Love2D via transpiling, alon
 
 It has many resources to make your life much easier when using Love2D:
 * Transpiles Luau into compatible Love2D code, allowing type annotations, libraries and other features to be implemented.
-* Automatically manages and provides Love2D installations.
+* Automatically manages and provides Love2D installations. (WIP)
 * Simple commands and CLI, you'll get the hang of it in no time.
 * Easily create & ship your project to the current OS you build the project in.
 * A more friendly frontend configuration framework, using a TOML file instead of a *conf.lua*
@@ -17,6 +17,11 @@ It has many resources to make your life much easier when using Love2D:
 
 ## Installation
 *Note: The only available builds are for Windows. MacOS and Linux builds have not been tested.*
+
+### From Cargo 
+We currently are waiting for [Dal](https://github.com/CavefulGames/dal) to make some fields public or implement a constructor with changeable params.
+
+The [package](https://crates.io/crates/kaledis) is just a placeholder for now.
 
 ### From Releases
 Go to the Releases page and download the `kaledis.exe` file. *Windows only.*

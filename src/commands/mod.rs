@@ -8,16 +8,22 @@ use clap::{ Parser, Subcommand };
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    #[clap(about = "Initializes a new Love2D project")] Init {
+    #[clap(about = "Initializes a new Love2D project.")] Init {
         path: Option<PathBuf>,
     },
-    #[clap(about = "Transpiles everything, and builds a '.love' file.")] Build {
+    #[clap(
+        about = "Transpiles everything, and builds a '.love' file inside a '.build' directory."
+    )] Build {
         path: Option<PathBuf>,
     },
-    #[clap(about = "Compiles the entire project to a executable")] Compile {
+    #[clap(
+        about = "Compiles the entire project to a executable, inside a 'dist' folder."
+    )] Compile {
         path: Option<PathBuf>,
     },
-    #[clap(about = "Runs the love 2d project.")] Dev {
+    #[clap(
+        about = "Watches for changes in the project and builds and executes love automatically."
+    )] Dev {
         path: Option<PathBuf>,
     },
 }

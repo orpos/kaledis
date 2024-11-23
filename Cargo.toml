@@ -2,7 +2,6 @@
 name = "kaledis"
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
 authors = ["lettuce-magician", "orpos"]
 documentation = "https://github.com/orpos/kaledis"
 repository = "https://github.com/orpos/kaledis"
@@ -18,9 +17,7 @@ tokio = { version = "1.41.1", features = ["full"] }
 toml = "0.8.19"
 dal_core = { path="dal_custom", version="0.1.0"  }
 url = "2.5.3"
-indexmap = "2.6.0"
 glob = "0.3.1"
 zip = "2.2.0"
 anyhow = "1.0.93"
-notify = "7.0.0"
 async-watcher = "0.3.0"

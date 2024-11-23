@@ -2,3 +2,10 @@
 love
 ./.vscode/**/*
 .vscode
+
+playground
+
+
+# Added by cargo
+
+dal_custom/target

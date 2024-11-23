@@ -2,6 +2,11 @@
 name = "kaledis"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+authors = ["lettuce-magician", "orpos"]
+documentation = "https://github.com/orpos/kaledis"
+repository = "https://github.com/orpos/kaledis"
+license-file = "LICENSE.md"
 
 [dependencies]
 clap = { version = "4.5.21", features = ["derive"] }

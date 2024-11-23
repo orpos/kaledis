@@ -1,7 +1,0 @@
-file_extension = "lua"
-target_version = "lua53"
-minify = true
-
-[modifiers]
-
-[libs]

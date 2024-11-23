@@ -29,7 +29,7 @@ Clone the repo, then use `cargo build` to build the project from scratch *Probab
 
 ## FAQ
 ### Why the name 'Kaledis'?
-Kaledis in latin means "moons" or "more than 1 moon", and by the fact that Luau and Love2D are "incompatible" and the package solves that problem, it was given this name.
+The name came from the word 'Kalendis', in latin means "moons" or "more than 1 moon". By the fact that Luau and Love2D are "incompatible" and the package solves that problem, it was given this name.
 
 ### Who I contact for source code related stuff?
 If you need anything regarding the code, you can contact lettuce-magician and he will forward the topic to ordep (that actually edits the code).

@@ -1,0 +1,4 @@
+{
+	"luau-lsp.require.mode": "relativeToFile",
+	"luau-lsp.types.definitionFiles": ["globals.d.luau"]
+}

@@ -1,16 +1,41 @@
 use darklua_core::nodes::{
-    AssignStatement, BinaryExpression, BinaryOperator, Block, DoStatement, Expression,
-    FieldExpression, FunctionCall, Identifier, IfBranch, IfStatement, LocalAssignStatement, Prefix,
-    Statement, StringExpression, TupleArguments, TypedIdentifier, Variable,
+    AssignStatement,
+    BinaryExpression,
+    BinaryOperator,
+    Block,
+    DoStatement,
+    Expression,
+    FieldExpression,
+    FunctionCall,
+    Identifier,
+    IfBranch,
+    IfStatement,
+    LocalAssignStatement,
+    Prefix,
+    Statement,
+    StringExpression,
+    TupleArguments,
+    TypedIdentifier,
+    Variable,
 };
-use darklua_core::process::{DefaultVisitor, NodeProcessor, NodeVisitor};
-use darklua_core::rules::{Context, RuleConfiguration, RuleConfigurationError, RuleProperties};
+use darklua_core::process::{ DefaultVisitor, NodeProcessor, NodeVisitor };
+use darklua_core::rules::{ Context, RuleConfiguration, RuleConfigurationError, RuleProperties };
 
 use darklua_core::rules::runtime_identifier::RuntimeIdentifierBuilder;
-use darklua_core::rules::{Rule, RuleProcessResult};
+use darklua_core::rules::{ Rule, RuleProcessResult };
 
 const METATABLE_VARIABLE_NAME: &str = "m";
-const SETMETATABLE_IDENTIFIER: &str = "__DAL_setmetatable_iter";
+// const SETMETATABLE_IDENTIFIER: &str = "__DAL_getmetatable_iter";
+
+// this is a very ugly workaround
+// also i don't know if it's setmetatable_iter
+const SETMETATABLE_IDENTIFIER: &str =
+    r#"(function(...)
+if __DAL_getmetatable_iter == nil then
+require("__dal_libs__")
+end
+return __DAL_getmetatable_iter(...)
+end)"#;
 
 struct Processor {
     iterator_identifier: String,
@@ -20,16 +45,16 @@ struct Processor {
 }
 
 fn get_type_condition(arg: Expression, type_name: &str) -> Box<BinaryExpression> {
-    let type_call = Box::new(FunctionCall::new(
-        Prefix::from_name("type"),
-        TupleArguments::new(vec![arg]).into(),
-        None,
-    ));
-    Box::new(BinaryExpression::new(
-        BinaryOperator::Equal,
-        Expression::Call(type_call),
-        Expression::String(StringExpression::from_value(type_name)),
-    ))
+    let type_call = Box::new(
+        FunctionCall::new(Prefix::from_name("type"), TupleArguments::new(vec![arg]).into(), None)
+    );
+    Box::new(
+        BinaryExpression::new(
+            BinaryOperator::Equal,
+            Expression::Call(type_call),
+            Expression::String(StringExpression::from_value(type_name))
+        )
+    )
 }
 
 impl Processor {
@@ -39,26 +64,42 @@ impl Processor {
             if let Statement::GenericFor(generic_for) = stmt {
                 let exps = generic_for.mutate_expressions();
                 if exps.len() == 1 {
+                    // Workaround 3: ignore generators :D
+                    match &mut exps[0] {
+                        Expression::Call(d) => {
+                            let idd = d.get_prefix();
+                            if let Prefix::Identifier(name_identifier) = idd {
+                                let nome = name_identifier.get_name();
+                                if nome.len() > 0 {
+                                    continue;
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
                     let mut stmts: Vec<Statement> = Vec::new();
-                    let iterator_typed_identifier =
-                        TypedIdentifier::new(self.iterator_identifier.as_str());
+                    let iterator_typed_identifier = TypedIdentifier::new(
+                        self.iterator_identifier.as_str()
+                    );
                     let iterator_identifier = iterator_typed_identifier.get_identifier().clone();
 
-                    let invariant_typed_identifier =
-                        TypedIdentifier::new(self.invariant_identifier.as_str());
+                    let invariant_typed_identifier = TypedIdentifier::new(
+                        self.invariant_identifier.as_str()
+                    );
                     let invariant_identifier = invariant_typed_identifier.get_identifier().clone();
 
-                    let control_typed_identifier =
-                        TypedIdentifier::new(self.control_identifier.as_str());
+                    let control_typed_identifier = TypedIdentifier::new(
+                        self.control_identifier.as_str()
+                    );
                     let control_identifier = control_typed_identifier.get_identifier().clone();
 
                     let iterator_local_assign = LocalAssignStatement::new(
                         vec![iterator_typed_identifier],
-                        vec![exps[0].to_owned()],
+                        vec![exps[0].to_owned()]
                     );
                     let invar_control_local_assign = LocalAssignStatement::new(
                         vec![invariant_typed_identifier, control_typed_identifier],
-                        Vec::new(),
+                        Vec::new()
                     );
 
                     let iterator_exp = Expression::Identifier(iterator_identifier.clone());
@@ -76,63 +117,78 @@ impl Processor {
                     let get_mt_call = FunctionCall::new(
                         Prefix::from_name(SETMETATABLE_IDENTIFIER),
                         TupleArguments::new(vec![iterator_exp.clone()]).into(),
-                        None,
+                        None
                     );
                     let mt_local_assign = LocalAssignStatement::new(
                         vec![mt_typed_identifier],
-                        vec![get_mt_call.into()],
+                        vec![get_mt_call.into()]
                     );
 
-                    let if_mt_table_condition =
-                        get_type_condition(mt_identifier.clone().into(), "table");
+                    let if_mt_table_condition = get_type_condition(
+                        mt_identifier.clone().into(),
+                        "table"
+                    );
                     let mt_iter = FieldExpression::new(
                         Prefix::Identifier(mt_identifier),
-                        Identifier::new("__iter"),
+                        Identifier::new("__iter")
                     );
-                    let if_mt_iter_function_condition =
-                        get_type_condition(mt_iter.clone().into(), "function");
+                    let if_mt_iter_function_condition = get_type_condition(
+                        mt_iter.clone().into(),
+                        "function"
+                    );
 
                     let mt_iter_call = FunctionCall::from_prefix(Prefix::Field(Box::new(mt_iter)));
                     let assign_from_iter = AssignStatement::new(
                         vec![
                             Variable::Identifier(iterator_identifier.clone()),
                             Variable::Identifier(invariant_identifier.clone()),
-                            Variable::Identifier(control_identifier.clone()),
+                            Variable::Identifier(control_identifier.clone())
                         ],
-                        vec![mt_iter_call.into()],
+                        vec![mt_iter_call.into()]
                     );
 
                     let pairs_call = FunctionCall::new(
                         Prefix::from_name("pairs"),
                         TupleArguments::new(vec![iterator_identifier.clone().into()]).into(),
-                        None,
+                        None
                     );
                     let assign_from_pairs = AssignStatement::new(
                         vec![
                             Variable::Identifier(iterator_identifier),
                             Variable::Identifier(invariant_identifier),
-                            Variable::Identifier(control_identifier),
+                            Variable::Identifier(control_identifier)
                         ],
-                        vec![pairs_call.into()],
+                        vec![pairs_call.into()]
                     );
 
                     let if_mt_table_block = Block::new(vec![assign_from_iter.into()], None);
                     let if_not_mt_table_block = Block::new(vec![assign_from_pairs.into()], None);
                     let if_mt_table_branch = IfBranch::new(
-                        Expression::Binary(Box::new(BinaryExpression::new(
-                            BinaryOperator::And,
-                            Expression::Binary(if_mt_table_condition),
-                            Expression::Binary(if_mt_iter_function_condition),
-                        ))),
-                        if_mt_table_block,
+                        Expression::Binary(
+                            Box::new(
+                                BinaryExpression::new(
+                                    BinaryOperator::And,
+                                    Expression::Binary(if_mt_table_condition),
+                                    Expression::Binary(if_mt_iter_function_condition)
+                                )
+                            )
+                        ),
+                        if_mt_table_block
                     );
-                    let if_mt_table_stmt =
-                        IfStatement::new(vec![if_mt_table_branch], Some(if_not_mt_table_block));
+                    let if_mt_table_stmt = IfStatement::new(
+                        vec![if_mt_table_branch],
+                        Some(if_not_mt_table_block)
+                    );
 
-                    let if_table_block =
-                        Block::new(vec![mt_local_assign.into(), if_mt_table_stmt.into()], None);
-                    let if_table_branch =
-                        IfBranch::new(Expression::Binary(if_table_condition), if_table_block);
+                    let if_table_block = Block::new(
+                        vec![mt_local_assign.into(), if_mt_table_stmt.into()],
+                        None
+                    );
+                    let if_table_branch = IfBranch::new(
+                        Expression::Binary(if_table_condition),
+                        if_table_block
+                    );
+                    // TODO make else block
                     let if_table_stmt = IfStatement::new(vec![if_table_branch], None);
 
                     stmts.push(iterator_local_assign.into());
@@ -175,8 +231,7 @@ pub struct RemoveGeneralizedIteration {
 impl Default for RemoveGeneralizedIteration {
     fn default() -> Self {
         Self {
-            runtime_identifier_format: "_DARKLUA_REMOVE_GENERALIZED_ITERATION_{name}{hash}"
-                .to_string(),
+            runtime_identifier_format: "_DARKLUA_REMOVE_GENERALIZED_ITERATION_{name}{hash}".to_string(),
         }
     }
 }
@@ -186,7 +241,7 @@ impl Rule for RemoveGeneralizedIteration {
         let var_builder = RuntimeIdentifierBuilder::new(
             self.runtime_identifier_format.as_str(),
             format!("{block:?}").as_bytes(),
-            Some(vec![METATABLE_VARIABLE_NAME.to_string()]),
+            Some(vec![METATABLE_VARIABLE_NAME.to_string()])
         )?;
         let mut processor = Processor {
             iterator_identifier: var_builder.build("iter")?,

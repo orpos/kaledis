@@ -1,6 +1,7 @@
 mod init;
 mod build;
 mod watch;
+mod update;
 
 use std::path::PathBuf;
 
@@ -26,6 +27,7 @@ pub enum Commands {
     )] Dev {
         path: Option<PathBuf>,
     },
+    #[clap(about = "Updates kaledis based of github releases")] Update {},
 }
 
 #[derive(Parser, Debug)]
@@ -49,6 +51,9 @@ pub async fn handle_commands(command: Commands) {
         }
         Commands::Compile { path } => {
             build::build(path, build::Strategy::BuildAndCompile).await.unwrap();
+        },
+        Commands::Update {  } => {
+            update::update().await;
         }
     }
 }

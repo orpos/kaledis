@@ -12,7 +12,7 @@ use colored::Colorize;
 use zip::ZipWriter;
 use crate::zip_utils::*;
 
-pub const DEFAULT_POLYFILL_URL: &str = "https://github.com/lettuce-magician/dal-polyfill";
+pub const DEFAULT_POLYFILL_URL: &str = "https://github.com/orpos/dal-polyfill";
 
 pub async fn get_transpiler() -> (Transpiler, Manifest) {
     let mut manifest = Manifest {
@@ -32,7 +32,7 @@ pub async fn get_transpiler() -> (Transpiler, Manifest) {
         };
     }
     add_modifiers!(
-        "rename_variables",
+        // "rename_variables",
         "remove_empty_do",
         "remove_spaces",
         "remove_unused_while",
@@ -42,6 +42,7 @@ pub async fn get_transpiler() -> (Transpiler, Manifest) {
 
     let polyfill = Polyfill::new(&Url::from_str(DEFAULT_POLYFILL_URL).unwrap()).await.unwrap();
     polyfill.fetch().unwrap();
+    println!("{:?}", polyfill.path());
 
     let mut transpiler = Transpiler::default();
     transpiler = transpiler.with_manifest(&manifest);
@@ -208,19 +209,19 @@ pub async fn build(path: Option<PathBuf>, run: Strategy) -> anyhow::Result<()> {
     function love.conf(t)
         t.identity = {}
         t.appendidentity = {}
-        t.version = {}
+        t.version = {:?}
         t.console = {}
         t.accelerometerjoystick = {}
         t.externalstorage = {}
         t.gammacorrect = {}
     
-        t.audio.mic = {}            
+        t.audio.mic = {}
         t.audio.mixwithsystem = {}   
     
-        t.window.title = {}
-        t.window.icon = {}                 
-        t.window.width = {}                
-        t.window.height = {}               
+        t.window.title = {:?}
+        t.window.icon = {}
+        t.window.width = {}
+        t.window.height = {}
         t.window.borderless = {}
         t.window.resizable = {}
         t.window.minwidth = {}
@@ -257,7 +258,10 @@ pub async fn build(path: Option<PathBuf>, run: Strategy) -> anyhow::Result<()> {
             configs.window.minwidth,
             configs.window.minheight,
             configs.window.fullscreen,
-            configs.window.fullscreentype,
+            match configs.window.fullscreentype {
+                crate::toml_conf::FullscreenType::Desktop => "\"desktop\"",
+                crate::toml_conf::FullscreenType::Exclusive=>"\"exclusive\""
+            },
             configs.window.vsync,
             configs.window.msaa,
             format_option(configs.window.depth),

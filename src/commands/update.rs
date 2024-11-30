@@ -1,10 +1,13 @@
 use std::io::Write;
 
 use anyhow::Context;
+use futures::StreamExt;
 use reqwest::header::ACCEPT;
 use semver::Version;
 use serde::Deserialize;
 use tokio::process::Command;
+
+use tokio::io::AsyncReadExt;
 
 #[derive(Debug, Deserialize)]
 struct Asset {
@@ -18,32 +21,40 @@ struct Release {
     assets: Vec<Asset>,
 }
 
+fn get_repo() -> (String, String) {
+    let mut parts = env!("CARGO_PKG_REPOSITORY").split('/').skip(3);
+    (parts.next().unwrap().to_string(), parts.next().unwrap().to_string())
+}
+
 fn get_version() -> Version {
     Version::parse(env!("CARGO_PKG_VERSION").trim_start_matches("v")).unwrap()
 }
 
-pub async fn get_latest_remote_version(reqwest: &reqwest::Client) -> Version {
+pub async fn get_latest_remote_version(reqwest: &reqwest::Client) -> anyhow::Result<Version> {
+    let (owner, repo) = get_repo();
     let releases = reqwest
-        .get("https://api.github.com/repos/orpos/kaledis/releases")
+        .get(format!("https://api.github.com/repos/{owner}/{repo}/releases"))
         .send().await
-        .context("Failed to send request to Github API")
+        .context("Failed to send request to GitHub API")
         .unwrap()
         .json::<Vec<Release>>().await
         .unwrap();
+
     releases
         .into_iter()
         .map(|release| Version::parse(&release.tag_name.trim_start_matches("v")))
         .filter_map(Result::ok)
         .max()
-        .unwrap_or(get_version())
+        .context("Failed to find first version.")
 }
 
-pub async fn check_for_updates(reqwest: &reqwest::Client) {
-    let latest = get_latest_remote_version(reqwest).await;
+pub async fn get_update(reqwest: &reqwest::Client) -> anyhow::Result<bool> {
+    let latest = get_latest_remote_version(reqwest).await?;
+    println!("{:?}", latest);
     if latest >= get_version() {
         println!("New update found! Updating...");
         let release = reqwest
-            .get(format!("https://api.github.com/repos/orpos/kaledis/releases/tags/v{latest}"))
+            .get(format!("https://api.github.com/repos/orpos/kaledis/releases/tags/v{}", latest))
             .send().await
             .unwrap()
             .json::<Release>().await
@@ -56,18 +67,36 @@ pub async fn check_for_updates(reqwest: &reqwest::Client) {
             .unwrap()
             .bytes().await
             .unwrap();
-        // TODO: make the release files be a zip and support other platforms
+
+        let mut decoder = async_compression::tokio::bufread::GzipDecoder::new(bytes.as_ref());
+        let mut archive = tokio_tar::Archive::new(&mut decoder);
+
+        let mut entry = archive
+            .entries()
+            .context("Failed to read archive")?
+            .next().await
+            .context("Archive has no files.")?
+            .context("Failed to get first file")?;
+
+        let mut buffer = Vec::new();
+
+        entry.read_to_end(&mut buffer).await.context("Failed to read the bytes.")?;
+
         let local_path = std::env::current_exe().unwrap();
+        let exe = local_path.with_file_name("new.exe");
+
         {
-            let mut new_exe = std::fs::File::create(local_path.with_file_name("new.exe")).unwrap();
-            new_exe.write(&bytes).unwrap();
+            let mut new_exe = std::fs::File::create(&exe).unwrap();
+            new_exe.write(&buffer).unwrap();
         }
-        Command::new(local_path.with_file_name("new.exe"))
-            .args(vec!["__new__", &local_path.display().to_string()])
+        Command::new(&exe)
+            .args(vec!["update", &local_path.display().to_string()])
             .spawn()
             .unwrap();
+        return Ok(true);
     } else {
-        println!("No update found.")
+        println!("No update found.");
+        return Ok(false);
     }
 }
 
@@ -87,5 +116,5 @@ pub async fn update() {
             .build()
             .unwrap()
     };
-    check_for_updates(&reqwest).await;
+    get_update(&reqwest).await.unwrap();
 }

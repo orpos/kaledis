@@ -9,3 +9,8 @@ playground
 # Added by cargo
 
 dal_custom/target
+
+# this is a folder that i normally use to test
+project/**/*
+project/.gitignore
+./project

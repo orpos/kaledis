@@ -3,9 +3,10 @@ mod build;
 mod watch;
 mod update;
 
-use std::path::PathBuf;
+use std::{ env::current_exe, path::PathBuf };
 
 use clap::{ Parser, Subcommand };
+use tokio::{ fs::{ copy, remove_file }, process::Command };
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
@@ -27,7 +28,12 @@ pub enum Commands {
     )] Dev {
         path: Option<PathBuf>,
     },
-    #[clap(about = "Updates kaledis based of github releases")] Update {},
+    #[clap(
+        about = "Updates kaledis based of github releases. This will also be used internally to handle files. If you want just to update just call it without passing anything"
+    )] Update {
+        step: Option<PathBuf>,
+        is_established: Option<String>,
+    },
 }
 
 #[derive(Parser, Debug)]
@@ -47,12 +53,27 @@ pub async fn handle_commands(command: Commands) {
             build::build(path, build::Strategy::Build).await.unwrap();
         }
         Commands::Dev { path } => {
-            watch::watch_folder(path).await;
+            watch::watch(path).await;
         }
         Commands::Compile { path } => {
             build::build(path, build::Strategy::BuildAndCompile).await.unwrap();
-        },
-        Commands::Update {  } => {
+        }
+        Commands::Update { step, is_established } => {
+            if let Some(_) = is_established {
+                println!("Removing temporary file");
+                remove_file(step.unwrap()).await.unwrap();
+                return;
+            }
+            if let Some(target) = step {
+                println!("Removing old version");
+                remove_file(&target).await.unwrap();
+                copy(current_exe().unwrap(), &target).await.unwrap();
+                Command::new(target)
+                    .args(vec!["update", &current_exe().unwrap().display().to_string(), "true"])
+                    .spawn()
+                    .unwrap();
+                return;
+            }
             update::update().await;
         }
     }

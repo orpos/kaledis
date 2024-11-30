@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use std::{ io::Cursor, path::PathBuf };
+use std::path::PathBuf;
 
 use tokio::io::{ AsyncReadExt, AsyncWriteExt };
 use tokio::fs::{ create_dir, remove_dir_all, File };
@@ -7,10 +7,10 @@ use tokio::fs::{ create_dir, remove_dir_all, File };
 use dal_core::{ manifest::Manifest, polyfill::Polyfill, transpiler::Transpiler };
 use url::Url;
 
+use crate::cli_utils::LoadingStatusBar;
 use crate::{ toml_conf::{ Config, Modules }, utils::relative };
 use colored::Colorize;
-use zip::ZipWriter;
-use crate::zip_utils::*;
+use crate::{ disallow, zip_utils::* };
 
 pub const DEFAULT_POLYFILL_URL: &str = "https://github.com/orpos/dal-polyfill";
 
@@ -42,7 +42,6 @@ pub async fn get_transpiler() -> (Transpiler, Manifest) {
 
     let polyfill = Polyfill::new(&Url::from_str(DEFAULT_POLYFILL_URL).unwrap()).await.unwrap();
     polyfill.fetch().unwrap();
-    println!("{:?}", polyfill.path());
 
     let mut transpiler = Transpiler::default();
     transpiler = transpiler.with_manifest(&manifest);
@@ -51,21 +50,24 @@ pub async fn get_transpiler() -> (Transpiler, Manifest) {
     return (transpiler, manifest);
 }
 
-pub async fn process_file(config: &(Transpiler, Manifest), input: PathBuf, output: PathBuf) {
+pub async fn process_file(
+    config: &(Transpiler, Manifest),
+    input: PathBuf,
+    output: PathBuf
+) -> anyhow::Result<()> {
     let (transpiler, manifest) = config;
-    transpiler
-        .process(
-            manifest.require_input(Some(input)).unwrap(),
-            manifest.require_output(Some(output)).unwrap()
-        ).await
-        .unwrap();
+    transpiler.process(
+        manifest.require_input(Some(input)).unwrap(),
+        manifest.require_output(Some(output)).unwrap()
+    ).await?;
+    Ok(())
 }
 
 pub async fn add_luau_files(
     config: &(Transpiler, Manifest),
     local: &PathBuf,
-    zip: &mut ZipWriter<Cursor<Vec<u8>>>
-) {
+    zip: &mut Zipper
+) -> anyhow::Result<()> {
     for entry in glob::glob(&(local.to_string_lossy().to_string() + "/**/*.luau")).unwrap() {
         if let Ok(path) = entry {
             if
@@ -78,9 +80,8 @@ pub async fn add_luau_files(
                 continue;
             }
             let out_path = path.strip_prefix(&local).unwrap();
-            process_file(config, path.clone(), local.join(".build").join(out_path)).await;
-            copy_zip_f_from_path(
-                zip,
+            process_file(config, path.clone(), local.join(".build").join(out_path)).await?;
+            zip.copy_zip_f_from_path(
                 &local.join(".build").join(out_path).with_extension("lua"),
                 out_path.with_extension("lua")
             ).await.unwrap();
@@ -100,20 +101,20 @@ pub async fn add_luau_files(
                 continue;
             }
             let out_path = path.strip_prefix(&local.join(".build")).unwrap();
-            copy_zip_f_from_path(
-                zip,
+            zip.copy_zip_f_from_path(
                 &local.join(".build").join(out_path).with_extension("lua"),
                 out_path.with_extension("lua")
             ).await.unwrap();
         }
     }
+    Ok(())
 }
 
 fn format_option<T: ToString>(value: Option<T>) -> String {
-    if let Some(value) = value { value.to_string() } else { "nil".to_string() }
+    value.map(|x| x.to_string()).unwrap_or("nil".to_string())
 }
 
-pub async fn add_assets(local: &PathBuf, zip: &mut ZipWriter<Cursor<Vec<u8>>>) {
+pub async fn add_assets(local: &PathBuf, zip: &mut Zipper) {
     for data in glob
         ::glob(&format!("{}{}", local.to_string_lossy(), "/**/*"))
         .unwrap()
@@ -124,14 +125,12 @@ pub async fn add_assets(local: &PathBuf, zip: &mut ZipWriter<Cursor<Vec<u8>>>) {
             .unwrap_or("");
         if
             data.starts_with(local.join("dist")) ||
-            ext == "lua" ||
-            ext == "luau" ||
-            ext == "toml" ||
+            disallow!(ext, "lua", "luau", "toml") ||
             data.is_dir()
         {
             continue;
         }
-        add_zip_f_from_path(zip, &data, local).await.unwrap();
+        zip.add_zip_f_from_path(&data, local).await.unwrap();
     }
 }
 
@@ -157,19 +156,23 @@ pub async fn build(path: Option<PathBuf>, run: Strategy) -> anyhow::Result<()> {
 
     // Steam be like:
     if build_path.exists() {
-        println!("Previous build folder found. Deleting it :D");
+        println!("Previous build folder found. Deleting it...");
         remove_dir_all(&build_path).await?;
     }
     create_dir(&build_path).await?;
 
     let transp = get_transpiler().await;
 
-    let mut zip = ZipWriter::new(Cursor::new(Vec::new()));
+    let mut zip = Zipper::new();
 
-    println!("{} {} {} {}", "[-]".blue(), "Adding", "lua".green(), "files...");
-    add_luau_files(&transp, &local, &mut zip).await;
+    let bar = LoadingStatusBar::new("Building project...".into());
+    bar.change_status(format!("{} {} {}", "Adding", "lua".green(), "files...")).await;
+    bar.start_animation().await;
 
-    println!("{} {}", "[-]".blue(), "Adding asset files...");
+    add_luau_files(&transp, &local, &mut zip).await?;
+
+    bar.change_status("Adding asset files...".into()).await;
+
     add_assets(&local, &mut zip).await;
 
     let models = {
@@ -201,7 +204,6 @@ pub async fn build(path: Option<PathBuf>, run: Strategy) -> anyhow::Result<()> {
         );
         modules_string += "\n";
     }
-
     if !(local.join("conf.luau").exists() || local.join("conf.lua").exists()) {
         // TODO: make this from serialize
         let conf_file = format!(
@@ -260,7 +262,7 @@ pub async fn build(path: Option<PathBuf>, run: Strategy) -> anyhow::Result<()> {
             configs.window.fullscreen,
             match configs.window.fullscreentype {
                 crate::toml_conf::FullscreenType::Desktop => "\"desktop\"",
-                crate::toml_conf::FullscreenType::Exclusive=>"\"exclusive\""
+                crate::toml_conf::FullscreenType::Exclusive => "\"exclusive\"",
             },
             configs.window.vsync,
             configs.window.msaa,
@@ -273,14 +275,15 @@ pub async fn build(path: Option<PathBuf>, run: Strategy) -> anyhow::Result<()> {
             format_option(configs.window.y),
             modules_string
         );
-        add_zip_f_from_buf(&mut zip, "conf.lua", conf_file.as_bytes()).await?;
+        zip.add_zip_f_from_buf("conf.lua", conf_file.as_bytes()).await?;
     } else {
         println!("{}", "Custom config file found! Overwriting configs...".yellow());
     }
 
-    println!("{} {}", "[-]".blue(), "Adding config file...");
+    bar.change_status("Adding config file...".into()).await;
+    // println!("{} {}", "[-]".blue(), "Adding config file...");
 
-    let fin = zip.finish()?.into_inner();
+    let fin = zip.finish();
     match run {
         Strategy::Build => {
             let mut file = File::create(build_path.join("final.love")).await?;
@@ -338,6 +341,7 @@ pub async fn build(path: Option<PathBuf>, run: Strategy) -> anyhow::Result<()> {
         }
     }
 
-    println!("{}", "Love project builded successfully.".green());
+    println!("{} {}", "[+]".green(), "Love project builded sucessfully");
+
     return Ok(());
 }

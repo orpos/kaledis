@@ -1,6 +1,6 @@
 [package]
 name = "kaledis"
-version = "1.0.0"
+version = "1.2.0"
 edition = "2021"
 authors = ["lettuce-magician", "orpos"]
 documentation = "https://github.com/orpos/kaledis"
@@ -23,3 +23,7 @@ anyhow = "1.0.93"
 async-watcher = "0.3.0"
 reqwest = { version = "0.12.9", features = ["json", "rustls-tls"] }
 semver = "1.0.23"
+console = { version = "0.15.8", features = ["windows-console-colors"] }
+tokio-tar = "0.3.1"
+async-compression = { version = "0.4.18", features = ["gzip", "tokio"] }
+futures = "0.3.31"

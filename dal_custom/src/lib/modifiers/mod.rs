@@ -9,6 +9,7 @@ mod convert_bit32;
 mod optimize_table_initializers;
 mod remove_generalized_iteration;
 mod remove_number_literals;
+mod relative_path;
 
 pub use convert_bit32::*;
 pub use optimize_table_initializers::*;

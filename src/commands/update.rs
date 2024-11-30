@@ -50,8 +50,7 @@ pub async fn get_latest_remote_version(reqwest: &reqwest::Client) -> anyhow::Res
 
 pub async fn get_update(reqwest: &reqwest::Client) -> anyhow::Result<bool> {
     let latest = get_latest_remote_version(reqwest).await?;
-    println!("{:?}", latest);
-    if latest >= get_version() {
+    if latest > get_version() {
         println!("New update found! Updating...");
         let release = reqwest
             .get(format!("https://api.github.com/repos/orpos/kaledis/releases/tags/v{}", latest))

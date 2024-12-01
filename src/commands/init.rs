@@ -2,6 +2,7 @@ use std::{ env, fs, io::Write, path::PathBuf };
 
 use colored::Colorize;
 use inquire::{ MultiSelect, Text };
+use strum::IntoEnumIterator;
 
 use crate::{ toml_conf::{ self, Modules, Project }, utils::relative };
 
@@ -20,7 +21,7 @@ pub fn init(path: Option<PathBuf>) {
         .prompt()
         .unwrap();
 
-    // TODO: give user the option to auto install 
+    // TODO: give user the option to auto install
     let mut path_ = env
         ::var_os("PATH")
         .map(|path_| {
@@ -55,7 +56,7 @@ pub fn init(path: Option<PathBuf>) {
             .into()
     });
 
-    let modules = MultiSelect::new("Select what modules you will use:", Modules::available())
+    let modules = MultiSelect::new("Select what modules you will use:", Modules::iter().collect())
         .with_all_selected_by_default()
         .prompt()
         .unwrap();

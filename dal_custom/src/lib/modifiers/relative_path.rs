@@ -1,5 +1,6 @@
-// This is a custom rule needed for making relative imports like ../
+// This is a custom rule needed for making relative imports like ../ work
 // in love2d   (lettuce asked for this btw)
+// love2d gets with base the root of the project so i just translate it
 
 use std::path::{ self, Path, PathBuf } ;
 
@@ -26,12 +27,11 @@ impl<'a> NodeProcessor for Processor<'a> {
                         if expr.get_value().starts_with("../") {
                             let pth = path
                                 ::absolute(self.path.parent().unwrap().join(expr.get_value()))
-                                .expect("A");
-                            let ceb = pth.strip_prefix(self.project_root).expect("Path strip.");
-
+                                .expect("Failed To Find Module");
+                            let new_path = pth.strip_prefix(self.project_root).expect("Path strip failed.");
 
                             *expr = StringExpression::from_value(
-                                &ceb
+                                &new_path
                                     .to_path_buf()
                                     .into_iter()
                                     .map(|x| x.to_str().unwrap())

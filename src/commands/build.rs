@@ -1,8 +1,12 @@
 use std::str::FromStr;
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use dal_core::polyfill::clean_cache;
+use indexmap::IndexSet;
+use strum::IntoEnumIterator;
 use tokio::io::{ AsyncReadExt, AsyncWriteExt };
-use tokio::fs::{ create_dir, remove_dir_all, File };
+use tokio::fs::{ self, create_dir, remove_dir_all, File };
 
 use dal_core::{ manifest::Manifest, polyfill::Polyfill, transpiler::Transpiler };
 use url::Url;
@@ -12,7 +16,243 @@ use crate::{ toml_conf::{ Config, Modules }, utils::relative };
 use colored::Colorize;
 use crate::{ allow, zip_utils::* };
 
-pub const DEFAULT_POLYFILL_URL: &str = "https://github.com/orpos/dal-polyfill";
+pub const DEFAULT_POLYFILL_URL: &str = "https://github.com/CavefulGames/dal-polyfill";
+
+pub enum ModelConf {
+    Exclude(Vec<Modules>),
+    Include(Vec<Modules>),
+}
+
+impl From<&Config> for ModelConf {
+    fn from(config: &Config) -> Self {
+        if config.modules.len() < 1 && config.exclude_modules.len() > 0 {
+            Self::Exclude(config.exclude_modules.clone())
+        } else if config.modules.len() > 0 {
+            if config.exclude_modules.len() > 0 {
+                eprintln!(
+                    "{}",
+                    "Both modules and exclude modules used, the exclude modules will be ignored".red()
+                );
+            }
+            Self::Include(config.modules.clone())
+        } else {
+            Self::Exclude(vec![])
+        }
+    }
+}
+
+struct Builder {
+    transpiler: (Transpiler, Manifest),
+    strategy: Strategy,
+    zip: Option<Zipper>,
+    local: PathBuf,
+    build_path: PathBuf,
+    bar: LoadingStatusBar,
+    one_file: bool,
+}
+
+impl Builder {
+    pub async fn new(local: &PathBuf, run: Strategy, one_file: bool) -> anyhow::Result<Self> {
+        let config = get_transpiler().await;
+        let bar = LoadingStatusBar::new("Building project...".into());
+        bar.start_animation().await;
+        Ok(Self {
+            transpiler: config,
+            zip: if let Strategy::BuildDev = run {
+                None
+            } else {
+                Some(Zipper::new())
+            },
+            strategy: run,
+            bar,
+            build_path: local.join(".build"),
+            local: local.clone(),
+            one_file,
+        })
+    }
+
+    pub fn generate_conf_modules(
+        &self,
+        imported_modules: Vec<Modules>,
+        model_conf: ModelConf
+    ) -> String {
+        let mut modules_string = "".to_string();
+        for module in imported_modules {
+            let enabled = match model_conf {
+                ModelConf::Include(ref models) | ModelConf::Exclude(ref models) => {
+                    let found_model = models
+                        .iter()
+                        .find(|x| **x == module)
+                        .is_some();
+                    if let ModelConf::Exclude(_) = model_conf {
+                        !found_model
+                    } else {
+                        found_model
+                    }
+                }
+            };
+            modules_string += &format!(
+                "t.modules.{}={}\n",
+                &module.to_string().to_lowercase(),
+                enabled
+            );
+        }
+        modules_string
+    }
+    pub async fn clean_build_folder(&self) -> anyhow::Result<()> {
+        if self.build_path.exists() {
+            println!("Previous build folder found. Deleting it...");
+            remove_dir_all(&self.build_path).await?;
+        }
+        create_dir(&self.build_path).await?;
+        Ok(())
+    }
+    pub async fn process_file(
+        &self,
+        input: PathBuf,
+        output: PathBuf,
+        modules: Option<Arc<std::sync::Mutex<IndexSet<String>>>>
+    ) -> anyhow::Result<()> {
+        let mut additional_rules = vec![
+            dal_core::modifiers::Modifier::DarkluaRule(
+                Box::new(dal_core::modifiers::ModifyRelativePath {
+                    project_root: self.local.clone(),
+                })
+            )
+        ];
+        if let Some(modules) = modules {
+            additional_rules.push(
+                dal_core::modifiers::Modifier::DarkluaRule(
+                    Box::new(dal_core::modifiers::GetLoveModules {
+                        modules,
+                    })
+                )
+            );
+        }
+        let (transpiler, manifest) = &self.transpiler;
+        transpiler.process(
+            manifest.require_input(Some(input))?,
+            manifest.require_output(Some(output))?,
+            Some(&mut additional_rules),
+            self.one_file
+        ).await?;
+        Ok(())
+    }
+    pub async fn add_luau_files(&mut self) -> anyhow::Result<Vec<Modules>> {
+        self.bar.change_status(format!("{} {} {}", "Adding", "lua".green(), "files...")).await;
+        let detected_modules = if let Strategy::BuildDev = self.strategy {
+            None
+        } else {
+            Some(Arc::new(std::sync::Mutex::new(IndexSet::new())))
+        };
+        if self.local.join("main.luau").exists() && self.one_file {
+            self.process_file(
+                self.local.join("main.luau"),
+                self.local.join(".build").join("main.lua"),
+                detected_modules.as_ref().map(|x| Arc::clone(&x))
+            ).await?;
+            if let Some(zip) = &mut self.zip {
+                zip.copy_zip_f_from_path(
+                    &self.local.join(".build").join("main.lua"),
+                    "main.lua".parse()?
+                ).await.unwrap();
+            }
+        } else {
+            for path in glob
+                ::glob(&(self.local.to_string_lossy().to_string() + "/**/*.luau"))
+                .unwrap()
+                .filter_map(Result::ok)
+                .filter(
+                    |path|
+                        !path
+                            .file_name()
+                            .map(|x| x.to_string_lossy().to_string())
+                            .unwrap_or("".to_string())
+                            .ends_with(".d.luau")
+                ) {
+                let out_path = path.strip_prefix(&self.local).unwrap();
+                self.process_file(
+                    path.clone(),
+                    self.local.join(".build").join(out_path),
+                    detected_modules.as_ref().map(|x| Arc::clone(&x))
+                ).await?;
+                if let Some(zip) = &mut self.zip {
+                    zip.copy_zip_f_from_path(
+                        &self.local.join(".build").join(out_path).with_extension("lua"),
+                        out_path.with_extension("lua")
+                    ).await.unwrap();
+                }
+            }
+        }
+        if let Some(zip) = &mut self.zip {
+            for path in glob
+                ::glob(&(self.local.to_string_lossy().to_string() + "/**/__polyfill__.lua"))
+                .unwrap()
+                .filter_map(Result::ok) {
+                if
+                    path
+                        .file_name()
+                        .map(|x| x.to_string_lossy().to_string())
+                        .unwrap_or("".to_string())
+                        .ends_with(".d.luau")
+                {
+                    continue;
+                }
+                let out_path = path.strip_prefix(&self.local.join(".build")).unwrap();
+                zip.copy_zip_f_from_path(
+                    &self.local.join(".build").join(out_path).with_extension("lua"),
+                    out_path.with_extension("lua")
+                ).await.unwrap();
+            }
+        }
+        if let Some(modules) = detected_modules {
+            let inside = modules.lock().unwrap();
+            Ok(
+                inside
+                    .iter()
+                    .map(|x| Modules::from_str(&uppercase_first(&x)))
+                    .filter_map(Result::ok)
+                    .collect()
+            )
+        } else {
+            Ok(vec![])
+        }
+    }
+    pub async fn add_assets(&mut self) {
+        self.bar.change_status("Adding asset files...".into()).await;
+        for path in glob
+            ::glob(&self.local.join("**/*").display().to_string())
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|pth| {
+                let ext = pth
+                    .extension()
+                    .map(|x| x.to_str().unwrap())
+                    .unwrap_or("");
+                !(
+                    pth.starts_with(self.local.join("dist")) ||
+                    allow!(ext, "lua", "luau", "toml") ||
+                    pth.is_dir()
+                )
+            }) {
+            if let Some(zip) = &mut self.zip {
+                zip.add_zip_f_from_path(&path, &self.local).await.unwrap();
+            } else {
+                let final_ = self.local
+                    .join(".build")
+                    .join(path.strip_prefix(self.local.clone()).unwrap());
+                if !final_.parent().unwrap().exists() {
+                    fs::create_dir_all(final_.parent().unwrap()).await.unwrap();
+                }
+                fs::hard_link(&path, final_).await.unwrap();
+            }
+        }
+    }
+    #[inline]
+    pub fn finish_zip(mut self) -> Option<Vec<u8>> {
+        self.zip.take().map(|x| x.finish())
+    }
+}
 
 pub async fn get_transpiler() -> (Transpiler, Manifest) {
     let mut manifest = Manifest {
@@ -40,184 +280,84 @@ pub async fn get_transpiler() -> (Transpiler, Manifest) {
         "remove_unused_if_branch"
     );
 
-    let polyfill = Polyfill::new(&Url::from_str(DEFAULT_POLYFILL_URL).unwrap()).await.unwrap();
-    polyfill.fetch().unwrap();
+    let polyfill = &Url::from_str(DEFAULT_POLYFILL_URL).unwrap();
+
+    let polyfill_ = if let Ok(result) = Polyfill::new(polyfill).await {
+        result
+    } else {
+        eprintln!("Polyfill failed cleaning cache...");
+        clean_cache(polyfill).await.unwrap();
+        Polyfill::new(polyfill).await.unwrap()
+    };
+    polyfill_.fetch().unwrap();
 
     let mut transpiler = Transpiler::default();
     transpiler = transpiler.with_manifest(&manifest);
-    transpiler = transpiler.with_polyfill(polyfill);
+    transpiler = transpiler.with_polyfill(polyfill_, None);
 
     return (transpiler, manifest);
 }
 
-pub async fn process_file(
-    config: &(Transpiler, Manifest),
-    local: &PathBuf,
-    input: PathBuf,
-    output: PathBuf
-) -> anyhow::Result<()> {
-    // This is specific to each file because we require based on it
-    // also this receives the project root to make the right import
-    let mut additional_rules = vec![
-        dal_core::modifiers::Modifier::DarkluaRule(
-            Box::new(dal_core::modifiers::ModifyRelativePath {
-                project_root: local.clone(),
-            })
-        )
-    ];
-    
-    let (transpiler, manifest) = config;
-    transpiler.process(
-        manifest.require_input(Some(input)).unwrap(),
-        manifest.require_output(Some(output)).unwrap(),
-        Some(&mut additional_rules)
-    ).await?;
-    Ok(())
-}
-
-pub async fn add_luau_files(
-    config: &(Transpiler, Manifest),
-    local: &PathBuf,
-    zip: &mut Zipper
-) -> anyhow::Result<()> {
-    for entry in glob::glob(&(local.to_string_lossy().to_string() + "/**/*.luau")).unwrap() {
-        if let Ok(path) = entry {
-            if
-                path
-                    .file_name()
-                    .map(|x| x.to_string_lossy().to_string())
-                    .unwrap_or("".to_string())
-                    .ends_with(".d.luau")
-            {
-                continue;
-            }
-            let out_path = path.strip_prefix(&local).unwrap();
-            process_file(config, local, path.clone(), local.join(".build").join(out_path)).await?;
-            zip.copy_zip_f_from_path(
-                &local.join(".build").join(out_path).with_extension("lua"),
-                out_path.with_extension("lua")
-            ).await.unwrap();
-        }
+fn uppercase_first(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().chain(c).collect(),
     }
-    for entry in glob
-        ::glob(&(local.to_string_lossy().to_string() + "/**/__dal_libs__.lua"))
-        .unwrap() {
-        if let Ok(path) = entry {
-            if
-                path
-                    .file_name()
-                    .map(|x| x.to_string_lossy().to_string())
-                    .unwrap_or("".to_string())
-                    .ends_with(".d.luau")
-            {
-                continue;
-            }
-            let out_path = path.strip_prefix(&local.join(".build")).unwrap();
-            zip.copy_zip_f_from_path(
-                &local.join(".build").join(out_path).with_extension("lua"),
-                out_path.with_extension("lua")
-            ).await.unwrap();
-        }
-    }
-    Ok(())
 }
 
 fn format_option<T: ToString>(value: Option<T>) -> String {
     value.map(|x| x.to_string()).unwrap_or("nil".to_string())
 }
 
-pub async fn add_assets(local: &PathBuf, zip: &mut Zipper) {
-    for data in glob
-        ::glob(&format!("{}{}", local.to_string_lossy(), "/**/*"))
-        .unwrap()
-        .filter_map(Result::ok) {
-        let ext = data
-            .extension()
-            .map(|x| x.to_str().unwrap())
-            .unwrap_or("");
-        if
-            data.starts_with(local.join("dist")) ||
-            allow!(ext, "lua", "luau", "toml") ||
-            data.is_dir()
-        {
-            continue;
-        }
-        zip.add_zip_f_from_path(&data, local).await.unwrap();
-    }
-}
-
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum Strategy {
     /// Makes the executable
     BuildAndCompile,
     /// Just creates the love file
     Build,
+    /// Just compiles the lua files
+    BuildDev,
 }
 
-pub async fn build(path: Option<PathBuf>, run: Strategy) -> anyhow::Result<()> {
+pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyhow::Result<()> {
     let local = relative(path);
 
     if !local.join("kaledis.toml").exists() {
         println!("{}", "No Project found!".red());
         return Ok(());
     }
+    let configs = Config::from_toml_file(local.join("kaledis.toml"))?;
 
-    let configs = Config::from_toml_file(local.join("kaledis.toml")).unwrap();
-
-    let build_path = local.join(".build");
-
-    // Steam be like:
-    if build_path.exists() {
-        println!("Previous build folder found. Deleting it...");
-        remove_dir_all(&build_path).await?;
+    if configs.project.name.len() < 1 {
+        eprintln!("{}", "Cannot distribute a game without a name".red());
+        return Ok(());
     }
-    create_dir(&build_path).await?;
 
-    let transp = get_transpiler().await;
+    let mut builder = Builder::new(&local, run.clone(), one_file).await?;
 
-    let mut zip = Zipper::new();
+    builder.clean_build_folder().await?;
+    let imported_modules = builder.add_luau_files().await?;
 
-    let bar = LoadingStatusBar::new("Building project...".into());
-    bar.change_status(format!("{} {} {}", "Adding", "lua".green(), "files...")).await;
-    bar.start_animation().await;
+    builder.add_assets().await;
 
-    add_luau_files(&transp, &local, &mut zip).await?;
+    let model_conf: ModelConf = (&configs).into();
 
-    bar.change_status("Adding asset files...".into()).await;
-
-    add_assets(&local, &mut zip).await;
-
-    let models = {
-        let mut included = Vec::new();
-        if configs.modules.len() < 1 && configs.exclude_modules.len() > 0 {
-            included = configs.exclude_modules;
-        } else if configs.modules.len() > 0 {
-            if configs.exclude_modules.len() > 0 {
-                println!(
-                    "{}",
-                    "Both modules and exclude modules used, the exclude modules will be ignored".red()
-                );
-            }
-            included = configs.modules;
-        }
-        included
-    };
-    let mut modules_string = "".to_string();
-    for module in Modules::available() {
-        modules_string += "t.modules.";
-        modules_string += &module.to_string().to_lowercase();
-        modules_string += "=";
-        modules_string += &format!(
-            "{}",
-            models
-                .iter()
-                .find(|x| **x == module)
-                .is_some()
-        );
-        modules_string += "\n";
-    }
+    builder.bar.change_status("Adding config file...".into()).await;
     if !(local.join("conf.luau").exists() || local.join("conf.lua").exists()) {
-        // TODO: make this from serialize
+        let modules = builder.generate_conf_modules(
+            if let Strategy::BuildDev = run {
+                Modules::iter().collect()
+            } else {
+                if configs.project.detect_modules.unwrap_or(false) {
+                    println!("Detected Modules: {:?}", imported_modules);
+                    imported_modules
+                } else {
+                    Modules::iter().collect()
+                }
+            },
+            model_conf
+        );
         let conf_file = format!(
             r#"
     function love.conf(t)
@@ -254,7 +394,9 @@ pub async fn build(path: Option<PathBuf>, run: Strategy) -> anyhow::Result<()> {
         {}
     end
         "#,
-            format_option(configs.project.identity.map(|x| x.to_string_lossy().to_string())),
+            format_option(
+                configs.project.identity.as_ref().map(|x| x.to_string_lossy().to_string())
+            ),
             "false",
             configs.project.version,
             configs.project.console,
@@ -264,7 +406,7 @@ pub async fn build(path: Option<PathBuf>, run: Strategy) -> anyhow::Result<()> {
             configs.audio.mic,
             configs.audio.mix_with_system,
             configs.window.title,
-            format_option(configs.window.icon.map(|x| x.to_string_lossy().to_string())),
+            format_option(configs.window.icon.as_ref().map(|x| x.to_string_lossy().to_string())),
             configs.window.width,
             configs.window.height,
             configs.window.borderless,
@@ -285,23 +427,25 @@ pub async fn build(path: Option<PathBuf>, run: Strategy) -> anyhow::Result<()> {
             configs.window.usedpiscale,
             format_option(configs.window.x),
             format_option(configs.window.y),
-            modules_string
+            modules
         );
-        zip.add_zip_f_from_buf("conf.lua", conf_file.as_bytes()).await?;
+        if let Strategy::BuildDev = run {
+            let mut result = fs::File::create(builder.build_path.join("conf.lua")).await?;
+            result.write(conf_file.as_bytes()).await?;
+        } else {
+            if let Some(zip) = &mut builder.zip {
+                zip.add_zip_f_from_buf("conf.lua", conf_file.as_bytes()).await?;
+            }
+        }
     } else {
         println!("{}", "Custom config file found! Overwriting configs...".yellow());
     }
 
-    bar.change_status("Adding config file...".into()).await;
-    // println!("{} {}", "[-]".blue(), "Adding config file...");
-
-    let fin = zip.finish();
     match run {
-        Strategy::Build => {
-            let mut file = File::create(build_path.join("final.love")).await?;
-            file.write(&fin).await?;
-        }
+        Strategy::BuildDev => {}
         Strategy::BuildAndCompile => {
+            let build_path = builder.build_path.clone();
+            let fin = builder.finish_zip().unwrap();
             let love_executable = configs.project.love_path.join("love.exe");
 
             let mut contents = File::open(love_executable).await?;
@@ -315,11 +459,13 @@ pub async fn build(path: Option<PathBuf>, run: Strategy) -> anyhow::Result<()> {
                 create_dir(&dist_folder).await?;
             }
 
-            let mut f = File::create(
-                dist_folder.join(configs.project.name).with_extension("exe")
-            ).await?;
+            let new_exe = dist_folder.join(configs.project.name).with_extension("exe");
+
+            let mut f = File::create(&new_exe).await?;
             f.write(&buffer).await?;
             f.write(&fin).await?;
+
+            println!("Saving executable in : {}", new_exe.display().to_string());
 
             let l_path = configs.project.love_path;
 
@@ -351,9 +497,16 @@ pub async fn build(path: Option<PathBuf>, run: Strategy) -> anyhow::Result<()> {
             );
             remove_dir_all(&build_path).await?;
         }
+        Strategy::Build => {
+            let build_path = builder.build_path.clone();
+            let fin = builder.finish_zip().unwrap();
+
+            let mut file = File::create(build_path.join("final.love")).await?;
+            file.write(&fin).await?;
+        }
     }
 
     println!("{} {}", "[+]".green(), "Love project builded sucessfully");
 
-    return Ok(());
+    Ok(())
 }

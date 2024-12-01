@@ -32,16 +32,7 @@ impl Zipper {
         name: &Path,
         prefix: &PathBuf
     ) -> anyhow::Result<()> {
-        let zip = &mut self.inner;
-        zip.start_file_from_path(
-            name.strip_prefix(prefix)?,
-            SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored)
-        )?;
-        let mut file = File::open(name).await?;
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer).await?;
-        zip.write(&buffer)?;
-        Ok(())
+        self.copy_zip_f_from_path(name, name.strip_prefix(prefix)?.to_path_buf()).await
     }
     pub async fn copy_zip_f_from_path(
         &mut self,
@@ -59,4 +50,25 @@ impl Zipper {
         zip.write(&buffer)?;
         Ok(())
     }
+    // pub async fn copy_glob(
+    //     &mut self,
+    //     base_dir: PathBuf,
+    //     pattern: &str,
+    //     filter: impl Fn(&PathBuf) -> bool,
+    //     middleware: impl Fn(&PathBuf) -> Option<PathBuf>
+    // ) -> anyhow::Result<()> {
+    //     for path in glob
+    //         ::glob(&format!("{}", base_dir.join(pattern).display().to_string()))?
+    //         .filter_map(Result::ok) {
+    //         if !filter(&path) {
+    //             continue;
+    //         }
+    //         if let Some(output) = middleware(&path) {
+    //             self.copy_zip_f_from_path(&path, output).await?;
+    //         } else {
+    //             self.add_zip_f_from_path(&path, &base_dir).await?;
+    //         }
+    //     }
+    //     Ok(())
+    // }
 }

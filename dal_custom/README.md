@@ -1,8 +1,6 @@
 # Dal
 Dal(달) is a Luau-to-Lua transpiler based on `darklua`, designed specifically for `Lua 5.3`.
 
-## This copy was made because some fields were not public
-
 ## Note
 This project is still in W.I.P
 
@@ -10,11 +8,14 @@ This project is still in W.I.P
 - [x] Implement CLI.
 - [x] Implement basic transpilation process using `darklua` and `full-moon`.
 - [x] Implement modifiers (such as converting number literals and generalized iterations)
-- [ ] Implement basic lua polyfills.
-- [ ] Add tests for polyfills.
-- [ ] Add tests for transpilation.
+- [x] Implement basic lua polyfills.
+- [x] Add tests for polyfills.
+- [ ] Add tests for transpilation. (to ensure the same results in lua and luau)
 - [ ] Add tests for dal internally.
-- [ ] Add logging for dal internally for debug.
+- [x] Add logging for dal internally for debug.
+- [x] `convert_bit32` modifier now converts `bit32.btest`.
+- [x] Add comments for docs and code readability. (WIP)
+- [x] Optimize polyfill.
 
 ## Installation
 Coming soon! (will be available at `rokit` and `crates.io`(for `cargo install`))
@@ -43,17 +44,14 @@ dal transpile [input] [output]
 ## Example
 ### `dal.toml`
 ```toml
-input = "inputs"
-output = "outputs"
 file_extension = "lua"
 target_version = "lua53"
 minify = true
 
 [modifiers]
 convert_bit32 = true
-optimize_table_initializers = true
 
-[libs]
+[globals]
 
 ```
 
@@ -82,15 +80,15 @@ print(t)
 
 ### `outputs/output.luau`
 ```lua
-local math=require'./__dal_libs__'.math local io=nil local module=nil local package=nil local dofile=nil local loadfile=nil local log=math.log
+local math=require'./__polyfill__'.math local table=require'./__polyfill__'.table local io=nil local module=nil local package=nil local dofile=nil local loadfile=nil local load=nil local log=math.log
 local floor=math.floor
-do
-end do
-end do
-end do  end do
+ do
+end  do
+end  do
+end  do  end  do
 
-end do
-end local t={}
+end  do
+end local t=table.create(1)
 
 local function byteswap(n)
 return ((((((((n<<24)&0xFFFFFFFF)|((((n<<8)&0xFFFFFFFF)&0xff0000)&0xFFFFFFFF))&0xFFFFFFFF)|((((n>>8)&0xFFFFFFFF)&0xff00)&0xFFFFFFFF))&0xFFFFFFFF)|((n>>24)&0xFFFFFFFF))&0xFFFFFFFF)

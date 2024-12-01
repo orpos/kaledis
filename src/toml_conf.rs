@@ -1,11 +1,10 @@
-use std::{
-    fmt::Display,
-    fs::read_to_string,
-    path::{ Path, PathBuf },
-};
+use std::{ fmt::Display, fs::read_to_string, path::{ Path, PathBuf } };
 
 use clap_serde_derive::{ clap::{ self }, serde::Serialize, ClapSerde };
 use serde::Deserialize;
+
+use strum::IntoEnumIterator;
+use strum_macros::{ EnumIter, EnumString };
 
 #[derive(ClapSerde, Serialize, Deserialize)]
 #[derive(Debug)]
@@ -119,7 +118,17 @@ pub struct Window {
     pub y: Option<u32>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, clap_serde_derive::clap::ValueEnum, PartialEq, Eq)]
+#[derive(
+    EnumString,
+    EnumIter,
+    Debug,
+    Deserialize,
+    Serialize,
+    Clone,
+    clap_serde_derive::clap::ValueEnum,
+    PartialEq,
+    Eq
+)]
 pub enum Modules {
     /// Enable the audio module
     Audio,
@@ -165,34 +174,12 @@ impl Display for Modules {
     }
 }
 
-impl Modules {
-    pub fn available<'a>() -> Vec<Modules> {
-        vec![
-            Self::Audio,
-            Self::Data,
-            Self::Event,
-            Self::Font,
-            Self::Graphics,
-            Self::Image,
-            Self::Joystick,
-            Self::Keyboard,
-            Self::Math,
-            Self::Mouse,
-            Self::Physics,
-            Self::Sound,
-            Self::System,
-            Self::Thread,
-            Self::Timer,
-            Self::Touch,
-            Self::Video,
-            Self::Window
-        ]
-    }
-}
-
 #[derive(ClapSerde, Serialize, Deserialize)]
 #[derive(Debug)]
 pub struct Project {
+    #[arg(short, long, help = "Enable detection algorithm.")]
+    pub detect_modules : Option<bool>,
+
     #[arg(short, long, help = "Save location.")]
     pub identity: Option<PathBuf>,
 
@@ -268,13 +255,12 @@ pub struct Config {
     #[command(flatten)]
     pub audio: Audio,
 
-    #[default(Modules::available())]
+    #[default(Modules::iter().collect())]
     pub modules: Vec<Modules>,
 
     #[default(vec![])]
     pub exclude_modules: Vec<Modules>,
 }
-
 
 impl Config {
     pub fn from_toml_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {

@@ -26,17 +26,17 @@ impl<'a> WatchDaemon<'a> {
         }
     }
     pub async fn build(&self) -> anyhow::Result<()> {
-        build::build(self.base_path.clone(), build::Strategy::Build).await.context("Building")?;
+        build::build(self.base_path.clone(), build::Strategy::BuildDev, false).await.context("Building")?;
         Ok(())
     }
     pub async fn run(&self) -> anyhow::Result<Child> {
-        if !self.path.join(".build").join("final.love").exists() {
+        if !self.path.join(".build").exists() {
             anyhow::bail!("No bundle found."); // maybe we forgot to build it
         }
         Ok(
             Command::new(&self.love_executable)
                 .current_dir(&self.love_path)
-                .arg(self.path.join(".build").join("final.love"))
+                .arg(self.path.join(".build"))
                 .spawn()
                 .context("Spawning the process")?
         )
@@ -121,7 +121,6 @@ pub async fn watch(base_path: Option<PathBuf>) {
 
     let mut child: Option<Child> = None;
     while let Ok(_) = receiver.recv().await {
-        println!("Building project...");
         if let Some(mut child) = child.take() {
             child.kill().await.unwrap();
         }

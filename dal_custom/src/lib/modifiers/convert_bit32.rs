@@ -61,10 +61,12 @@ enum Bit32Method {
     And,
     #[strum(serialize = "bor")]
     Or,
-    #[strum(serialize = "xor")]
+    #[strum(serialize = "bxor")]
     Xor,
     #[strum(serialize = "bnot")]
     Not,
+    #[strum(serialize = "btest")]
+    Test,
 }
 
 impl Bit32Method {
@@ -98,6 +100,25 @@ impl Bit32Method {
                         let masking_unop = mask_32bit(bnot_exp);
                         return Some(ast_util::create_parentheses(
                             masking_unop,
+                            Some(parentheses.clone()),
+                        ));
+                    }
+                    Bit32Method::Test => {
+                        let second_arg = iter.next()?;
+                        let band_exp = ast_util::create_binary_operator(
+                            first_arg.clone(),
+                            BinOp::Ampersand(TokenReference::symbol("&").unwrap()),
+                            second_arg.clone(),
+                        );
+                        let parenthese = ast_util::create_parentheses(band_exp, None);
+                        let masking_bin_exp = mask_32bit(parenthese);
+                        let not_equal_exp = ast_util::create_binary_operator(
+                            masking_bin_exp,
+                            BinOp::TildeEqual(TokenReference::symbol("~=").unwrap()),
+                            ast_util::create_number("0"),
+                        );
+                        return Some(ast_util::create_parentheses(
+                            not_equal_exp,
                             Some(parentheses.clone()),
                         ));
                     }
@@ -181,7 +202,9 @@ impl VisitorMut for ConvertBit32 {
                     return Stmt::Do(
                         Do::new()
                             .with_do_token(TokenReference::new(
-                                Vec::new(),
+                                vec![Token::new(TokenType::Whitespace {
+                                    characters: ShortString::new(" "),
+                                })],
                                 Token::new(TokenType::Symbol { symbol: Symbol::Do }),
                                 do_trailing_trivia,
                             ))
@@ -192,7 +215,9 @@ impl VisitorMut for ConvertBit32 {
                                 Token::new(TokenType::Symbol {
                                     symbol: Symbol::End,
                                 }),
-                                Vec::new(),
+                                vec![Token::new(TokenType::Whitespace {
+                                    characters: ShortString::new(" "),
+                                })],
                             )),
                     );
                 }
@@ -215,7 +240,9 @@ impl VisitorMut for ConvertBit32 {
                     return Stmt::Do(
                         Do::new()
                             .with_do_token(TokenReference::new(
-                                Vec::new(),
+                                vec![Token::new(TokenType::Whitespace {
+                                    characters: ShortString::new(" "),
+                                })],
                                 Token::new(TokenType::Symbol { symbol: Symbol::Do }),
                                 do_trailing_trivia,
                             ))
@@ -265,7 +292,6 @@ impl ConvertBit32 {
             if let Expression::Var(exp) = exp {
                 match exp {
                     Var::Expression(var_exp) => {
-                        // println!("{}", var_exp.prefix().to_string());
                         if !self.is_bit32_identifier(var_exp.prefix().to_string()) {
                             return false;
                         }
@@ -276,15 +302,9 @@ impl ConvertBit32 {
                             if let Suffix::Index(index) = first {
                                 let index = index_to_string(index);
                                 if let Some(index) = index {
-                                    // println!(
-                                    //     "debug index: {}, var: {}",
-                                    //     index.trim(),
-                                    //     var.to_string().trim()
-                                    // );
                                     if let Ok(method) = Bit32Method::from_str(index.trim()) {
                                         self.bit32_methods
                                             .insert(var.to_string().trim().to_owned(), method);
-                                        // println!("bit32 methods: {:?}", self.bit32_methods);
                                         return true;
                                     }
                                 }
@@ -329,8 +349,6 @@ impl ConvertBit32 {
             (Some(first), None) => {
                 // there's only a call(ex. `(1, 2)`)
                 if let Suffix::Call(call) = first {
-                    // println!("bit32 methods: {:?}", self.bit32_methods);
-                    // println!("bit32 method: {:?}", self.bit32_methods.get(&prefix));
                     if let Some(method) = self.bit32_methods.get(&prefix) {
                         return method.convert(call);
                     }

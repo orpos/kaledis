@@ -3,6 +3,9 @@ name = "dal_core"
 version = "0.1.0"
 edition = "2021"
 
+[badges]
+github = { repository = "CavefulGames/dal" }
+
 [lib]
 name = "dal_core"
 path = "src/lib/mod.rs"
@@ -16,10 +19,8 @@ anyhow = "1.0.89"
 auth-git2 = "0.5.5"
 blake3 = "1.5.4"
 clap = { version = "4.5.20", features = ["derive"] }
-darklua-demo = "3.2.1"
 dirs = "5.0.1"
 fs-err = "2.11.0"
-full_moon = { git = "https://github.com/jiwonz/full-moon.git", branch = "fix-feature-attribute", features = ["luau", "lua53"] }
 git2 = "0.19.0"
 hex = "0.4.3"
 serde = { version = "1.0.214", features = ["derive"] }
@@ -33,3 +34,9 @@ log = "0.4.21"
 indexmap = { version = "2.6.0", features = ["serde"] }
 pathdiff = "0.2.2"
 path-slash = "0.2.1"
+durationfmt = "0.1.1"
+async-trait = "0.1.83"
+full_moon = { version = "1.1.2", features = ["luau", "lua53"] }
+darklua-demo = "3.2.1"
+env_logger = "0.11.5"
+anstyle = "1.0.10"

@@ -1,29 +1,21 @@
-use std::{
-    borrow::Cow,
-    collections::HashSet,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use std::{path::PathBuf, str::FromStr};
 
 use anyhow::{anyhow, Result};
 use darklua_core::{
     rules::{self, bundle::BundleRequireMode},
     BundleConfiguration, Configuration, GeneratorParameters, Options, Resources,
 };
-use full_moon::{
-    ast::Ast,
-    tokenizer::{Token, TokenType},
-    visitors::Visitor,
-};
+use full_moon::ast::Ast;
 use indexmap::IndexMap;
-use path_slash::PathBufExt;
-use pathdiff::diff_paths;
 use tokio::fs;
 
-use crate::{manifest::Manifest, modifiers::Modifier, polyfill::Polyfill, TargetVersion};
+use crate::{
+    injector::Injector, manifest::Manifest, modifiers::Modifier, polyfill::Polyfill, utils,
+    TargetVersion,
+};
 
 pub const DAL_GLOBAL_IDENTIFIER_PREFIX: &str = "DAL_";
-pub const DEFAULT_INJECTED_LIB_FILE_NAME: &str = "__dal_libs__";
+pub const DEFAULT_INJECTED_POLYFILL_NAME: &str = "__polyfill__";
 
 pub const DEFAULT_LUAU_TO_LUA_MODIFIERS: [&str; 8] = [
     "remove_interpolated_string",
@@ -37,17 +29,17 @@ pub const DEFAULT_LUAU_TO_LUA_MODIFIERS: [&str; 8] = [
 ];
 
 pub const DEFAULT_MINIFYING_MODIFIERS: [&str; 11] = [
-    "remove_unused_variable",
-    "remove_unused_while",
-    "remove_unused_if_branch",
     "remove_spaces",
     "remove_nil_declaration",
     "remove_function_call_parens",
-    "remove_empty_do",
     "remove_comments",
     "convert_index_to_field",
     "compute_expression",
     "filter_after_early_return",
+    "remove_unused_variable",
+    "remove_unused_while",
+    "remove_unused_if_branch",
+    "remove_empty_do",
 ];
 
 #[inline]
@@ -73,52 +65,13 @@ fn default_modifiers_index() -> IndexMap<String, bool> {
     modifiers
 }
 
-#[inline]
-fn make_relative(path: &PathBuf) -> Cow<Path> {
-    if path.starts_with(".") | path.starts_with("..") {
-        Cow::Borrowed(path.as_path())
-    } else {
-        Cow::Owned(Path::new(".").join(path))
-    }
-}
-
-#[derive(Debug)]
-struct CollectUsedLibraries {
-    libraries_option: IndexMap<String, bool>,
-    used_libraries: HashSet<String>,
-}
-
-impl CollectUsedLibraries {
-    fn new(libraries_option: IndexMap<String, bool>) -> Self {
-        Self {
-            libraries_option,
-            used_libraries: HashSet::new(),
-        }
-    }
-
-    fn think(&mut self, identifier: String) {
-        if let Some(&enabled) = self.libraries_option.get(&identifier) {
-            if enabled {
-                self.used_libraries.insert(identifier);
-            }
-        }
-    }
-}
-
-impl Visitor for CollectUsedLibraries {
-    fn visit_identifier(&mut self, identifier: &Token) {
-        if let TokenType::Identifier { identifier } = identifier.token_type() {
-            self.think(identifier.to_string());
-        }
-    }
-}
-
 /// A transpiler that transforms luau to lua
 pub struct Transpiler {
     modifiers: IndexMap<String, bool>,
     polyfill: Option<Polyfill>,
     extension: Option<String>,
     target_version: TargetVersion,
+    injected_polyfill_name: Option<String>,
 }
 
 impl Default for Transpiler {
@@ -128,6 +81,7 @@ impl Default for Transpiler {
             polyfill: None,
             extension: None,
             target_version: TargetVersion::Default,
+            injected_polyfill_name: None,
         }
     }
 }
@@ -169,80 +123,19 @@ impl Transpiler {
         self
     }
 
-    pub fn with_polyfill(mut self, polyfill: Polyfill) -> Self {
+    pub fn with_polyfill(
+        mut self,
+        polyfill: Polyfill,
+        new_injected_polyfill_name: Option<String>,
+    ) -> Self {
         self.polyfill = Some(polyfill);
+        self.injected_polyfill_name = new_injected_polyfill_name;
         self
     }
 
+    #[inline]
     async fn parse_file(&self, path: &PathBuf) -> Result<Ast> {
-        let code = fs::read_to_string(&path).await?;
-        let ast = full_moon::parse_fallible(
-            code.as_str(),
-            (&self.target_version).to_lua_version().clone(),
-        )
-        .into_result()
-        .map_err(|errors| anyhow!("full_moon parsing error: {:?}", errors))?;
-
-        Ok(ast)
-    }
-
-    pub async fn inject_library(
-        &self,
-        file_path: &PathBuf,
-        module_path: &PathBuf,
-        libraries: &IndexMap<String, bool>,
-        removes: &Option<Vec<String>>,
-    ) -> Result<()> {
-        let parent = file_path
-            .parent()
-            .ok_or(anyhow!("File path must have parent path"))?;
-        let require_path = diff_paths(module_path, parent)
-            .ok_or(anyhow!("Couldn't resolve the require path"))?
-            .with_extension("");
-        let require_path = make_relative(&require_path).to_path_buf();
-
-        let code = fs::read_to_string(file_path).await?;
-
-        let mut lines: Vec<String> = code.lines().map(String::from).collect();
-        let mut libraries_texts: Vec<String> = Vec::new();
-
-        let ast = full_moon::parse_fallible(
-            code.as_str(),
-            (&self.target_version).to_lua_version().clone(),
-        )
-        .into_result()
-        .map_err(|errors| anyhow!("{:?}", errors))?;
-
-        let mut collect_used_libs = CollectUsedLibraries::new(libraries.clone());
-        collect_used_libs.visit_ast(&ast);
-
-        for lib in collect_used_libs.used_libraries {
-            libraries_texts.push(format!(
-                "local {}=require'{}'.{} ",
-                lib,
-                require_path.to_slash_lossy(),
-                lib
-            ));
-        }
-
-        if let Some(removes) = removes {
-            for lib in removes {
-                libraries_texts.push(format!("local {}=nil ", lib));
-            }
-        }
-
-        let libraries_text = libraries_texts.join("");
-        if let Some(first_line) = lines.get_mut(0) {
-            first_line.insert_str(0, &libraries_text);
-        } else {
-            lines.push(libraries_text);
-        }
-
-        let new_content = lines.join("\n");
-
-        fs::write(file_path, new_content).await?;
-
-        Ok(())
+        utils::parse_file(path, &self.target_version).await
     }
 
     async fn private_process(
@@ -280,7 +173,6 @@ impl Transpiler {
             //     Configuration::empty()
             // };
             let mut config = Configuration::empty();
-
             if bundle {
                 config = config.with_bundle_configuration(BundleConfiguration::new(
                     BundleRequireMode::default(),
@@ -344,64 +236,70 @@ impl Transpiler {
         Ok(created_files)
     }
 
-    pub async fn process(&self, input: PathBuf, output: PathBuf, additional_modifiers: Option<&mut Vec<Modifier>>) -> Result<()> {
-        let output_files = self.private_process(input, output, additional_modifiers, false).await?;
+    pub async fn process(&self, input: PathBuf, output: PathBuf, additional_modifiers: Option<&mut Vec<Modifier>>, bundle: bool) -> Result<()> {
+        let output_files = self.private_process(input, output, additional_modifiers, bundle).await?;
         if let Some(polyfill) = &self.polyfill {
             let polyfill_config = polyfill.config();
-            let polyfill_path = polyfill.path();
 
             // needed additional modifiers: inject_global_value
             let mut additional_modifiers: Vec<Modifier> = Vec::new();
-            for (key, value) in polyfill_config
-                .settings()
-                .iter()
-                .chain(polyfill_config.libraries().iter())
-            {
+            for (key, value) in polyfill_config {
                 let mut identifier = DAL_GLOBAL_IDENTIFIER_PREFIX.to_string();
                 identifier.push_str(key);
                 let inject_global_value = rules::InjectGlobalValue::boolean(identifier, *value);
                 additional_modifiers.push(Modifier::DarkluaRule(Box::new(inject_global_value)));
             }
 
-            for (index, output_path) in output_files.iter().enumerate() {
-                if let Some(parent) = output_path.parent() {
-                    let mut module_path: Option<PathBuf> = None;
-                    if index == 0 {
-                        let extension = if let Some(extension) = &self.extension {
-                            extension.to_owned()
-                        } else {
-                            output_path
-                                .extension()
-                                .unwrap()
-                                .to_string_lossy()
-                                .into_owned()
-                        };
-                        module_path = Some(
-                            parent
-                                .join(DEFAULT_INJECTED_LIB_FILE_NAME)
-                                .with_extension(extension),
-                        );
-                        let _ = self
-                            .private_process(
-                                polyfill_path.join(polyfill_config.input()),
-                                module_path.to_owned().unwrap(),
-                                Some(&mut additional_modifiers),
-                                true,
-                            )
-                            .await?;
-                    }
-                    if let Some(module_path) = module_path {
-                        self.inject_library(
-                            &output_path,
-                            &module_path,
-                            polyfill_config.libraries(),
-                            polyfill_config.removes(),
+            if let Some(first_output) = output_files.first() {
+				log::debug!("first output found!");
+                let extension = if let Some(extension) = &self.extension {
+                    extension.to_owned()
+                } else {
+                    first_output
+                        .extension()
+                        .ok_or_else(|| anyhow!("Failed to get extension from output file."))?
+                        .to_string_lossy()
+                        .into_owned()
+                };
+
+                if let Some(module_path) = first_output.parent().map(|parent| {
+                    parent
+                        .join(
+                            if let Some(injected_polyfill_name) = &self.injected_polyfill_name {
+                                injected_polyfill_name
+                            } else {
+                                DEFAULT_INJECTED_POLYFILL_NAME
+                            },
+                        )
+                        .with_extension(extension)
+                }) {
+                    let _ = self
+                        .private_process(
+                            polyfill.globals().path().to_path_buf(),
+                            module_path.to_owned(),
+                            Some(&mut additional_modifiers),
+                            true,
                         )
                         .await?;
+
+					log::info!("[injector] exports to inject: {:?}", polyfill.globals().exports().to_owned());
+
+                    let injector = Injector::new(
+                        module_path,
+                        polyfill.globals().exports().to_owned(),
+                        self.target_version.to_lua_version(),
+                        polyfill.removes().to_owned(),
+                    );
+
+                    for source_path in &output_files {
+                        injector.inject(source_path).await?
                     }
                 }
             }
+
+            Ok(())
+        } else {
+            Err(anyhow!("Polyfill not found."))
         }
-        Ok(())
     }
 }

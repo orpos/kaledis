@@ -17,11 +17,15 @@ pub enum Commands {
         about = "Transpiles everything, and builds a '.love' file inside a '.build' directory."
     )] Build {
         path: Option<PathBuf>,
+        #[arg(short, long, help="A config that joins all files in a single one.")]
+        one_file: bool
     },
     #[clap(
         about = "Compiles the entire project to a executable, inside a 'dist' folder."
     )] Compile {
         path: Option<PathBuf>,
+        #[arg(short, long, help="A config that joins all files in a single one.")]
+        one_file: bool
     },
     #[clap(
         about = "Watches for changes in the project and builds and executes love automatically."
@@ -49,14 +53,14 @@ pub async fn handle_commands(command: Commands) {
         Commands::Init { path } => {
             init::init(path);
         }
-        Commands::Build { path } => {
-            build::build(path, build::Strategy::Build).await.unwrap();
+        Commands::Build { path, one_file } => {
+            build::build(path, build::Strategy::Build, one_file).await.unwrap();
         }
         Commands::Dev { path } => {
             watch::watch(path).await;
         }
-        Commands::Compile { path } => {
-            build::build(path, build::Strategy::BuildAndCompile).await.unwrap();
+        Commands::Compile { path, one_file } => {
+            build::build(path, build::Strategy::BuildAndCompile, one_file).await.unwrap();
         }
         Commands::Update { step, is_established } => {
             // Artificial delay to wait for the previous instance to die

@@ -1,3 +1,6 @@
+extern crate strum;
+extern crate strum_macros;
+
 mod toml_conf;
 mod commands;
 mod utils;
@@ -6,14 +9,25 @@ mod cli_utils;
 
 use std::{ process::ExitCode, thread };
 
+use colored::Colorize;
 use commands::{ handle_commands, CLI };
 
 use clap::Parser;
 use tokio::runtime;
 
-const STACK_SIZE: usize = 4 * 1024 * 1024;
+const STACK_SIZE: usize = 4 * 1024 * 1024 * 1024;
+
+fn print_banner() {
+    println!("{}", "░  ░░░░  ░░░      ░░░  ░░░░░░░░        ░░       ░░░        ░░░      ░░".purple());
+    println!("{}", "▒  ▒▒▒  ▒▒▒  ▒▒▒▒  ▒▒  ▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒▒▒  ▒▒▒▒  ▒▒▒▒▒  ▒▒▒▒▒  ▒▒▒▒▒▒▒".purple());
+    println!("{}", "▓     ▓▓▓▓▓  ▓▓▓▓  ▓▓  ▓▓▓▓▓▓▓▓      ▓▓▓▓  ▓▓▓▓  ▓▓▓▓▓  ▓▓▓▓▓▓      ▓▓".cyan());
+    println!("{}", "█  ███  ███        ██  ████████  ████████  ████  █████  ███████████  █".cyan());
+    println!("{}", "█  ████  ██  ████  ██        ██        ██       ███        ███      ██".cyan());
+    println!("");
+}
 
 fn run() -> ExitCode {
+    print_banner();
     let args = CLI::parse();
     let rt = runtime::Builder::new_multi_thread().enable_io().enable_time().build().unwrap();
     rt.block_on(handle_commands(args.cli));

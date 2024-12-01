@@ -50,16 +50,16 @@ impl LoadingStatusBar {
 }
 
 #[macro_export]
-macro_rules! disallow {
+macro_rules! allow {
     ($target:expr, $equal:expr) => {
         {
-            $target != $equal
+            $target == $equal
         }
     };
     ($target:expr, $equal:expr, $($eq:expr),+) => {
         {
-            disallow!($target, $equal) &&
-            disallow!($target, $($eq),+)
+            allow!($target, $equal) ||
+            allow!($target, $($eq),+)
         }
     };
 }

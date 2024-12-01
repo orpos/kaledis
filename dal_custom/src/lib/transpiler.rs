@@ -344,8 +344,8 @@ impl Transpiler {
         Ok(created_files)
     }
 
-    pub async fn process(&self, input: PathBuf, output: PathBuf) -> Result<()> {
-        let output_files = self.private_process(input, output, None, false).await?;
+    pub async fn process(&self, input: PathBuf, output: PathBuf, additional_modifiers: Option<&mut Vec<Modifier>>) -> Result<()> {
+        let output_files = self.private_process(input, output, additional_modifiers, false).await?;
         if let Some(polyfill) = &self.polyfill {
             let polyfill_config = polyfill.config();
             let polyfill_path = polyfill.path();

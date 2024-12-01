@@ -3,7 +3,7 @@ mod build;
 mod watch;
 mod update;
 
-use std::{ env::current_exe, path::PathBuf };
+use std::{ env::current_exe, path::PathBuf, thread, time::Duration };
 
 use clap::{ Parser, Subcommand };
 use tokio::{ fs::{ copy, remove_file }, process::Command };
@@ -59,13 +59,16 @@ pub async fn handle_commands(command: Commands) {
             build::build(path, build::Strategy::BuildAndCompile).await.unwrap();
         }
         Commands::Update { step, is_established } => {
+            // Artificial delay to wait for the previous instance to die
             if let Some(_) = is_established {
                 println!("Removing temporary file");
+                thread::sleep(Duration::from_millis(700));
                 remove_file(step.unwrap()).await.unwrap();
                 return;
             }
             if let Some(target) = step {
                 println!("Removing old version");
+                thread::sleep(Duration::from_millis(700));
                 remove_file(&target).await.unwrap();
                 copy(current_exe().unwrap(), &target).await.unwrap();
                 Command::new(target)

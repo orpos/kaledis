@@ -10,7 +10,7 @@ use url::Url;
 use crate::cli_utils::LoadingStatusBar;
 use crate::{ toml_conf::{ Config, Modules }, utils::relative };
 use colored::Colorize;
-use crate::{ disallow, zip_utils::* };
+use crate::{ allow, zip_utils::* };
 
 pub const DEFAULT_POLYFILL_URL: &str = "https://github.com/orpos/dal-polyfill";
 
@@ -52,13 +52,25 @@ pub async fn get_transpiler() -> (Transpiler, Manifest) {
 
 pub async fn process_file(
     config: &(Transpiler, Manifest),
+    local: &PathBuf,
     input: PathBuf,
     output: PathBuf
 ) -> anyhow::Result<()> {
+    // This is specific to each file because we require based on it
+    // also this receives the project root to make the right import
+    let mut additional_rules = vec![
+        dal_core::modifiers::Modifier::DarkluaRule(
+            Box::new(dal_core::modifiers::ModifyRelativePath {
+                project_root: local.clone(),
+            })
+        )
+    ];
+    
     let (transpiler, manifest) = config;
     transpiler.process(
         manifest.require_input(Some(input)).unwrap(),
-        manifest.require_output(Some(output)).unwrap()
+        manifest.require_output(Some(output)).unwrap(),
+        Some(&mut additional_rules)
     ).await?;
     Ok(())
 }
@@ -80,7 +92,7 @@ pub async fn add_luau_files(
                 continue;
             }
             let out_path = path.strip_prefix(&local).unwrap();
-            process_file(config, path.clone(), local.join(".build").join(out_path)).await?;
+            process_file(config, local, path.clone(), local.join(".build").join(out_path)).await?;
             zip.copy_zip_f_from_path(
                 &local.join(".build").join(out_path).with_extension("lua"),
                 out_path.with_extension("lua")
@@ -125,7 +137,7 @@ pub async fn add_assets(local: &PathBuf, zip: &mut Zipper) {
             .unwrap_or("");
         if
             data.starts_with(local.join("dist")) ||
-            disallow!(ext, "lua", "luau", "toml") ||
+            allow!(ext, "lua", "luau", "toml") ||
             data.is_dir()
         {
             continue;

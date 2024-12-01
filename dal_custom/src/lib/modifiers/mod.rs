@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
-use anyhow::{anyhow, Result};
+use anyhow::{ anyhow, Result };
 use darklua_core::rules::Rule;
-use full_moon::{ast::Ast, visitors::VisitorMut};
+use full_moon::{ ast::Ast, visitors::VisitorMut };
 
 pub(crate) mod ast_util;
 mod convert_bit32;
@@ -13,6 +13,7 @@ mod relative_path;
 
 pub use convert_bit32::*;
 pub use optimize_table_initializers::*;
+pub use relative_path::*;
 pub use remove_generalized_iteration::*;
 pub use remove_number_literals::*;
 
@@ -47,7 +48,7 @@ impl FromStr for Modifier {
             }
             CONVERT_BIT32_MODIFIER_NAME => Modifier::FullMoonVisitor(Box::new(
                 ConvertBit32::default(),
-            )
+            ) 
                 as Box<dyn VisitorMutWrapper>),
             _ => Modifier::DarkluaRule(s.parse::<Box<dyn Rule>>().map_err(|err| anyhow!(err))?),
         };

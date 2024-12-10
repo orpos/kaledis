@@ -2,21 +2,18 @@ use std::str::FromStr;
 use std::path::PathBuf;
 use std::sync::{ Arc, Mutex };
 
-use dal_core::polyfill::clean_cache;
+use anyhow::Context;
 use indexmap::IndexSet;
 use strum::IntoEnumIterator;
 use tokio::io::{ AsyncReadExt, AsyncWriteExt };
 use tokio::fs::{ self, create_dir, remove_dir_all, File };
 
-use dal_core::{ manifest::Manifest, polyfill::Polyfill, transpiler::Transpiler };
-use url::Url;
+use dal_core::{ manifest::Manifest, transpile };
 
 use crate::cli_utils::LoadingStatusBar;
 use crate::{ toml_conf::{ Config, Modules }, utils::relative };
 use colored::Colorize;
 use crate::{ allow, zip_utils::* };
-
-pub const DEFAULT_POLYFILL_URL: &str = "https://github.com/CavefulGames/dal-polyfill";
 
 pub enum ModelConf {
     Exclude(Vec<Modules>),
@@ -42,13 +39,12 @@ impl From<&Config> for ModelConf {
 }
 
 struct Builder {
-    transpiler: (Transpiler, Manifest),
+    transpiler_manifest: Manifest,
     strategy: Strategy,
     zip: Option<Zipper>,
     local: PathBuf,
     build_path: PathBuf,
     bar: LoadingStatusBar,
-    one_file: bool,
     used_modules: Option<Arc<Mutex<IndexSet<String>>>>,
 }
 
@@ -59,11 +55,11 @@ impl Builder {
         run: Strategy,
         one_file: bool
     ) -> anyhow::Result<Self> {
-        let config = get_transpiler().await;
+        let config = get_transpiler(one_file).await.context("Failed to build manifest")?;
         let bar = LoadingStatusBar::new("Building project...".into());
         bar.start_animation().await;
         Ok(Self {
-            transpiler: config,
+            transpiler_manifest: config,
             zip: if let Strategy::BuildDev = run {
                 None
             } else {
@@ -73,7 +69,6 @@ impl Builder {
             bar,
             build_path: local.join(".build"),
             local: local.clone(),
-            one_file,
             used_modules: if collect_used_modules {
                 Some(Arc::new(Mutex::new(IndexSet::new())))
             } else {
@@ -141,13 +136,11 @@ impl Builder {
                 )
             );
         }
-        let (transpiler, manifest) = &self.transpiler;
-        transpiler.process(
-            manifest.require_input(Some(input))?,
-            manifest.require_output(Some(output))?,
-            Some(&mut additional_rules),
-            self.one_file
-        ).await?;
+        let mut new_manifest = self.transpiler_manifest.clone();
+        new_manifest.input = input;
+        new_manifest.output = output;
+        new_manifest.minify = if self.strategy == Strategy::BuildDev { true } else { false };
+        transpile::process(new_manifest).await?;
         return Ok(());
     }
     pub async fn add_luau_file(&mut self, input: &PathBuf) -> anyhow::Result<()> {
@@ -167,19 +160,14 @@ impl Builder {
     }
     pub async fn add_luau_files(&mut self) -> anyhow::Result<Vec<Modules>> {
         self.bar.change_status(format!("{} {} {}", "Adding", "lua".green(), "files...")).await;
-        if self.local.join("main.luau").exists() && self.one_file {
+        if self.local.join("main.luau").exists() && self.transpiler_manifest.bundle {
             if let Err(dat) = self.add_luau_file(&self.local.join("main.luau")).await {
                 eprintln!("{:?}", dat);
-                panic!(
-                    "{} Failed to process {} file",
-                    "[!]".red(),
-                    "main.luau"
-                );
+                panic!("{} Failed to process {} file", "[!]".red(), "main.luau");
             }
         } else {
             for path in glob
-                ::glob(&(self.local.to_string_lossy().to_string() + "/**/*.luau"))
-                .unwrap()
+                ::glob(&(self.local.to_string_lossy().to_string() + "/**/*.luau"))?
                 .filter_map(Result::ok)
                 .filter(
                     |path|
@@ -193,14 +181,6 @@ impl Builder {
                     eprintln!("{:?}", dat);
                     eprintln!("{} Failed to process {} file", "[!]".red(), path.display());
                 }
-                // let out_path = path.strip_prefix(&self.local).unwrap();
-                // self.process_file(path.clone(), self.local.join(".build").join(out_path)).await?;
-                // if let Some(zip) = &mut self.zip {
-                //     zip.copy_zip_f_from_path(
-                //         &self.local.join(".build").join(out_path).with_extension("lua"),
-                //         out_path.with_extension("lua")
-                //     ).await.unwrap();
-                // }
             }
         }
         if let Some(zip) = &mut self.zip {
@@ -273,11 +253,12 @@ impl Builder {
     }
 }
 
-pub async fn get_transpiler() -> (Transpiler, Manifest) {
+pub async fn get_transpiler(one_file: bool) -> anyhow::Result<Manifest> {
     let mut manifest = Manifest {
         minify: true,
         file_extension: Some("lua".to_string()),
         target_version: dal_core::TargetVersion::Lua51,
+        bundle: one_file,
         ..Default::default()
     };
 
@@ -298,23 +279,11 @@ pub async fn get_transpiler() -> (Transpiler, Manifest) {
         "remove_unused_variable",
         "remove_unused_if_branch"
     );
-
-    let polyfill = &Url::from_str(DEFAULT_POLYFILL_URL).unwrap();
-
-    let polyfill_ = if let Ok(result) = Polyfill::new(polyfill).await {
-        result
-    } else {
-        eprintln!("Polyfill failed cleaning cache...");
-        clean_cache(polyfill).await.unwrap();
-        Polyfill::new(polyfill).await.unwrap()
-    };
-    polyfill_.fetch().unwrap();
-
-    let mut transpiler = Transpiler::default();
-    transpiler = transpiler.with_manifest(&manifest);
-    transpiler = transpiler.with_polyfill(polyfill_, None);
-
-    return (transpiler, manifest);
+    // Thanks to new dalbit version this was made much easier
+    if let Some(polyfill) = manifest.polyfills.iter_mut().next() {
+        polyfill.cache().await?;
+    }
+    return Ok(manifest);
 }
 
 fn uppercase_first(s: &str) -> String {

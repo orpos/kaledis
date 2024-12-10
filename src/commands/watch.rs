@@ -1,7 +1,7 @@
 use std::{ path::PathBuf, sync::{ Arc, RwLock }, time::Duration };
 
 use anyhow::Context;
-use async_watcher::{ AsyncDebouncer, DebouncedEvent };
+use async_watcher::AsyncDebouncer;
 use colored::Colorize;
 use console::Term;
 use tokio::{ process::{ Child, Command }, sync::broadcast::{ channel, Sender } };
@@ -64,7 +64,7 @@ async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender:
                 data
                     .iter()
                     .filter(|x| { !x.path.starts_with(local.join(".build")) })
-                    .collect::<Vec<&DebouncedEvent>>()
+                    .collect::<Vec<_>>()
                     .len() < 1
             {
                 continue;
@@ -78,37 +78,36 @@ async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender:
 enum Message {
     CloseLove,
     BuildProject,
-    CloseDev
+    CloseDev,
 }
 
 async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<Message>) {
-    tokio::spawn(async move {
+    tokio::task::spawn_blocking(move || {
         let term = Term::stdout();
         loop {
-            if let Ok(key) = term.read_key() {
-                match key {
-                    console::Key::Char('a') | console::Key::Char('A') => {
-                        let mut auto_save = watching.write().unwrap();
-                        if !*auto_save {
-                            println!("{} {}", "[+]".blue(), "Auto Save enabled");
-                        } else {
-                            println!("{} {}", "[-]".blue(), "Auto Save disabled");
-                        }
-                        *auto_save = !*auto_save;
+            let key = term.read_key().unwrap_or(console::Key::Unknown);
+            match key {
+                console::Key::Char('a') | console::Key::Char('A') => {
+                    let mut auto_save = watching.write().unwrap();
+                    if !*auto_save {
+                        println!("{} {}", "[+]".blue(), "Auto Save enabled");
+                    } else {
+                        println!("{} {}", "[-]".blue(), "Auto Save disabled");
                     }
-                    console::Key::Char('L') | console::Key::Char('l') => {
-                        sender.send(Message::BuildProject).unwrap();
-                    }
-                    console::Key::Escape => {
-                        print!("[-] Closing...\r");
-                        sender.send(Message::CloseLove).unwrap();
-                    }
-                    console::Key::Char('q') | console::Key::Char('Q') => {
-                        print!("{} Exiting...", "[+]".blue());
-                        sender.send(Message::CloseDev).unwrap();
-                    }
-                    _ => {}
+                    *auto_save = !*auto_save;
                 }
+                console::Key::Char('L') | console::Key::Char('l') => {
+                    sender.send(Message::BuildProject).unwrap();
+                }
+                console::Key::Char('Q') | console::Key::Char('q') => {
+                    sender.send(Message::CloseDev).unwrap();
+                    break;
+                }
+                console::Key::Escape => {
+                    print!("[-] Closing...\r");
+                    sender.send(Message::CloseLove).unwrap();
+                }
+                _ => {}
             }
         }
     });
@@ -119,8 +118,8 @@ pub async fn watch(base_path: Option<PathBuf>) {
     println!("Watching...");
     println!("Press [L] if you want to build manually");
     println!("Press [A] if you want to toggle between auto build and manual mode.");
+    println!("Press [Q] if you want to close the dev server.");
     println!("Press [Esc] if you want to close Love.");
-    println!("Press [Q] if you want to close this dev server.");
 
     if !local.join("kaledis.toml").exists() {
         eprintln!("{}", "No project found!".red());
@@ -144,8 +143,11 @@ pub async fn watch(base_path: Option<PathBuf>) {
             if let Err(err) = child.kill().await {
                 eprintln!("{}\n{}", err, "Failed to kill love2d process.".red());
             } else if let Message::CloseLove = message {
-                println!("{} Closed love...", "[+]".blue());
+                println!("{} Closed love.", "[+]".blue());
             };
+        }
+        if let Message::CloseDev = message {
+            break;
         }
         if let Message::BuildProject = message {
             child = daemon.build().await.and(daemon.run().await).ok();

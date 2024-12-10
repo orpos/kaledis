@@ -66,7 +66,7 @@ kaledis update
 ```
 
 ## Credits
-- [Dal](https://github.com/CavefulGames/dal) for the awesome transpiling system.
+- [Dal](https://github.com/CavefulGames/dalbit) for the awesome transpiling system.
 
 ## FAQ
 ### Why the name 'Kaledis'?

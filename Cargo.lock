@@ -569,37 +569,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dal_core"
-version = "0.1.0"
-dependencies = [
- "anstyle",
- "anyhow",
- "async-trait",
- "auth-git2",
- "blake3",
- "clap",
- "darklua-demo",
- "dirs",
- "durationfmt",
- "env_logger",
- "fs-err",
- "full_moon",
- "git2",
- "hex",
- "indexmap 2.7.0",
- "log",
- "path-slash",
- "pathdiff",
- "serde",
- "strfmt",
- "strum",
- "strum_macros",
- "tokio",
- "toml",
- "url",
-]
-
-[[package]]
 name = "darklua-demo"
 version = "3.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1521,11 +1490,11 @@ dependencies = [
  "clap-serde-derive",
  "colored",
  "console",
- "dal_core",
  "futures",
  "glob",
  "indexmap 2.7.0",
  "inquire",
+ "kaledis_dalbit",
  "reqwest",
  "semver",
  "serde",
@@ -1536,6 +1505,38 @@ dependencies = [
  "toml",
  "url",
  "zip",
+]
+
+[[package]]
+name = "kaledis_dalbit"
+version = "0.1.0"
+source = "git+https://github.com/orpos/dalbit#56ddc8c6aab4579cc3fa291da5fb21da0a51c06b"
+dependencies = [
+ "anstyle",
+ "anyhow",
+ "async-trait",
+ "auth-git2",
+ "blake3",
+ "clap",
+ "darklua-demo",
+ "dirs",
+ "durationfmt",
+ "env_logger",
+ "fs-err",
+ "full_moon",
+ "git2",
+ "hex",
+ "indexmap 2.7.0",
+ "log",
+ "path-slash",
+ "pathdiff",
+ "serde",
+ "strfmt",
+ "strum",
+ "strum_macros",
+ "tokio",
+ "toml",
+ "url",
 ]
 
 [[package]]
@@ -3019,9 +3020,9 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "url"
-version = "2.5.3"
+version = "2.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d157f1b96d14500ffdc1f10ba712e780825526c03d9a49b4d0324b0d9113ada"
+checksum = "32f8b686cadd1473f4bd0117a5d28d36b1ade384ea9b5069a1c40aefed7fda60"
 dependencies = [
  "form_urlencoded",
  "idna",

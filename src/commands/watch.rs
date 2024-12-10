@@ -26,7 +26,9 @@ impl<'a> WatchDaemon<'a> {
         }
     }
     pub async fn build(&self) -> anyhow::Result<()> {
-        build::build(self.base_path.clone(), build::Strategy::BuildDev, false).await.context("Building")?;
+        build
+            ::build(self.base_path.clone(), build::Strategy::BuildDev, false).await
+            .context("Building")?;
         Ok(())
     }
     pub async fn run(&self) -> anyhow::Result<Child> {
@@ -43,7 +45,7 @@ impl<'a> WatchDaemon<'a> {
     }
 }
 
-async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender: Sender<bool>) {
+async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender: Sender<Message>) {
     let local = local.clone();
     tokio::spawn(async move {
         let (mut c, mut r) = AsyncDebouncer::new_with_channel(
@@ -67,12 +69,19 @@ async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender:
             {
                 continue;
             }
-            sender.send(true).unwrap();
+            sender.send(Message::BuildProject).unwrap();
         }
     });
 }
 
-async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<bool>) {
+#[derive(Clone, PartialEq, Eq, Debug)]
+enum Message {
+    CloseLove,
+    BuildProject,
+    CloseDev
+}
+
+async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<Message>) {
     tokio::spawn(async move {
         let term = Term::stdout();
         loop {
@@ -88,7 +97,15 @@ async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<bool
                         *auto_save = !*auto_save;
                     }
                     console::Key::Char('L') | console::Key::Char('l') => {
-                        sender.send(true).unwrap();
+                        sender.send(Message::BuildProject).unwrap();
+                    }
+                    console::Key::Escape => {
+                        print!("[-] Closing...\r");
+                        sender.send(Message::CloseLove).unwrap();
+                    }
+                    console::Key::Char('q') | console::Key::Char('Q') => {
+                        print!("{} Exiting...", "[+]".blue());
+                        sender.send(Message::CloseDev).unwrap();
                     }
                     _ => {}
                 }
@@ -102,6 +119,8 @@ pub async fn watch(base_path: Option<PathBuf>) {
     println!("Watching...");
     println!("Press [L] if you want to build manually");
     println!("Press [A] if you want to toggle between auto build and manual mode.");
+    println!("Press [Esc] if you want to close Love.");
+    println!("Press [Q] if you want to close this dev server.");
 
     if !local.join("kaledis.toml").exists() {
         eprintln!("{}", "No project found!".red());
@@ -112,18 +131,24 @@ pub async fn watch(base_path: Option<PathBuf>) {
     let love_path = configs.project.love_path;
 
     let daemon = WatchDaemon::new(&local, love_path, base_path);
-    
+
     let watching = Arc::new(RwLock::new(false));
-    let (sender, mut receiver) = channel::<bool>(2);
+    let (sender, mut receiver) = channel::<Message>(2);
 
     spawn_keyboard_handler(Arc::clone(&watching), sender.clone()).await;
     spawn_file_reader(watching, &local, sender.clone()).await;
 
     let mut child: Option<Child> = None;
-    while let Ok(_) = receiver.recv().await {
+    while let Ok(message) = receiver.recv().await {
         if let Some(mut child) = child.take() {
-            child.kill().await.unwrap();
+            if let Err(err) = child.kill().await {
+                eprintln!("{}\n{}", err, "Failed to kill love2d process.".red());
+            } else if let Message::CloseLove = message {
+                println!("{} Closed love...", "[+]".blue());
+            };
         }
-        child = daemon.build().await.and(daemon.run().await).ok();
+        if let Message::BuildProject = message {
+            child = daemon.build().await.and(daemon.run().await).ok();
+        }
     }
 }

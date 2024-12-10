@@ -50,25 +50,4 @@ impl Zipper {
         zip.write(&buffer)?;
         Ok(())
     }
-    // pub async fn copy_glob(
-    //     &mut self,
-    //     base_dir: PathBuf,
-    //     pattern: &str,
-    //     filter: impl Fn(&PathBuf) -> bool,
-    //     middleware: impl Fn(&PathBuf) -> Option<PathBuf>
-    // ) -> anyhow::Result<()> {
-    //     for path in glob
-    //         ::glob(&format!("{}", base_dir.join(pattern).display().to_string()))?
-    //         .filter_map(Result::ok) {
-    //         if !filter(&path) {
-    //             continue;
-    //         }
-    //         if let Some(output) = middleware(&path) {
-    //             self.copy_zip_f_from_path(&path, output).await?;
-    //         } else {
-    //             self.add_zip_f_from_path(&path, &base_dir).await?;
-    //         }
-    //     }
-    //     Ok(())
-    // }
 }

@@ -1,11 +1,10 @@
-extern crate strum;
-extern crate strum_macros;
-
 mod toml_conf;
 mod commands;
 mod utils;
 mod zip_utils;
 mod cli_utils;
+
+use std::result::Result::Ok;
 
 use std::{ process::ExitCode, thread };
 
@@ -18,8 +17,14 @@ use tokio::runtime;
 const STACK_SIZE: usize = 4 * 1024 * 1024 * 1024;
 
 fn print_banner() {
-    println!("{}", "░  ░░░░  ░░░      ░░░  ░░░░░░░░        ░░       ░░░        ░░░      ░░".purple());
-    println!("{}", "▒  ▒▒▒  ▒▒▒  ▒▒▒▒  ▒▒  ▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒▒▒  ▒▒▒▒  ▒▒▒▒▒  ▒▒▒▒▒  ▒▒▒▒▒▒▒".purple());
+    println!(
+        "{}",
+        "░  ░░░░  ░░░      ░░░  ░░░░░░░░        ░░       ░░░        ░░░      ░░".purple()
+    );
+    println!(
+        "{}",
+        "▒  ▒▒▒  ▒▒▒  ▒▒▒▒  ▒▒  ▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒▒▒  ▒▒▒▒  ▒▒▒▒▒  ▒▒▒▒▒  ▒▒▒▒▒▒▒".purple()
+    );
     println!("{}", "▓     ▓▓▓▓▓  ▓▓▓▓  ▓▓  ▓▓▓▓▓▓▓▓      ▓▓▓▓  ▓▓▓▓  ▓▓▓▓▓  ▓▓▓▓▓▓      ▓▓".cyan());
     println!("{}", "█  ███  ███        ██  ████████  ████████  ████  █████  ███████████  █".cyan());
     println!("{}", "█  ████  ██  ████  ██        ██        ██       ███        ███      ██".cyan());
@@ -36,5 +41,5 @@ fn run() -> ExitCode {
 
 fn main() -> ExitCode {
     let child = thread::Builder::new().stack_size(STACK_SIZE).spawn(run).unwrap();
-    child.join().unwrap()
+    return child.join().unwrap_or(ExitCode::FAILURE)
 }

@@ -9,25 +9,23 @@ pub struct LoadingStatusBar {
 
 async fn loading_animation(text: Weak<RwLock<String>>) {
     let mut term = Term::stdout();
-    let frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     let mut frame_index = 0;
+    let frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
     loop {
-        // tentando resolver um bug
-        let result = text.upgrade();
-        match result {
-            None => {
-                break;
-            }
-            Some(text) => {
-                let data = &*text.read().await;
-                term.write(
-                    format!("{} {}\r", style(frames[frame_index]).dim().blue(), data).as_bytes()
-                ).unwrap();
-                frame_index += 1;
-                frame_index %= frames.len();
-                sleep(Duration::from_millis(100)).await;
-            }
+        // As we have a Weak reference when the variable holding LoadingStatusBar dies
+        // it will be deleted and as such the upgrade will return None
+        // So we stop showing the animation
+        if let Some(text) = text.upgrade() {
+            let data = &*text.read().await;
+            term.write(
+                format!("{} {}\r", style(frames[frame_index]).dim().blue(), data).as_bytes()
+            ).unwrap();
+            frame_index += 1;
+            frame_index %= frames.len();
+            sleep(Duration::from_millis(100)).await;
+            continue;
         }
+        break;
     }
 }
 
@@ -44,8 +42,10 @@ impl LoadingStatusBar {
         });
     }
     pub async fn change_status(&self, data: String) {
-        let mut lock = self.status.write().await;
-        *lock = data;
+        // Clear the line before because there maybe some chars from the previous text
+        let _ = Term::stdout().clear_line();
+
+        *self.status.write().await = data;
     }
 }
 

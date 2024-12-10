@@ -48,17 +48,30 @@ pub async fn get_latest_remote_version(reqwest: &reqwest::Client) -> anyhow::Res
         .context("Failed to find first version.")
 }
 
-pub async fn get_update(reqwest: &reqwest::Client) -> anyhow::Result<bool> {
+pub async fn get_update(reqwest: &reqwest::Client, allow_breaking: bool) -> anyhow::Result<bool> {
     let latest = get_latest_remote_version(reqwest).await?;
     if latest > get_version() {
+        if latest.major > get_version().major && !allow_breaking {
+            eprintln!("Major update detected. Add --allow-breaking flag to update");
+            return Ok(false);
+        }
         println!("New update found! Updating...");
+
         let release = reqwest
             .get(format!("https://api.github.com/repos/orpos/kaledis/releases/tags/v{}", latest))
             .send().await
             .unwrap()
             .json::<Release>().await
             .unwrap();
-        let asset = release.assets.into_iter().next().unwrap();
+
+        let asset = release.assets
+            .into_iter()
+            .find(|asset| {
+                asset.name.ends_with(
+                    &format!("-{}-{}.tar.gz", std::env::consts::OS, std::env::consts::ARCH)
+                )
+            })
+            .context("Failed to find a version for current platform")?;
         let bytes = reqwest
             .get(asset.url)
             .header(ACCEPT, "application/octet-stream")
@@ -88,10 +101,7 @@ pub async fn get_update(reqwest: &reqwest::Client) -> anyhow::Result<bool> {
             let mut new_exe = std::fs::File::create(&exe).unwrap();
             new_exe.write(&buffer).unwrap();
         }
-        Command::new(&exe)
-            .args(vec!["update", &local_path.display().to_string()])
-            .spawn()
-            .unwrap();
+        Command::new(&exe).args(vec!["update", &local_path.display().to_string()]).spawn().unwrap();
         return Ok(true);
     } else {
         println!("No update found.");
@@ -99,7 +109,7 @@ pub async fn get_update(reqwest: &reqwest::Client) -> anyhow::Result<bool> {
     }
 }
 
-pub async fn update() {
+pub async fn update(allow_breaking: bool) {
     let reqwest = {
         let mut headers = reqwest::header::HeaderMap::new();
 
@@ -115,5 +125,5 @@ pub async fn update() {
             .build()
             .unwrap()
     };
-    get_update(&reqwest).await.unwrap();
+    get_update(&reqwest, allow_breaking).await.unwrap();
 }

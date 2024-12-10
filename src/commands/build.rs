@@ -1,6 +1,6 @@
 use std::str::FromStr;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{ Arc, Mutex };
 
 use dal_core::polyfill::clean_cache;
 use indexmap::IndexSet;
@@ -49,10 +49,16 @@ struct Builder {
     build_path: PathBuf,
     bar: LoadingStatusBar,
     one_file: bool,
+    used_modules: Option<Arc<Mutex<IndexSet<String>>>>,
 }
 
 impl Builder {
-    pub async fn new(local: &PathBuf, run: Strategy, one_file: bool) -> anyhow::Result<Self> {
+    pub async fn new(
+        local: &PathBuf,
+        collect_used_modules: bool,
+        run: Strategy,
+        one_file: bool
+    ) -> anyhow::Result<Self> {
         let config = get_transpiler().await;
         let bar = LoadingStatusBar::new("Building project...".into());
         bar.start_animation().await;
@@ -68,6 +74,11 @@ impl Builder {
             build_path: local.join(".build"),
             local: local.clone(),
             one_file,
+            used_modules: if collect_used_modules {
+                Some(Arc::new(Mutex::new(IndexSet::new())))
+            } else {
+                None
+            },
         })
     }
 
@@ -101,18 +112,19 @@ impl Builder {
     }
     pub async fn clean_build_folder(&self) -> anyhow::Result<()> {
         if self.build_path.exists() {
-            println!("Previous build folder found. Deleting it...");
+            // This clean function only happens when a new build is requested
+            // and in dev i considered it unnecessary to persist
+            if let Strategy::BuildDev = self.strategy {
+                self.bar.change_status("Cleaning build folder.".to_string()).await;
+            } else {
+                println!("Previous build folder found. Deleting it...");
+            }
             remove_dir_all(&self.build_path).await?;
         }
         create_dir(&self.build_path).await?;
         Ok(())
     }
-    pub async fn process_file(
-        &self,
-        input: PathBuf,
-        output: PathBuf,
-        modules: Option<Arc<std::sync::Mutex<IndexSet<String>>>>
-    ) -> anyhow::Result<()> {
+    pub async fn process_file(&self, input: PathBuf, output: PathBuf) -> anyhow::Result<()> {
         let mut additional_rules = vec![
             dal_core::modifiers::Modifier::DarkluaRule(
                 Box::new(dal_core::modifiers::ModifyRelativePath {
@@ -120,11 +132,11 @@ impl Builder {
                 })
             )
         ];
-        if let Some(modules) = modules {
+        if let Some(modules) = &self.used_modules {
             additional_rules.push(
                 dal_core::modifiers::Modifier::DarkluaRule(
                     Box::new(dal_core::modifiers::GetLoveModules {
-                        modules,
+                        modules: Arc::clone(modules),
                     })
                 )
             );
@@ -136,26 +148,33 @@ impl Builder {
             Some(&mut additional_rules),
             self.one_file
         ).await?;
+        return Ok(());
+    }
+    pub async fn add_luau_file(&mut self, input: &PathBuf) -> anyhow::Result<()> {
+        let zip_path = input.strip_prefix(&self.local)?;
+
+        let out_path = self.local.join(".build").join(zip_path);
+        self.process_file(input.clone(), out_path).await?;
+
+        if let Some(zip) = &mut self.zip {
+            zip.copy_zip_f_from_path(
+                &self.local.join(".build").join(zip_path).with_extension("lua"),
+                zip_path.with_extension("lua")
+            ).await?;
+        }
+
         Ok(())
     }
     pub async fn add_luau_files(&mut self) -> anyhow::Result<Vec<Modules>> {
         self.bar.change_status(format!("{} {} {}", "Adding", "lua".green(), "files...")).await;
-        let detected_modules = if let Strategy::BuildDev = self.strategy {
-            None
-        } else {
-            Some(Arc::new(std::sync::Mutex::new(IndexSet::new())))
-        };
         if self.local.join("main.luau").exists() && self.one_file {
-            self.process_file(
-                self.local.join("main.luau"),
-                self.local.join(".build").join("main.lua"),
-                detected_modules.as_ref().map(|x| Arc::clone(&x))
-            ).await?;
-            if let Some(zip) = &mut self.zip {
-                zip.copy_zip_f_from_path(
-                    &self.local.join(".build").join("main.lua"),
-                    "main.lua".parse()?
-                ).await.unwrap();
+            if let Err(dat) = self.add_luau_file(&self.local.join("main.luau")).await {
+                eprintln!("{:?}", dat);
+                panic!(
+                    "{} Failed to process {} file",
+                    "[!]".red(),
+                    "main.luau"
+                );
             }
         } else {
             for path in glob
@@ -170,18 +189,18 @@ impl Builder {
                             .unwrap_or("".to_string())
                             .ends_with(".d.luau")
                 ) {
-                let out_path = path.strip_prefix(&self.local).unwrap();
-                self.process_file(
-                    path.clone(),
-                    self.local.join(".build").join(out_path),
-                    detected_modules.as_ref().map(|x| Arc::clone(&x))
-                ).await?;
-                if let Some(zip) = &mut self.zip {
-                    zip.copy_zip_f_from_path(
-                        &self.local.join(".build").join(out_path).with_extension("lua"),
-                        out_path.with_extension("lua")
-                    ).await.unwrap();
+                if let Err(dat) = self.add_luau_file(&path).await {
+                    eprintln!("{:?}", dat);
+                    eprintln!("{} Failed to process {} file", "[!]".red(), path.display());
                 }
+                // let out_path = path.strip_prefix(&self.local).unwrap();
+                // self.process_file(path.clone(), self.local.join(".build").join(out_path)).await?;
+                // if let Some(zip) = &mut self.zip {
+                //     zip.copy_zip_f_from_path(
+                //         &self.local.join(".build").join(out_path).with_extension("lua"),
+                //         out_path.with_extension("lua")
+                //     ).await.unwrap();
+                // }
             }
         }
         if let Some(zip) = &mut self.zip {
@@ -205,7 +224,7 @@ impl Builder {
                 ).await.unwrap();
             }
         }
-        if let Some(modules) = detected_modules {
+        if let Some(modules) = &self.used_modules {
             let inside = modules.lock().unwrap();
             Ok(
                 inside
@@ -334,8 +353,12 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
         return Ok(());
     }
 
-    let mut builder = Builder::new(&local, run.clone(), one_file).await?;
-
+    let mut builder = Builder::new(
+        &local,
+        configs.project.detect_modules.unwrap_or(false),
+        run.clone(),
+        one_file
+    ).await?;
     builder.clean_build_folder().await?;
     let imported_modules = builder.add_luau_files().await?;
 
@@ -445,6 +468,7 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
         Strategy::BuildDev => {}
         Strategy::BuildAndCompile => {
             let build_path = builder.build_path.clone();
+            builder.clean_build_folder().await?;
             let fin = builder.finish_zip().unwrap();
             let love_executable = configs.project.love_path.join("love.exe");
 

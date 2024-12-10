@@ -37,6 +37,8 @@ pub enum Commands {
     )] Update {
         step: Option<PathBuf>,
         is_established: Option<String>,
+        #[arg(short, long, help="A config that joins all files in a single one.")]
+        allow_breaking: bool
     },
 }
 
@@ -62,7 +64,7 @@ pub async fn handle_commands(command: Commands) {
         Commands::Compile { path, one_file } => {
             build::build(path, build::Strategy::BuildAndCompile, one_file).await.unwrap();
         }
-        Commands::Update { step, is_established } => {
+        Commands::Update { step, is_established, allow_breaking } => {
             // Artificial delay to wait for the previous instance to die
             if let Some(_) = is_established {
                 println!("Removing temporary file");
@@ -81,7 +83,7 @@ pub async fn handle_commands(command: Commands) {
                     .unwrap();
                 return;
             }
-            update::update().await;
+            update::update(allow_breaking).await;
         }
     }
 }

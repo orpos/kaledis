@@ -1,0 +1,103 @@
+name: Release
+on:
+  push:
+    tags:
+      - v*
+env:
+  BIN_NAME: kaledis
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            host: linux
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+
+          - os: windows-latest
+            host: windows
+            arch: x86_64
+            target: x86_64-pc-windows-msvc
+
+          - os: macos-13
+            host: macos
+            arch: x86_64
+            target: x86_64-apple-darwin
+
+          - os: macos-latest
+            host: macos
+            arch: aarch64
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    name: Build for ${{ matrix.host }}-${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Set env
+        shell: bash
+        run: |
+          ARCHIVE_NAME=${{ env.BIN_NAME }}-$(echo ${{ github.ref_name }} | cut -c 2-)-${{ matrix.host }}-${{ matrix.arch }}
+
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
+
+      - name: Install OS dependencies
+        if: ${{ matrix.host == 'linux' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install libdbus-1-dev pkg-config
+
+      - name: Build
+        run: cargo build --bins --all-features --release --target ${{ matrix.target }} --locked
+
+      - name: Archive
+        shell: bash
+        run: |
+          if [ ${{ matrix.host }} = "windows" ]; then
+            mv target/${{ matrix.target }}/release/${{ env.BIN_NAME }}.exe ${{ env.BIN_NAME }}.exe
+            7z a ${{ env.ARCHIVE_NAME }}.zip ${{ env.BIN_NAME }}.exe
+            tar -czf ${{ env.ARCHIVE_NAME }}.tar.gz ${{ env.BIN_NAME }}.exe
+          else
+            mv target/${{ matrix.target }}/release/${{ env.BIN_NAME }} ${{ env.BIN_NAME }}
+            zip -r ${{ env.ARCHIVE_NAME }}.zip ${{ env.BIN_NAME }}
+            tar -czf ${{ env.ARCHIVE_NAME }}.tar.gz ${{ env.BIN_NAME }}
+          fi
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARCHIVE_NAME }}.zip
+          path: ${{ env.ARCHIVE_NAME }}.zip
+
+      - name: Upload tar.gz artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARCHIVE_NAME }}.tar.gz
+          path: ${{ env.ARCHIVE_NAME }}.tar.gz
+
+  create_release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    needs: [ build, publish ]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: true
+          prerelease: ${{ endsWith(github.ref_name, 'rc') }}
+          files: artifacts/*

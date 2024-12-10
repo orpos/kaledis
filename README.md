@@ -24,46 +24,13 @@ We currently are waiting for [Dal](https://github.com/CavefulGames/dal) to make 
 The [package](https://crates.io/crates/kaledis) is just a placeholder for now.
 
 ### From Releases
-Go to the Releases page and download the `kaledis.exe` file. *Windows only.*
+Go to the Releases page and download the `kaledis.exe` file.
 
 ### From Source
 Clone the repo, then use `cargo build` to build the project from scratch *Probably all platforms.*
 
 ## Usage
-
-by default [PATH] is the directory kaledis is executed on.
-
-### `init`
-Initializes a new Love2D project.
-```sh
-kaledis init [PATH]
-```
-
-### `build`
-Transpiles the project and builds a .love file inside the '.build' directory.
-```sh
-kaledis build [PATH] -o
-```
-The -o flag joins all files in a single one.
-
-### `compile`
-Compiles the project into a executable inside the 'dist' folder.
-```sh
-kaledis compile [PATH] -o
-```
-The -o flag joins all files in a single one.
-
-### `dev`
-Watches for changes in your project, builds and executes love automatically/manual
-```sh
-kaledis dev [PATH]
-```
-
-### `update`
-Tries to update to the latest release using github releases.
-```sh
-kaledis update
-```
+You can check the usage [here](USAGE.md)
 
 ## Credits
 - [Dal](https://github.com/CavefulGames/dalbit) for the awesome transpiling system.

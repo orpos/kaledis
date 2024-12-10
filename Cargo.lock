@@ -1510,7 +1510,8 @@ dependencies = [
 [[package]]
 name = "kaledis_dalbit"
 version = "0.1.0"
-source = "git+https://github.com/orpos/dalbit#56ddc8c6aab4579cc3fa291da5fb21da0a51c06b"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3d75d30b1b2446faa422a2f6333a3d2b068910d974a740218706e86e5fc4a0cd"
 dependencies = [
  "anstyle",
  "anyhow",

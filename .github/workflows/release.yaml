@@ -81,7 +81,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
-    needs: [ build, publish ]
+    needs: [ build ]
     steps:
       - uses: actions/checkout@v4
         with:

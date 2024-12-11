@@ -1,6 +1,6 @@
 [package]
 name = "kaledis"
-version = "1.3.2"
+version = "1.3.3"
 edition = "2021"
 authors = ["lettuce-magician", "orpos"]
 documentation = "https://github.com/orpos/kaledis"

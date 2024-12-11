@@ -4,8 +4,6 @@ mod utils;
 mod zip_utils;
 mod cli_utils;
 
-use std::result::Result::Ok;
-
 use std::{ process::ExitCode, thread };
 
 use colored::Colorize;

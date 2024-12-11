@@ -19,12 +19,12 @@ It has many resources to make your life much easier when using Love2D:
 *Note: The only available builds are for Windows. MacOS and Linux builds have not been tested.*
 
 ### From Cargo 
-We currently are waiting for [Dal](https://github.com/CavefulGames/dal) to make some fields public or implement a constructor with changeable params.
-
-The [package](https://crates.io/crates/kaledis) is just a placeholder for now.
+```bash
+cargo install kaledis
+```
 
 ### From Releases
-Go to the Releases page and download the `kaledis.exe` file.
+Go to the Releases page and download the zip corresponding to your system.
 
 ### From Source
 Clone the repo, then use `cargo build` to build the project from scratch *Probably all platforms.*
@@ -33,7 +33,7 @@ Clone the repo, then use `cargo build` to build the project from scratch *Probab
 You can check the usage [here](USAGE.md)
 
 ## Credits
-- [Dal](https://github.com/CavefulGames/dalbit) for the awesome transpiling system.
+- [Dalbit](https://github.com/CavefulGames/dalbit) for the awesome transpiling system.
 
 ## FAQ
 ### Why the name 'Kaledis'?

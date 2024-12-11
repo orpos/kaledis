@@ -8,12 +8,21 @@ Initializes a new Love2D project.
 kaledis init [PATH]
 ```
 
+It initiates the project with this files:
+```
+├───.vscode
+├───assets
+├───love
+└───modules
+```
+
 ## `build`
 Transpiles the project and builds a .love file inside the '.build' directory.
 ```sh
 kaledis build [PATH] -o
 ```
-The -o flag joins all files in a single one.
+it will generate a folder looking like this:
+![project structure](images/tree.png)
 
 ## `compile`
 Compiles the project into a executable inside the 'dist' folder.

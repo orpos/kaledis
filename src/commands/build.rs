@@ -8,7 +8,7 @@ use strum::IntoEnumIterator;
 use tokio::io::{ AsyncReadExt, AsyncWriteExt };
 use tokio::fs::{ self, create_dir, remove_dir_all, File };
 
-use dal_core::{ manifest::Manifest, transpile };
+use kaledis_dalbit::{ manifest::Manifest, transpile };
 
 use crate::cli_utils::LoadingStatusBar;
 use crate::{ toml_conf::{ Config, Modules }, utils::relative };
@@ -121,16 +121,16 @@ impl Builder {
     }
     pub async fn process_file(&self, input: PathBuf, output: PathBuf) -> anyhow::Result<()> {
         let mut additional_rules = vec![
-            dal_core::modifiers::Modifier::DarkluaRule(
-                Box::new(dal_core::modifiers::ModifyRelativePath {
+            kaledis_dalbit::modifiers::Modifier::DarkluaRule(
+                Box::new(kaledis_dalbit::modifiers::ModifyRelativePath {
                     project_root: self.local.clone(),
                 })
             )
         ];
         if let Some(modules) = &self.used_modules {
             additional_rules.push(
-                dal_core::modifiers::Modifier::DarkluaRule(
-                    Box::new(dal_core::modifiers::GetLoveModules {
+                kaledis_dalbit::modifiers::Modifier::DarkluaRule(
+                    Box::new(kaledis_dalbit::modifiers::GetLoveModules {
                         modules: Arc::clone(modules),
                     })
                 )
@@ -140,7 +140,7 @@ impl Builder {
         new_manifest.input = input;
         new_manifest.output = output;
         new_manifest.minify = if self.strategy == Strategy::BuildDev { true } else { false };
-        transpile::process(new_manifest).await?;
+        transpile::process(new_manifest, Some(&mut additional_rules)).await?;
         return Ok(());
     }
     pub async fn add_luau_file(&mut self, input: &PathBuf) -> anyhow::Result<()> {
@@ -257,7 +257,7 @@ pub async fn get_transpiler(one_file: bool) -> anyhow::Result<Manifest> {
     let mut manifest = Manifest {
         minify: true,
         file_extension: Some("lua".to_string()),
-        target_version: dal_core::TargetVersion::Lua51,
+        target_version: kaledis_dalbit::TargetVersion::Lua51,
         bundle: one_file,
         ..Default::default()
     };
@@ -280,9 +280,7 @@ pub async fn get_transpiler(one_file: bool) -> anyhow::Result<Manifest> {
         "remove_unused_if_branch"
     );
     // Thanks to new dalbit version this was made much easier
-    if let Some(polyfill) = manifest.polyfills.iter_mut().next() {
-        polyfill.cache().await?;
-    }
+    manifest.polyfill.cache().await?;
     return Ok(manifest);
 }
 

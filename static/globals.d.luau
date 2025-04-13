@@ -5,6 +5,7 @@
 declare ffi: any
 declare jit: any
 
+type userdata = typeof(newproxy())
 type Variant = any
 type DistanceModel = 'none'|'inverse'|'inverseclamped'|'linear'|'linearclamped'|'exponent'|'exponentclamped'
 type EffectType = 'chorus'|'compressor'|'distortion'|'echo'|'equalizer'|'flanger'|'reverb'|'ringmodulator'
@@ -144,9 +145,6 @@ declare class CompressedData extends Data
 	function getFormat(self): (CompressedDataFormat)
 end
 
-declare class DroppedFile extends File
-end
-
 declare class File extends Object
 	function close(self): (boolean)
 	function flush(self): (boolean,string)
@@ -165,6 +163,9 @@ declare class File extends Object
 	function tell(self): (number)
 	function write(self,data:string,size:number): (boolean,string)
 	function write(self,data:Data,size:number): (boolean,string)
+end
+
+declare class DroppedFile extends File
 end
 
 declare class FileData extends Data
@@ -196,6 +197,34 @@ declare class Rasterizer extends Object
 	function hasGlyphs(self,glyph1:string|number,glyph2:string|number,...:string|number): (boolean)
 end
 
+declare class Drawable extends Object
+end
+
+declare class Texture extends Drawable
+	function getDPIScale(self): (number)
+	function getDepth(self): (number)
+	function getDepthSampleMode(self): (CompareMode)
+	function getDimensions(self): (number,number)
+	function getFilter(self): (FilterMode,FilterMode,number)
+	function getFormat(self): (PixelFormat)
+	function getHeight(self): (number)
+	function getLayerCount(self): (number)
+	function getMipmapCount(self): (number)
+	function getMipmapFilter(self): (FilterMode,number)
+	function getPixelDimensions(self): (number,number)
+	function getPixelHeight(self): (number)
+	function getPixelWidth(self): (number)
+	function getTextureType(self): (TextureType)
+	function getWidth(self): (number)
+	function getWrap(self): (WrapMode,WrapMode,WrapMode)
+	function isReadable(self): (boolean)
+	function setDepthSampleMode(self,compare:CompareMode): ()
+	function setFilter(self,min:FilterMode,mag:FilterMode,anisotropy:number): ()
+	function setMipmapFilter(self,filtermode:FilterMode,sharpness:number): ()
+	function setMipmapFilter(self): ()
+	function setWrap(self,horiz:WrapMode,vert:WrapMode,depth:WrapMode): ()
+end
+
 declare class Canvas extends Texture
 	function generateMipmaps(self): ()
 	function getMSAA(self): (number)
@@ -203,9 +232,6 @@ declare class Canvas extends Texture
 	function newImageData(self): (ImageData)
 	function newImageData(self,slice:number,mipmap:number,x:number,y:number,width:number,height:number): (ImageData)
 	function renderTo(self,func:(...any)->(...any),...:any): ()
-end
-
-declare class Drawable extends Object
 end
 
 declare class Font extends Object
@@ -399,31 +425,6 @@ declare class Text extends Drawable
 	function setFont(self,font:Font): ()
 	function setf(self,textstring:string,wraplimit:number,align:AlignMode): ()
 	function setf(self,coloredtext:{color1:{[any]: any},string1:string,color2:{[any]: any},string2:string,},wraplimit:number,align:AlignMode): ()
-end
-
-declare class Texture extends Drawable
-	function getDPIScale(self): (number)
-	function getDepth(self): (number)
-	function getDepthSampleMode(self): (CompareMode)
-	function getDimensions(self): (number,number)
-	function getFilter(self): (FilterMode,FilterMode,number)
-	function getFormat(self): (PixelFormat)
-	function getHeight(self): (number)
-	function getLayerCount(self): (number)
-	function getMipmapCount(self): (number)
-	function getMipmapFilter(self): (FilterMode,number)
-	function getPixelDimensions(self): (number,number)
-	function getPixelHeight(self): (number)
-	function getPixelWidth(self): (number)
-	function getTextureType(self): (TextureType)
-	function getWidth(self): (number)
-	function getWrap(self): (WrapMode,WrapMode,WrapMode)
-	function isReadable(self): (boolean)
-	function setDepthSampleMode(self,compare:CompareMode): ()
-	function setFilter(self,min:FilterMode,mag:FilterMode,anisotropy:number): ()
-	function setMipmapFilter(self,filtermode:FilterMode,sharpness:number): ()
-	function setMipmapFilter(self): ()
-	function setWrap(self,horiz:WrapMode,vert:WrapMode,depth:WrapMode): ()
 end
 
 declare class Video extends Drawable
@@ -919,8 +920,6 @@ declare class VideoStream extends Object
 	function tell(self): (number)
 end
 
-
-
 type getModeReturn = {
 	fullscreen:boolean,
 	display:number,
@@ -984,283 +983,369 @@ declare love: {
 	wheelmoved: (x:number,y:number) -> (),
 } & {
 	audio: {
-		getOrientation: () -> (number,number,number,number,number,number),
-		getPosition: () -> (number,number,number),
-		getRecordingDevices: () -> ({RecordingDevice}),
-		getVelocity: () -> (number,number,number),
-		getVolume: () -> (number),
-		isEffectsSupported: () -> (boolean),
-		setOrientation: (fx:number, fy:number, fz:number,ux:number, uy:number, uz:number) -> (),
-		setPosition: (x:number,y:number,z:number) -> (),
-		setVelocity: (x:number,y:number,z:number) -> (),
-		setVolume: (volume:number) -> (),
-		stop: () -> ()&(source:Source) -> ()&(source1:Source,source2:Source,...Source) -> ()&(sources:{Source}) -> (),
-		getActiveEffects: () -> ({string}),
-		getActiveSourceCount: () -> (number),
-		getDistanceModel: () -> (DistanceModel),
-		getDopplerScale: () -> (number),
-		getEffect: (name:string) -> ({[any]: any}),
-		getMaxSceneEffects: () -> (number),
-		getMaxSourceEffects: () -> (number),
-		newQueueableSource: (samplerate:number,bitdepth:number,channels:number,buffercount:number) -> (Source),
-		newSource: (filename:string,type:SourceType) -> (Source)&(file:File,type:SourceType) -> (Source)&(decoder:Decoder,type:SourceType) -> (Source)&(data:FileData,type:SourceType) -> (Source)&(data:SoundData) -> (Source),
-		pause: () -> ({Source})&(source:Source,...Source) -> ()&(sources:{Source}) -> (),
-		play: (source:Source) -> ()&(sources:{Source}) -> ()&(source1:Source,source2:Source,...Source) -> (),
-		setDistanceModel: (model:DistanceModel) -> (),
-		setDopplerScale: (scale:number) -> (),
-		setEffect: (name:string,settings:{type:EffectType,volume:number}&{number}) -> (boolean)&(name:string,enabled:boolean) -> (boolean),
-		setMixWithSystem: (mix:boolean) -> (boolean),
+		getActiveEffects: (() -> ({string})),
+		getActiveSourceCount: (() -> (number)),
+		getDistanceModel: (() -> (DistanceModel)),
+		getDopplerScale: (() -> (number)),
+		getEffect: ((name:string) -> ({[any]: any})),
+		getMaxSceneEffects: (() -> (number)),
+		getMaxSourceEffects: (() -> (number)),
+		getOrientation: (() -> (number,number,number,number,number,number)),
+		getPosition: (() -> (number,number,number)),
+		getRecordingDevices: (() -> ({RecordingDevice})),
+		getVelocity: (() -> (number,number,number)),
+		getVolume: (() -> (number)),
+		isEffectsSupported: (() -> (boolean)),
+		newQueueableSource: ((samplerate:number,bitdepth:number,channels:number,buffercount:number) -> (Source)),
+		newSource: ((filename:string,type:SourceType) -> (Source))&((file:File,type:SourceType) -> (Source))&((decoder:Decoder,type:SourceType) -> (Source))&((data:FileData,type:SourceType) -> (Source))&((data:SoundData) -> (Source)),
+		pause: (() -> ({Source}))&((source:Source,...Source) -> ())&((sources:{Source}) -> ()),
+		play: ((source:Source) -> ())&((sources:{Source}) -> ())&((source1:Source,source2:Source,...Source) -> ()),
+		setDistanceModel: ((model:DistanceModel) -> ()),
+		setDopplerScale: ((scale:number) -> ()),
+		setEffect: ((name:string,settings:{type:EffectType,volume:number}?) -> (boolean))&((name:string,enabled:boolean) -> (boolean)),
+		setMixWithSystem: ((mix:boolean) -> (boolean)),
+		setOrientation: ((fx:number, fy:number, fz:number, ux:number, uy:number, uz:number) -> ()),
+		setPosition: ((x:number,y:number,z:number) -> ()),
+		setVelocity: ((x:number,y:number,z:number) -> ()),
+		setVolume: ((volume:number) -> ()),
+		stop: (() -> ())&((source:Source) -> ())&((source1:Source,source2:Source,...Source) -> ())&((sources:{Source}) -> ()),
+	},
+} & {
+	data: {
+		compress: ((container:ContainerType,format:CompressedDataFormat,rawstring:string,level:number) -> (CompressedData|string))&((container:ContainerType,format:CompressedDataFormat,data:Data,level:number) -> (CompressedData|string)),
+		decode: ((container:ContainerType,format:EncodeFormat,sourceString:string) -> (ByteData|string))&((container:ContainerType,format:EncodeFormat,sourceData:Data) -> (ByteData|string)),
+		decompress: ((container:ContainerType,compressedData:CompressedData) -> (Data|string))&((container:ContainerType,format:CompressedDataFormat,compressedString:string) -> (Data|string))&((container:ContainerType,format:CompressedDataFormat,data:Data) -> (Data|string)),
+		encode: ((container:ContainerType,format:EncodeFormat,sourceString:string,linelength:number) -> (ByteData|string))&((container:ContainerType,format:EncodeFormat,sourceData:Data,linelength:number) -> (ByteData|string)),
+		getPackedSize: ((format:string) -> (number)),
+		hash: ((hashFunction:HashFunction,string:string) -> (string))&((hashFunction:HashFunction,data:Data) -> (string)),
+		newByteData: ((datastring:string) -> (ByteData))&((Data:Data,offset:number,size:number) -> (ByteData))&((size:number) -> (ByteData)),
+		newDataView: ((data:Data,offset:number,size:number) -> (Data)),
+		pack: ((container:ContainerType,format:string,v1:number|boolean|string,...number|boolean|string) -> (Data|string)),
+		unpack: ((format:string,datastring:string,pos:number) -> (number|boolean|string,...number|boolean|string))&((format:string,data:Data,pos:number) -> (number|boolean|string,...number|boolean|string)),
+	},
+} & {
+	event: {
+		clear: (() -> ()),
+		poll: (() -> ((...any)->(...any))),
+		pump: (() -> ()),
+		push: ((n:Event,a:Variant,b:Variant,c:Variant,d:Variant,e:Variant,f:Variant,...Variant) -> ()),
+		quit: ((exitstatus:number) -> ())&(('restart'|nil) -> ()),
+		wait: (() -> (Event,Variant,Variant,Variant,Variant,Variant,Variant,...Variant)),
+	},
+	filesystem: {
+		append: ((name:string,data:string,size:number) -> (boolean,string))&((name:string,data:Data,size:number) -> (boolean,string)),
+		areSymlinksEnabled: (() -> (boolean)),
+		createDirectory: ((name:string) -> (boolean)),
+		getAppdataDirectory: (() -> (string)),
+		getCRequirePath: (() -> (string)),
+		getDirectoryItems: ((dir:string) -> ({string}))&((dir:string,callback:(...any)->(...any)) -> ({[any]: any})),
+		getIdentity: (() -> (string)),
+		getInfo: ((path:string,filtertype:FileType) -> ({type:FileType,size:number,modtime:number,}))&((path:string,info:{[any]: any}) -> ({type:FileType,size:number,modtime:number,}))&((path:string,filtertype:FileType,info:{[any]: any}) -> ({type:FileType,size:number,modtime:number,})),
+		getRealDirectory: ((filepath:string) -> (string)),
+		getRequirePath: (() -> (string)),
+		getSaveDirectory: (() -> (string)),
+		getSource: (() -> (string)),
+		getSourceBaseDirectory: (() -> (string)),
+		getUserDirectory: (() -> (string)),
+		getWorkingDirectory: (() -> (string)),
+		init: ((appname:string) -> ()),
+		isFused: (() -> (boolean)),
+		lines: ((name:string) -> ((...any)->(...any))),
+		load: ((name:string) -> ((...any)->(...any),string)),
+		mount: ((archive:string,mountpoint:string,appendToPath:boolean) -> (boolean))&((filedata:FileData,mountpoint:string,appendToPath:boolean) -> (boolean))&((data:Data,archivename:string,mountpoint:string,appendToPath:boolean) -> (boolean)),
+		newFile: ((filename:string) -> (File))&((filename:string,mode:FileMode) -> (File,string)),
+		newFileData: ((contents:string,name:string) -> (FileData))&((originaldata:Data,name:string) -> (FileData))&((filepath:string) -> (FileData,string)),
+		read: ((name:string,size:number) -> (string,number,nil,string))&((container:ContainerType,name:string,size:number) -> (FileData|string,number,nil,string)),
+		remove: ((name:string) -> (boolean)),
+		setCRequirePath: ((paths:string) -> ()),
+		setIdentity: ((name:string) -> ())&((name:string) -> ()),
+		setRequirePath: ((paths:string) -> ()),
+		setSource: ((path:string) -> ()),
+		setSymlinksEnabled: ((enable:boolean) -> ()),
+		unmount: ((archive:string) -> (boolean)),
+		write: ((name:string,data:string,size:number) -> (boolean,string))&((name:string,data:Data,size:number) -> (boolean,string)),
+	},
+} & {
+	font: {
+		newBMFontRasterizer: ((imageData:ImageData,glyphs:string,dpiscale:number) -> (Rasterizer))&((fileName:string,glyphs:string,dpiscale:number) -> (Rasterizer)),
+		newGlyphData: ((rasterizer:Rasterizer,glyph:number) -> ()),
+		newImageRasterizer: ((imageData:ImageData,glyphs:string,extraSpacing:number,dpiscale:number) -> (Rasterizer)),
+		newRasterizer: ((filename:string) -> (Rasterizer))&((data:FileData) -> (Rasterizer))&((size:number,hinting:HintingMode,dpiscale:number) -> (Rasterizer))&((fileName:string,size:number,hinting:HintingMode,dpiscale:number) -> (Rasterizer))&((fileData:FileData,size:number,hinting:HintingMode,dpiscale:number) -> (Rasterizer))&((imageData:ImageData,glyphs:string,dpiscale:number) -> (Rasterizer))&((fileName:string,glyphs:string,dpiscale:number) -> (Rasterizer)),
+		newTrueTypeRasterizer: ((size:number,hinting:HintingMode,dpiscale:number) -> (Rasterizer))&((fileName:string,size:number,hinting:HintingMode,dpiscale:number) -> (Rasterizer))&((fileData:FileData,size:number,hinting:HintingMode,dpiscale:number) -> (Rasterizer)),
 	},
 } & {
 	graphics: {
-		applyTransform: (transform:Transform) -> (),
-		arc: (drawmode:DrawMode,x:number,y:number,radius:number,angle1:number,angle2:number,segments:number) -> ()&(drawmode:DrawMode,arctype:ArcType,x:number,y:number,radius:number,angle1:number,angle2:number,segments:number) -> (),
-		captureScreenshot: (filename:string) -> ()&(callback:(...any)->(...any)) -> ()&(channel:Channel) -> (),
-		circle: (mode:DrawMode,x:number,y:number,radius:number) -> ()&(mode:DrawMode,x:number,y:number,radius:number,segments:number) -> (),
-		clear: () -> ()&(r:number,g:number,b:number,a:number,clearstencil:boolean,cleardepth:boolean) -> ()&(clearcolor:boolean,clearstencil:boolean,cleardepth:boolean) -> (),
-		discard: (discardcolor:boolean,discardstencil:boolean) -> ()&(discardcolors:{boolean},discardstencil:boolean) -> (),
-		draw: (drawable:Drawable,x:number,y:number,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ()&(texture:Texture,quad:Quad,x:number,y:number,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ()&(drawable:Drawable,transform:Transform) -> ()&(texture:Texture,quad:Quad,transform:Transform) -> (),
-		drawInstanced: (mesh:Mesh,instancecount:number,x:number,y:number,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ()&(mesh:Mesh,instancecount:number,transform:Transform) -> (),
-		drawLayer: (texture:Texture,layerindex:number,x:number,y:number,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ()&(texture:Texture,layerindex:number,quad:Quad,x:number,y:number,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ()&(texture:Texture,layerindex:number,transform:Transform) -> ()&(texture:Texture,layerindex:number,quad:Quad,transform:Transform) -> (),
-		ellipse: (mode:DrawMode,x:number,y:number,radiusx:number,radiusy:number) -> ()&(mode:DrawMode,x:number,y:number,radiusx:number,radiusy:number,segments:number) -> (),
-		flushBatch: () -> (),
-		getBackgroundColor: () -> (number,number,number,number),
-		getBlendMode: () -> (BlendMode,BlendAlphaMode),
-		getCanvas: () -> (Canvas),
-		getCanvasFormats: () -> ({[PixelFormat]:boolean})&(readable:boolean) -> ({[PixelFormat]:boolean}),
-		getColor: () -> (number,number,number,number),
-		getColorMask: () -> (boolean,boolean,boolean,boolean),
-		getDPIScale: () -> (number),
-		getDefaultFilter: () -> (FilterMode,FilterMode,number),
-		getDepthMode: () -> (CompareMode,boolean),
-		getDimensions: () -> (number,number),
-		getFont: () -> (Font),
-		getFrontFaceWinding: () -> (VertexWinding),
-		getHeight: () -> (number),
-		getImageFormats: () -> ({[PixelFormat]:boolean}),
-		getLineJoin: () -> (LineJoin),
-		getLineStyle: () -> (LineStyle),
-		getLineWidth: () -> (number),
-		getMeshCullMode: () -> (CullMode),
-		getPixelDimensions: () -> (number,number),
-		getPixelHeight: () -> (number),
-		getPixelWidth: () -> (number),
-		getPointSize: () -> (number),
-		getRendererInfo: () -> (string,string,string,string),
-		getScissor: () -> (number,number,number,number),
-		getShader: () -> (Shader),
-		getStackDepth: () -> (number),
-		getStats: () -> ({drawcalls:number,canvasswitches:number,texturememory:number,images:number,canvases:number,fonts:number,shaderswitches:number,drawcallsbatched:number,})&(stats:{[any]: any}) -> ({drawcalls:number,canvasswitches:number,texturememory:number,images:number,canvases:number,fonts:number,shaderswitches:number,drawcallsbatched:number,}),
-		getStencilTest: () -> (CompareMode,number),
-		getSupported: () -> ({[GraphicsFeature]:boolean}),
-		getSystemLimits: () -> ({[GraphicsLimit]:number}),
-		getTextureTypes: () -> ({[TextureType]:boolean}),
-		getWidth: () -> (number),
-		intersectScissor: (x:number,y:number,width:number,height:number) -> (),
-		inverseTransformPoint: (screenX:number,screenY:number) -> (number,number),
-		isActive: () -> (boolean),
-		isGammaCorrect: () -> (boolean),
-		isWireframe: () -> (boolean),
-		line: (x1:number,y1:number,x2:number,y2:number,...number) -> ()&(points:{number}) -> (),
-		newArrayImage: (slices:{[any]: any},settings:{mipmaps:boolean?,linear:boolean?,dpiscale:number?,}) -> (Image),
-		newCanvas: () -> (Canvas)&(width:number,height:number) -> (Canvas)&(width:number,height:number,settings:{type:TextureType?,format:PixelFormat?,readable:boolean,msaa:number?,dpiscale:number?,mipmaps:MipmapMode?,}) -> (Canvas)&(width:number,height:number,layers:number,settings:{type:TextureType?,format:PixelFormat?,readable:boolean,msaa:number?,dpiscale:number?,mipmaps:MipmapMode?,}) -> (Canvas),
-		newCubeImage: (filename:string,settings:{mipmaps:boolean?,linear:boolean?,}) -> (Image)&(faces:{[any]: any},settings:{mipmaps:boolean?,linear:boolean?,}) -> (Image),
-		newFont: (filename:string) -> (Font)&(filename:string,size:number,hinting:HintingMode,dpiscale:number) -> (Font)&(filename:string,imagefilename:string) -> (Font)&(size:number,hinting:HintingMode,dpiscale:number) -> (Font),
-		newImage: (filename:string,settings:{dpiscale:number?,linear:boolean?,mipmaps:boolean?,}) -> (Image)&(fileData:FileData,settings:{dpiscale:number?,linear:boolean?,mipmaps:boolean?,}) -> (Image)&(imageData:ImageData,settings:{dpiscale:number?,linear:boolean?,mipmaps:boolean?,}) -> (Image)&(compressedImageData:CompressedImageData,settings:{dpiscale:number?,linear:boolean?,mipmaps:boolean?,}) -> (Image),
-		newImageFont: (filename:string,glyphs:string) -> (Font)&(imageData:ImageData,glyphs:string) -> (Font)&(filename:string,glyphs:string,extraspacing:number) -> (Font),
-		newMesh: (vertices:{number},mode:MeshDrawMode,usage:SpriteBatchUsage) -> (Mesh)&(vertexcount:number,mode:MeshDrawMode,usage:SpriteBatchUsage) -> (Mesh)&(vertexformat:{attribute:{[any]: any}&{number},vertices:{attributecomponent:number}&{number},mode:MeshDrawMode,usage:SpriteBatchUsage}) -> (Mesh)&(vertexformat:{attribute:{[any]: any}}|{number},vertexcount:number,mode:MeshDrawMode,usage:SpriteBatchUsage) -> (Mesh)&(vertexcount:number,texture:Texture,mode:MeshDrawMode) -> (Mesh),
-		newParticleSystem: (image:Image,buffer:number) -> (ParticleSystem)&(texture:Texture,buffer:number) -> (ParticleSystem),
-		newQuad: (x:number,y:number,width:number,height:number,sw:number,sh:number) -> (Quad)&(x:number,y:number,width:number,height:number,texture:Texture) -> (Quad),
-		newShader: (code:string) -> (Shader)&(pixelcode:string,vertexcode:string) -> (Shader),
-		newSpriteBatch: (image:Image,maxsprites:number) -> (SpriteBatch)&(image:Image,maxsprites:number,usage:SpriteBatchUsage) -> (SpriteBatch)&(texture:Texture,maxsprites:number,usage:SpriteBatchUsage) -> (SpriteBatch),
-		newText: (font:Font,textstring:string) -> (Text)&(font:Font,coloredtext:{color1:{[any]: any},string1:string,color2:{[any]: any},string2:string}&{Variant}) -> (Text),
-		newVideo: (filename:string) -> (Video)&(videostream:VideoStream) -> (Video)&(filename:string,settings:{audio:boolean?,dpiscale:number?,}) -> (Video)&(filename:string,loadaudio:boolean) -> (Video)&(videostream:VideoStream,loadaudio:boolean) -> (Video),
-		newVolumeImage: (layers:{[any]: any},settings:{mipmaps:boolean?,linear:boolean?,}) -> (Image),
-		origin: () -> (),
-		points: (x:number,y:number,...number) -> ()&(points:{number}) -> ()&(points:{point:{[any]: any}}&{number}) -> (),
-		polygon: (mode:DrawMode,...number) -> ()&(mode:DrawMode,vertices:{number}) -> (),
-		pop: () -> (),
-		present: () -> (),
-		print: (text:string,x:number,y:number,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> (),
-		printf: (text:string,x:number,y:number,limit:number,align:AlignMode,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> (),
-		push: () -> ()&(stack:StackType) -> (),
-		rectangle: (mode:DrawMode,x:number,y:number,width:number,height:number) -> ()&(mode:DrawMode,x:number,y:number,width:number,height:number,rx:number,ry:number,segments:number) -> (),
-		replaceTransform: (transform:Transform) -> (),
-		reset: () -> (),
-		rotate: (angle:number) -> (),
-		scale: (sx:number,sy:number) -> (),
-		setBackgroundColor: (red:number,green:number,blue:number,alpha:number) -> ()&(rgba:{number}) -> (),
-		setBlendMode: (mode:BlendMode) -> ()&(mode:BlendMode,alphamode:BlendAlphaMode) -> (),
-		setCanvas: (canvas:Canvas,mipmap:number) -> ()&() -> ()&(canvas1:Canvas,canvas2:Canvas,...Canvas) -> ()&(canvas:Canvas,slice:number,mipmap:number) -> ()&(setup:{number}) -> (),
-		setColor: (red:number,green:number,blue:number,alpha:number) -> ()&(rgba:{number}) -> (),
-		setColorMask: (red:boolean,green:boolean,blue:boolean,alpha:boolean) -> ()&() -> (),
-		setDefaultFilter: (min:FilterMode,mag:FilterMode,anisotropy:number) -> (),
-		setDepthMode: (comparemode:CompareMode,write:boolean) -> ()&() -> (),
-		setFont: (font:Font) -> (),
-		setFrontFaceWinding: (winding:VertexWinding) -> (),
-		setLineJoin: (join:LineJoin) -> (),
-		setLineStyle: (style:LineStyle) -> (),
-		setLineWidth: (width:number) -> (),
-		setMeshCullMode: (mode:CullMode) -> (),
-		setNewFont: (size:number) -> (Font)&(filename:string,size:number) -> (Font)&(file:File,size:number) -> (Font)&(data:Data,size:number) -> (Font)&(rasterizer:Rasterizer) -> (Font),
-		setPointSize: (size:number) -> (),
-		setScissor: (x:number,y:number,width:number,height:number) -> ()&() -> (),
-		setShader: (shader:Shader) -> ()&() -> (),
-		setStencilTest: (comparemode:CompareMode,comparevalue:number) -> ()&() -> (),
-		setWireframe: (enable:boolean) -> (),
-		shear: (kx:number,ky:number) -> (),
-		stencil: (stencilfunction:(...any)->(...any),action:StencilAction,value:number,keepvalues:boolean) -> (),
-		transformPoint: (globalX:number,globalY:number) -> (number,number),
-		translate: (dx:number,dy:number) -> (),
-		validateShader: (gles:boolean,code:string) -> (boolean,string)&(gles:boolean,pixelcode:string,vertexcode:string) -> (boolean,string),
-	}
+		applyTransform: ((transform:Transform) -> ()),
+		arc: ((drawmode:DrawMode,x:number,y:number,radius:number,angle1:number,angle2:number,segments:number) -> ())&((drawmode:DrawMode,arctype:ArcType,x:number,y:number,radius:number,angle1:number,angle2:number,segments:number) -> ()),
+		captureScreenshot: ((filename:string) -> ())&((callback:(...any)->(...any)) -> ())&((channel:Channel) -> ()),
+		circle: ((mode:DrawMode,x:number,y:number,radius:number) -> ())&((mode:DrawMode,x:number,y:number,radius:number,segments:number) -> ()),
+		clear: (() -> ())&((r:number,g:number,b:number,a:number,clearstencil:boolean,cleardepth:boolean) -> ())&((color:{number},cleardepth:boolean) -> ())&((clearcolor:boolean,clearstencil:boolean,cleardepth:boolean) -> ()),
+		discard: ((discardcolor:boolean,discardstencil:boolean) -> ())&((discardcolors:{boolean},discardstencil:boolean) -> ()),
+		draw: ((drawable:Drawable,x:number,y:number,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ())&((texture:Texture,quad:Quad,x:number,y:number,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ())&((drawable:Drawable,transform:Transform) -> ())&((texture:Texture,quad:Quad,transform:Transform) -> ()),
+		drawInstanced: ((mesh:Mesh,instancecount:number,x:number,y:number,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ())&((mesh:Mesh,instancecount:number,transform:Transform) -> ()),
+		drawLayer: ((texture:Texture,layerindex:number,x:number,y:number,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ())&((texture:Texture,layerindex:number,quad:Quad,x:number,y:number,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ())&((texture:Texture,layerindex:number,transform:Transform) -> ())&((texture:Texture,layerindex:number,quad:Quad,transform:Transform) -> ()),
+		ellipse: ((mode:DrawMode,x:number,y:number,radiusx:number,radiusy:number) -> ())&((mode:DrawMode,x:number,y:number,radiusx:number,radiusy:number,segments:number) -> ()),
+		flushBatch: (() -> ()),
+		getBackgroundColor: (() -> (number,number,number,number)),
+		getBlendMode: (() -> (BlendMode,BlendAlphaMode)),
+		getCanvas: (() -> (Canvas)),
+		getCanvasFormats: (() -> ({[PixelFormat]:boolean}))&((readable:boolean) -> ({[PixelFormat]:boolean})),
+		getColor: (() -> (number,number,number,number)),
+		getColorMask: (() -> (boolean,boolean,boolean,boolean)),
+		getDPIScale: (() -> (number)),
+		getDefaultFilter: (() -> (FilterMode,FilterMode,number)),
+		getDepthMode: (() -> (CompareMode,boolean)),
+		getDimensions: (() -> (number,number)),
+		getFont: (() -> (Font)),
+		getFrontFaceWinding: (() -> (VertexWinding)),
+		getHeight: (() -> (number)),
+		getImageFormats: (() -> ({[PixelFormat]:boolean})),
+		getLineJoin: (() -> (LineJoin)),
+		getLineStyle: (() -> (LineStyle)),
+		getLineWidth: (() -> (number)),
+		getMeshCullMode: (() -> (CullMode)),
+		getPixelDimensions: (() -> (number,number)),
+		getPixelHeight: (() -> (number)),
+		getPixelWidth: (() -> (number)),
+		getPointSize: (() -> (number)),
+		getRendererInfo: (() -> (string,string,string,string)),
+		getScissor: (() -> (number,number,number,number)),
+		getShader: (() -> (Shader)),
+		getStackDepth: (() -> (number)),
+		getStats: (() -> ({drawcalls:number,canvasswitches:number,texturememory:number,images:number,canvases:number,fonts:number,shaderswitches:number,drawcallsbatched:number,}))&((stats:{[any]: any}) -> ({drawcalls:number,canvasswitches:number,texturememory:number,images:number,canvases:number,fonts:number,shaderswitches:number,drawcallsbatched:number,})),
+		getStencilTest: (() -> (CompareMode,number)),
+		getSupported: (() -> ({[GraphicsFeature]:boolean})),
+		getSystemLimits: (() -> ({[GraphicsLimit]:number})),
+		getTextureTypes: (() -> ({[TextureType]:boolean})),
+		getWidth: (() -> (number)),
+		intersectScissor: ((x:number,y:number,width:number,height:number) -> ()),
+		inverseTransformPoint: ((screenX:number,screenY:number) -> (number,number)),
+		isActive: (() -> (boolean)),
+		isGammaCorrect: (() -> (boolean)),
+		isWireframe: (() -> (boolean)),
+		line: ((x1:number,y1:number,x2:number,y2:number,...number) -> ())&((points:{number}) -> ()),
+		newArrayImage: ((slices:{[any]: any},settings:{mipmaps:boolean?,linear:boolean?,dpiscale:number?,}) -> (Image)),
+		newCanvas: (() -> (Canvas))&((width:number,height:number) -> (Canvas))&((width:number,height:number,settings:{type:TextureType?,format:PixelFormat?,readable:boolean,msaa:number?,dpiscale:number?,mipmaps:MipmapMode?,}) -> (Canvas))&((width:number,height:number,layers:number,settings:{type:TextureType?,format:PixelFormat?,readable:boolean,msaa:number?,dpiscale:number?,mipmaps:MipmapMode?,}) -> (Canvas)),
+		newCubeImage: ((filename:string,settings:{mipmaps:boolean?,linear:boolean?,}) -> (Image))&((faces:{[any]: any},settings:{mipmaps:boolean?,linear:boolean?,}) -> (Image)),
+		newFont: ((filename:string) -> (Font))&((filename:string,size:number,hinting:HintingMode,dpiscale:number) -> (Font))&((filename:string,imagefilename:string) -> (Font))&((size:number,hinting:HintingMode,dpiscale:number) -> (Font)),
+		newImage: ((filename:string,settings:{dpiscale:number?,linear:boolean?,mipmaps:boolean?,}) -> (Image))&((fileData:FileData,settings:{dpiscale:number?,linear:boolean?,mipmaps:boolean?,}) -> (Image))&((imageData:ImageData,settings:{dpiscale:number?,linear:boolean?,mipmaps:boolean?,}) -> (Image))&((compressedImageData:CompressedImageData,settings:{dpiscale:number?,linear:boolean?,mipmaps:boolean?,}) -> (Image)),
+		newImageFont: ((filename:string,glyphs:string) -> (Font))&((imageData:ImageData,glyphs:string) -> (Font))&((filename:string,glyphs:string,extraspacing:number) -> (Font)),
+		newMesh: ((vertices:{number},mode:MeshDrawMode,usage:SpriteBatchUsage) -> (Mesh))&((vertexcount:number,mode:MeshDrawMode,usage:SpriteBatchUsage) -> (Mesh))&((vertexformat:{attribute:{[any]: any}},vertices:{attributecomponent:number},mode:MeshDrawMode,usage:SpriteBatchUsage) -> (Mesh))&((vertexformat:{attribute:{[any]: any}},vertexcount:number,mode:MeshDrawMode,usage:SpriteBatchUsage) -> (Mesh))&((vertexcount:number,texture:Texture,mode:MeshDrawMode) -> (Mesh)),
+		newParticleSystem: ((image:Image,buffer:number) -> (ParticleSystem))&((texture:Texture,buffer:number) -> (ParticleSystem)),
+		newQuad: ((x:number,y:number,width:number,height:number,sw:number,sh:number) -> (Quad))&((x:number,y:number,width:number,height:number,texture:Texture) -> (Quad)),
+		newShader: ((code:string) -> (Shader))&((pixelcode:string,vertexcode:string) -> (Shader)),
+		newSpriteBatch: ((image:Image,maxsprites:number) -> (SpriteBatch))&((image:Image,maxsprites:number,usage:SpriteBatchUsage) -> (SpriteBatch))&((texture:Texture,maxsprites:number,usage:SpriteBatchUsage) -> (SpriteBatch)),
+		newText: ((font:Font,textstring:string) -> (Text))&((font:Font,coloredtext:{color1:{[any]: any},string1:string,color2:{[any]: any},string2:string}) -> (Text)),
+		newVideo: ((filename:string) -> (Video))&((videostream:VideoStream) -> (Video))&((filename:string,settings:{audio:boolean?,dpiscale:number?,}) -> (Video))&((filename:string,loadaudio:boolean) -> (Video))&((videostream:VideoStream,loadaudio:boolean) -> (Video)),
+		newVolumeImage: ((layers:{[any]: any},settings:{mipmaps:boolean?,linear:boolean?,}) -> (Image)),
+		origin: (() -> ()),
+		points: ((x:number,y:number,...number) -> ())&((points:{number}) -> ())&((points:{point:{[any]: any}}) -> ()),
+		polygon: ((mode:DrawMode,...number) -> ())&((mode:DrawMode,vertices:{number}) -> ()),
+		pop: (() -> ()),
+		present: (() -> ()),
+		print: ((text:string,x:number,y:number,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ())&((coloredtext:{color1:{[any]: any},string1:string,color2:{[any]: any},string2:string},x:number,y:number,angle:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ())&((text:string,transform:Transform) -> ())&((coloredtext:{color1:{[any]: any},string1:string,color2:{[any]: any},string2:string},transform:Transform) -> ())&((text:string,font:Font,transform:Transform) -> ())&((coloredtext:{color1:{[any]: any},string1:string,color2:{[any]: any},string2:string},font:Font,transform:Transform) -> ()),
+		printf: ((text:string,x:number,y:number,limit:number,align:AlignMode,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ())&((text:string,font:Font,x:number,y:number,limit:number,align:AlignMode,r:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ())&((text:string,transform:Transform,limit:number,align:AlignMode) -> ())&((text:string,font:Font,transform:Transform,limit:number,align:AlignMode) -> ())&((coloredtext:{color1:{[any]: any},string1:string,color2:{[any]: any},string2:string},x:number,y:number,limit:number,align:AlignMode,angle:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ())&((coloredtext:{color1:{[any]: any},string1:string,color2:{[any]: any},string2:string},font:Font,x:number,y:number,limit:number,align:AlignMode,angle:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> ())&((coloredtext:{color1:{[any]: any},string1:string,color2:{[any]: any},string2:string},transform:Transform,limit:number,align:AlignMode) -> ())&((coloredtext:{color1:{[any]: any},string1:string,color2:{[any]: any},string2:string},font:Font,transform:Transform,limit:number,align:AlignMode) -> ()),
+		push: (() -> ())&((stack:StackType) -> ()),
+		rectangle: ((mode:DrawMode,x:number,y:number,width:number,height:number) -> ())&((mode:DrawMode,x:number,y:number,width:number,height:number,rx:number,ry:number,segments:number) -> ()),
+		replaceTransform: ((transform:Transform) -> ()),
+		reset: (() -> ()),
+		rotate: ((angle:number) -> ()),
+		scale: ((sx:number,sy:number) -> ()),
+		setBackgroundColor: ((red:number,green:number,blue:number,alpha:number) -> ())&((rgba:{number}) -> ()),
+		setBlendMode: ((mode:BlendMode) -> ())&((mode:BlendMode,alphamode:BlendAlphaMode) -> ()),
+		setCanvas: ((canvas:Canvas,mipmap:number) -> ())&(() -> ())&((canvas1:Canvas,canvas2:Canvas,...Canvas) -> ())&((canvas:Canvas,slice:number,mipmap:number) -> ())&((setup:{number}) -> ()),
+		setColor: ((red:number,green:number,blue:number,alpha:number) -> ())&((rgba:{number}) -> ()),
+		setColorMask: ((red:boolean,green:boolean,blue:boolean,alpha:boolean) -> ())&(() -> ()),
+		setDefaultFilter: ((min:FilterMode,mag:FilterMode,anisotropy:number) -> ()),
+		setDepthMode: ((comparemode:CompareMode,write:boolean) -> ())&(() -> ()),
+		setFont: ((font:Font) -> ()),
+		setFrontFaceWinding: ((winding:VertexWinding) -> ()),
+		setLineJoin: ((join:LineJoin) -> ()),
+		setLineStyle: ((style:LineStyle) -> ()),
+		setLineWidth: ((width:number) -> ()),
+		setMeshCullMode: ((mode:CullMode) -> ()),
+		setNewFont: ((size:number) -> (Font))&((filename:string,size:number) -> (Font))&((file:File,size:number) -> (Font))&((data:Data,size:number) -> (Font))&((rasterizer:Rasterizer) -> (Font)),
+		setPointSize: ((size:number) -> ()),
+		setScissor: ((x:number,y:number,width:number,height:number) -> ())&(() -> ()),
+		setShader: ((shader:Shader) -> ())&(() -> ()),
+		setStencilTest: ((comparemode:CompareMode,comparevalue:number) -> ())&(() -> ()),
+		setWireframe: ((enable:boolean) -> ()),
+		shear: ((kx:number,ky:number) -> ()),
+		stencil: ((stencilfunction:(...any)->(...any),action:StencilAction,value:number,keepvalues:boolean) -> ()),
+		transformPoint: ((globalX:number,globalY:number) -> (number,number)),
+		translate: ((dx:number,dy:number) -> ()),
+		validateShader: ((gles:boolean,code:string) -> (boolean,string))&((gles:boolean,pixelcode:string,vertexcode:string) -> (boolean,string)),
+	},
 } & {
 	image: {
-		isCompressed: (filename:string) -> (boolean)&(fileData:FileData) -> (boolean),
-		newCompressedData: (filename:string) -> (CompressedImageData)&(fileData:FileData) -> (CompressedImageData),
-		newImageData: (width:number,height:number) -> (ImageData)&(width:number,height:number,format:PixelFormat,data:string) -> (ImageData)&(width:number,height:number,data:string) -> (ImageData)&(filename:string) -> (ImageData)&(filedata:FileData) -> (ImageData),
+		isCompressed: ((filename:string) -> (boolean))&((fileData:FileData) -> (boolean)),
+		newCompressedData: ((filename:string) -> (CompressedImageData))&((fileData:FileData) -> (CompressedImageData)),
+		newImageData: ((width:number,height:number) -> (ImageData))&((width:number,height:number,format:PixelFormat,data:string) -> (ImageData))&((width:number,height:number,data:string) -> (ImageData))&((filename:string) -> (ImageData))&((filedata:FileData) -> (ImageData)),
 	},
 } & {
 	joystick: {
-		getGamepadMappingString: (guid:string) -> (string),
-		getJoystickCount: () -> (number),
-		getJoysticks: () -> ({Joystick}),
-		loadGamepadMappings: (filename:string) -> ()&(mappings:string) -> (),
-		saveGamepadMappings: (filename:string) -> (string)&() -> (string),
-		setGamepadMapping: (guid:string,button:GamepadButton,inputtype:JoystickInputType,inputindex:number,hatdir:JoystickHat) -> (boolean)&(guid:string,axis:GamepadAxis,inputtype:JoystickInputType,inputindex:number,hatdir:JoystickHat) -> (boolean),
+		getGamepadMappingString: ((guid:string) -> (string)),
+		getJoystickCount: (() -> (number)),
+		getJoysticks: (() -> ({Joystick})),
+		loadGamepadMappings: ((filename:string) -> ())&((mappings:string) -> ()),
+		saveGamepadMappings: ((filename:string) -> (string))&(() -> (string)),
+		setGamepadMapping: ((guid:string,button:GamepadButton,inputtype:JoystickInputType,inputindex:number,hatdir:JoystickHat) -> (boolean))&((guid:string,axis:GamepadAxis,inputtype:JoystickInputType,inputindex:number,hatdir:JoystickHat) -> (boolean)),
 	},
 } & {
 	keyboard: {
-		getKeyFromScancode: (scancode:Scancode) -> (KeyConstant),
-		getScancodeFromKey: (key:KeyConstant) -> (Scancode),
-		hasKeyRepeat: () -> (boolean),
-		hasScreenKeyboard: () -> (boolean),
-		hasTextInput: () -> (boolean),
-		isDown: (key:KeyConstant) -> (boolean)&(key:KeyConstant,...KeyConstant) -> (boolean),
-		isScancodeDown: (scancode:Scancode,...Scancode) -> (boolean),
-		setKeyRepeat: (enable:boolean) -> (),
-		setTextInput: (enable:boolean) -> ()&(enable:boolean,x:number,y:number,w:number,h:number) -> (),
+		getKeyFromScancode: ((scancode:Scancode) -> (KeyConstant)),
+		getScancodeFromKey: ((key:KeyConstant) -> (Scancode)),
+		hasKeyRepeat: (() -> (boolean)),
+		hasScreenKeyboard: (() -> (boolean)),
+		hasTextInput: (() -> (boolean)),
+		isDown: ((key:KeyConstant) -> (boolean))&((key:KeyConstant,...KeyConstant) -> (boolean)),
+		isScancodeDown: ((scancode:Scancode,...Scancode) -> (boolean)),
+		setKeyRepeat: ((enable:boolean) -> ()),
+		setTextInput: ((enable:boolean) -> ())&((enable:boolean,x:number,y:number,w:number,h:number) -> ()),
 	},
 } & {
 	math: {
-		colorFromBytes: (rb:number,gb:number,bb:number,ab:number) -> (number,number,number,number),
-		colorToBytes: (r:number,g:number,b:number,a:number) -> (number,number,number,number),
-		gammaToLinear: (r:number,g:number,b:number) -> (number,number,number)&(color:{[any]: any}) -> (number,number,number)&(c:number) -> (number),
-		getRandomSeed: () -> (number,number),
-		getRandomState: () -> (string),
-		isConvex: (vertices:{number}) -> (boolean)&(x1:number,y1:number,x2:number,y2:number,...number) -> (boolean),
-		linearToGamma: (lr:number,lg:number,lb:number) -> (number,number,number)&(color:{number}) -> (number,number,number)&(lc:number) -> (number),
-		newBezierCurve: (vertices:{number}) -> (BezierCurve)&(x1:number,y1:number,x2:number,y2:number,...number) -> (BezierCurve),
-		newRandomGenerator: () -> (RandomGenerator)&(seed:number) -> (RandomGenerator)&(low:number,high:number) -> (RandomGenerator),
-		newTransform: () -> (Transform)&(x:number,y:number,angle:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> (Transform),
-		noise: (x:number) -> (number)&(x:number,y:number) -> (number)&(x:number,y:number,z:number) -> (number)&(x:number,y:number,z:number,w:number) -> (number),
-		random: () -> (number)&(max:number) -> (number)&(min:number,max:number) -> (number),
-		randomNormal: (stddev:number,mean:number) -> (number),
-		setRandomSeed: (seed:number) -> ()&(low:number,high:number) -> (),
-		setRandomState: (state:string) -> (),
-		triangulate: (polygon:{[any]: any}) -> ({[any]: any})&(x1:number,y1:number,x2:number,y2:number,x3:number,y3:number) -> ({[any]: any}),
+		colorFromBytes: ((rb:number,gb:number,bb:number,ab:number) -> (number,number,number,number)),
+		colorToBytes: ((r:number,g:number,b:number,a:number) -> (number,number,number,number)),
+		gammaToLinear: ((r:number,g:number,b:number) -> (number,number,number))&((color:{[any]: any}) -> (number,number,number))&((c:number) -> (number)),
+		getRandomSeed: (() -> (number,number)),
+		getRandomState: (() -> (string)),
+		isConvex: ((vertices:{number}) -> (boolean))&((x1:number,y1:number,x2:number,y2:number,...number) -> (boolean)),
+		linearToGamma: ((lr:number,lg:number,lb:number) -> (number,number,number))&((color:{number}) -> (number,number,number))&((lc:number) -> (number)),
+		newBezierCurve: ((vertices:{number}) -> (BezierCurve))&((x1:number,y1:number,x2:number,y2:number,...number) -> (BezierCurve)),
+		newRandomGenerator: (() -> (RandomGenerator))&((seed:number) -> (RandomGenerator))&((low:number,high:number) -> (RandomGenerator)),
+		newTransform: (() -> (Transform))&((x:number,y:number,angle:number,sx:number,sy:number,ox:number,oy:number,kx:number,ky:number) -> (Transform)),
+		noise: ((x:number) -> (number))&((x:number,y:number) -> (number))&((x:number,y:number,z:number) -> (number))&((x:number,y:number,z:number,w:number) -> (number)),
+		random: (() -> (number))&((max:number) -> (number))&((min:number,max:number) -> (number)),
+		randomNormal: ((stddev:number,mean:number) -> (number)),
+		setRandomSeed: ((seed:number) -> ())&((low:number,high:number) -> ()),
+		setRandomState: ((state:string) -> ()),
+		triangulate: ((polygon:{[any]: any}) -> ({[any]: any}))&((x1:number,y1:number,x2:number,y2:number,x3:number,y3:number) -> ({[any]: any})),
 	},
 } & {
 	mouse: {
-		getCursor: () -> (Cursor),
-		getPosition: () -> (number,number),
-		getRelativeMode: () -> (boolean),
-		getSystemCursor: (ctype:CursorType) -> (Cursor),
-		getX: () -> (number),
-		getY: () -> (number),
-		isCursorSupported: () -> (boolean),
-		isDown: (button:number,...number) -> (boolean),
-		isGrabbed: () -> (boolean),
-		isVisible: () -> (boolean),
-		newCursor: (imageData:ImageData,hotx:number,hoty:number) -> (Cursor)&(filename:string,hotx:number,hoty:number) -> (Cursor)&(fileData:FileData,hotx:number,hoty:number) -> (Cursor),
-		setCursor: (cursor:Cursor) -> ()&() -> (),
-		setGrabbed: (grab:boolean) -> (),
-		setPosition: (x:number,y:number) -> (),
-		setRelativeMode: (enable:boolean) -> (),
-		setVisible: (visible:boolean) -> (),
-		setX: (x:number) -> (),
-		setY: (y:number) -> (),
-	}
+		getCursor: (() -> (Cursor)),
+		getPosition: (() -> (number,number)),
+		getRelativeMode: (() -> (boolean)),
+		getSystemCursor: ((ctype:CursorType) -> (Cursor)),
+		getX: (() -> (number)),
+		getY: (() -> (number)),
+		isCursorSupported: (() -> (boolean)),
+		isDown: ((button:number,...number) -> (boolean)),
+		isGrabbed: (() -> (boolean)),
+		isVisible: (() -> (boolean)),
+		newCursor: ((imageData:ImageData,hotx:number,hoty:number) -> (Cursor))&((filename:string,hotx:number,hoty:number) -> (Cursor))&((fileData:FileData,hotx:number,hoty:number) -> (Cursor)),
+		setCursor: ((cursor:Cursor) -> ())&(() -> ()),
+		setGrabbed: ((grab:boolean) -> ()),
+		setPosition: ((x:number,y:number) -> ()),
+		setRelativeMode: ((enable:boolean) -> ()),
+		setVisible: ((visible:boolean) -> ()),
+		setX: ((x:number) -> ()),
+		setY: ((y:number) -> ()),
+	},
 } & {
 	physics: {
-		getDistance: (fixture1:Fixture,fixture2:Fixture) -> (number,number,number,number,number),
-		getMeter: () -> (number),
-		newBody: (world:World,x:number,y:number,type:BodyType) -> (Body),
-		newChainShape: (loop:boolean,x1:number,y1:number,x2:number,y2:number,...number) -> (ChainShape)&(loop:boolean,points:{number}) -> (ChainShape),
-		newCircleShape: (radius:number) -> (CircleShape)&(x:number,y:number,radius:number) -> (CircleShape),
-		newDistanceJoint: (body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,collideConnected:boolean) -> (DistanceJoint),
-		newEdgeShape: (x1:number,y1:number,x2:number,y2:number) -> (EdgeShape),
-		newFixture: (body:Body,shape:Shape,density:number) -> (Fixture),
-		newFrictionJoint: (body1:Body,body2:Body,x:number,y:number,collideConnected:boolean) -> (FrictionJoint)&(body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,collideConnected:boolean) -> (FrictionJoint),
-		newGearJoint: (joint1:Joint,joint2:Joint,ratio:number,collideConnected:boolean) -> (GearJoint),
-		newMotorJoint: (body1:Body,body2:Body,correctionFactor:number) -> (MotorJoint)&(body1:Body,body2:Body,correctionFactor:number,collideConnected:boolean) -> (MotorJoint),
-		newMouseJoint: (body:Body,x:number,y:number) -> (MouseJoint),
-		newPolygonShape: (x1:number,y1:number,x2:number,y2:number,x3:number,y3:number,...number) -> (PolygonShape)&(vertices:{number}) -> (PolygonShape),
-		newPrismaticJoint: (body1:Body,body2:Body,x:number,y:number,ax:number,ay:number,collideConnected:boolean) -> (PrismaticJoint)&(body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,ax:number,ay:number,collideConnected:boolean) -> (PrismaticJoint)&(body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,ax:number,ay:number,collideConnected:boolean,referenceAngle:number) -> (PrismaticJoint),
-		newPulleyJoint: (body1:Body,body2:Body,gx1:number,gy1:number,gx2:number,gy2:number,x1:number,y1:number,x2:number,y2:number,ratio:number,collideConnected:boolean) -> (PulleyJoint),
-		newRectangleShape: (width:number,height:number) -> (PolygonShape)&(x:number,y:number,width:number,height:number,angle:number) -> (PolygonShape),
-		newRevoluteJoint: (body1:Body,body2:Body,x:number,y:number,collideConnected:boolean) -> (RevoluteJoint)&(body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,collideConnected:boolean,referenceAngle:number) -> (RevoluteJoint),
-		newRopeJoint: (body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,maxLength:number,collideConnected:boolean) -> (RopeJoint),
-		newWeldJoint: (body1:Body,body2:Body,x:number,y:number,collideConnected:boolean) -> (WeldJoint)&(body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,collideConnected:boolean) -> (WeldJoint)&(body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,collideConnected:boolean,referenceAngle:number) -> (WeldJoint),
-		newWheelJoint: (body1:Body,body2:Body,x:number,y:number,ax:number,ay:number,collideConnected:boolean) -> (WheelJoint)&(body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,ax:number,ay:number,collideConnected:boolean) -> (WheelJoint),
-		newWorld: (xg:number,yg:number,sleep:boolean) -> (World),
-		setMeter: (scale:number) -> (),
-	}
+		getDistance: ((fixture1:Fixture,fixture2:Fixture) -> (number,number,number,number,number)),
+		getMeter: (() -> (number)),
+		newBody: ((world:World,x:number,y:number,type:BodyType) -> (Body)),
+		newChainShape: ((loop:boolean,x1:number,y1:number,x2:number,y2:number,...number) -> (ChainShape))&((loop:boolean,points:{number}) -> (ChainShape)),
+		newCircleShape: ((radius:number) -> (CircleShape))&((x:number,y:number,radius:number) -> (CircleShape)),
+		newDistanceJoint: ((body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,collideConnected:boolean) -> (DistanceJoint)),
+		newEdgeShape: ((x1:number,y1:number,x2:number,y2:number) -> (EdgeShape)),
+		newFixture: ((body:Body,shape:Shape,density:number) -> (Fixture)),
+		newFrictionJoint: ((body1:Body,body2:Body,x:number,y:number,collideConnected:boolean) -> (FrictionJoint))&((body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,collideConnected:boolean) -> (FrictionJoint)),
+		newGearJoint: ((joint1:Joint,joint2:Joint,ratio:number,collideConnected:boolean) -> (GearJoint)),
+		newMotorJoint: ((body1:Body,body2:Body,correctionFactor:number) -> (MotorJoint))&((body1:Body,body2:Body,correctionFactor:number,collideConnected:boolean) -> (MotorJoint)),
+		newMouseJoint: ((body:Body,x:number,y:number) -> (MouseJoint)),
+		newPolygonShape: ((x1:number,y1:number,x2:number,y2:number,x3:number,y3:number,...number) -> (PolygonShape))&((vertices:{number}) -> (PolygonShape)),
+		newPrismaticJoint: ((body1:Body,body2:Body,x:number,y:number,ax:number,ay:number,collideConnected:boolean) -> (PrismaticJoint))&((body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,ax:number,ay:number,collideConnected:boolean) -> (PrismaticJoint))&((body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,ax:number,ay:number,collideConnected:boolean,referenceAngle:number) -> (PrismaticJoint)),
+		newPulleyJoint: ((body1:Body,body2:Body,gx1:number,gy1:number,gx2:number,gy2:number,x1:number,y1:number,x2:number,y2:number,ratio:number,collideConnected:boolean) -> (PulleyJoint)),
+		newRectangleShape: ((width:number,height:number) -> (PolygonShape))&((x:number,y:number,width:number,height:number,angle:number) -> (PolygonShape)),
+		newRevoluteJoint: ((body1:Body,body2:Body,x:number,y:number,collideConnected:boolean) -> (RevoluteJoint))&((body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,collideConnected:boolean,referenceAngle:number) -> (RevoluteJoint)),
+		newRopeJoint: ((body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,maxLength:number,collideConnected:boolean) -> (RopeJoint)),
+		newWeldJoint: ((body1:Body,body2:Body,x:number,y:number,collideConnected:boolean) -> (WeldJoint))&((body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,collideConnected:boolean) -> (WeldJoint))&((body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,collideConnected:boolean,referenceAngle:number) -> (WeldJoint)),
+		newWheelJoint: ((body1:Body,body2:Body,x:number,y:number,ax:number,ay:number,collideConnected:boolean) -> (WheelJoint))&((body1:Body,body2:Body,x1:number,y1:number,x2:number,y2:number,ax:number,ay:number,collideConnected:boolean) -> (WheelJoint)),
+		newWorld: ((xg:number,yg:number,sleep:boolean) -> (World)),
+		setMeter: ((scale:number) -> ()),
+	},
 } & {
 	sound: {
-		newDecoder: (file:File,buffer:number) -> (Decoder)&(filename:string,buffer:number) -> (Decoder),
-		newSoundData: (filename:string) -> (SoundData)&(file:File) -> (SoundData)&(decoder:Decoder) -> (SoundData)&(samples:number,rate:number,bits:number,channels:number) -> (SoundData),
+		newDecoder: ((file:File,buffer:number) -> (Decoder))&((filename:string,buffer:number) -> (Decoder)),
+		newSoundData: ((filename:string) -> (SoundData))&((file:File) -> (SoundData))&((decoder:Decoder) -> (SoundData))&((samples:number,rate:number,bits:number,channels:number) -> (SoundData)),
 	},
 } & {
 	system: {
-		getClipboardText: () -> (string),
-		getOS: () -> (string),
-		getPowerInfo: () -> (PowerState,number,number),
-		getProcessorCount: () -> (number),
-		hasBackgroundMusic: () -> (boolean),
-		openURL: (url:string) -> (boolean),
-		setClipboardText: (text:string) -> (),
-		vibrate: (seconds:number) -> (),
+		getClipboardText: (() -> (string)),
+		getOS: (() -> (string)),
+		getPowerInfo: (() -> (PowerState,number,number)),
+		getProcessorCount: (() -> (number)),
+		hasBackgroundMusic: (() -> (boolean)),
+		openURL: ((url:string) -> (boolean)),
+		setClipboardText: ((text:string) -> ()),
+		vibrate: ((seconds:number) -> ()),
+	},
+} & {
+	thread: {
+		getChannel: ((name:string) -> (Channel)),
+		newChannel: (() -> (Channel)),
+		newThread: ((filename:string) -> (Thread))&((fileData:FileData) -> (Thread))&((codestring:string) -> (Thread)),
 	},
 } & {
 	timer: {
-		getAverageDelta: () -> (number),
-		getDelta: () -> (number),
-		getFPS: () -> (number),
-		getTime: () -> (number),
-		sleep: (s:number) -> (),
-		step: () -> (number),
-	}
+		getAverageDelta: (() -> (number)),
+		getDelta: (() -> (number)),
+		getFPS: (() -> (number)),
+		getTime: (() -> (number)),
+		sleep: ((s:number) -> ()),
+		step: (() -> (number)),
+	},
 } & {
 	touch: {
-		getPosition: (id:any) -> (number,number),
-		getPressure: (id:any) -> (number),
-		getTouches: () -> ({any}),
+		getPosition: ((id:userdata) -> (number,number)),
+		getPressure: ((id:userdata) -> (number)),
+		getTouches: (() -> ({userdata})),
 	},
 } & {
 	video: {
-		newVideoStream: (filename:string) -> (VideoStream)&(file:File) -> (VideoStream),
+		newVideoStream: ((filename:string) -> (VideoStream))&((file:File) -> (VideoStream)),
 	},
 } & {
 	window: {
-		close: () -> (),
-		fromPixels: (pixelvalue:number) -> (number)&(px:number,py:number) -> (number,number),
-		getDPIScale: () -> (number),
-		getDesktopDimensions: (displayindex:number) -> (number,number),
-		getDisplayCount: () -> (number),
-		getDisplayName: (displayindex:number) -> (string),
-		getDisplayOrientation: (displayindex:number) -> (DisplayOrientation),
-		getFullscreen: () -> (boolean,FullscreenType),
-		getFullscreenModes: (displayindex:number) -> ({width:number,height:number,}),
-		getIcon: () -> (ImageData),
-		getMode: () -> (number,number,getModeReturn),
-		getPosition: () -> (number,number,number),
-		getSafeArea: () -> (number,number,number,number),
-		getTitle: () -> (string),
-		getVSync: () -> (number),
-		hasFocus: () -> (boolean),
-		hasMouseFocus: () -> (boolean),
-		updateMode: (width:number,height:number,settings:{fullscreen:boolean,fullscreentype:FullscreenType,vsync:boolean,msaa:number,resizable:boolean,borderless:boolean,centered:boolean,display:number,minwidth:number,minheight:number,highdpi:boolean,x:number,y:number,}) -> (boolean),
-	},
+		close: (() -> ()),
+		fromPixels: ((pixelvalue:number) -> (number))&((px:number,py:number) -> (number,number)),
+		getDPIScale: (() -> (number)),
+		getDesktopDimensions: ((displayindex:number) -> (number,number)),
+		getDisplayCount: (() -> (number)),
+		getDisplayName: ((displayindex:number) -> (string)),
+		getDisplayOrientation: ((displayindex:number) -> (DisplayOrientation)),
+		getFullscreen: (() -> (boolean,FullscreenType)),
+		getFullscreenModes: ((displayindex:number) -> ({width:number,height:number,})),
+		getIcon: (() -> (ImageData)),
+		getMode: (() -> (number,number,{fullscreen:boolean,fullscreentype:FullscreenType,vsync:boolean,msaa:number,resizable:boolean,borderless:boolean,centered:boolean,display:number,minwidth:number,minheight:number,highdpi:boolean,refreshrate:number,x:number,y:number,srgb:boolean,})),
+		getPosition: (() -> (number,number,number)),
+		getSafeArea: (() -> (number,number,number,number)),
+		getTitle: (() -> (string)),
+		getVSync: (() -> (number)),
+		hasFocus: (() -> (boolean)),
+		hasMouseFocus: (() -> (boolean)),
+		isDisplaySleepEnabled: (() -> (boolean)),
+		isMaximized: (() -> (boolean)),
+		isMinimized: (() -> (boolean)),
+		isOpen: (() -> (boolean)),
+		isVisible: (() -> (boolean)),
+		maximize: (() -> ()),
+		minimize: (() -> ()),
+		requestAttention: ((continuous:boolean) -> ()),
+		restore: (() -> ()),
+		setDisplaySleepEnabled: ((enable:boolean) -> ()),
+		setFullscreen: ((fullscreen:boolean) -> (boolean))&((fullscreen:boolean,fstype:FullscreenType) -> (boolean)),
+		setIcon: ((imagedata:ImageData) -> (boolean)),
+		setMode: ((width:number,height:number,flags:{fullscreen:boolean?,fullscreentype:FullscreenType?,vsync:boolean?,msaa:number?,stencil:boolean?,depth:number?,resizable:boolean?,borderless:boolean?,centered:boolean?,display:number?,minwidth:number?,minheight:number?,highdpi:boolean?,x:number?,y:number?,usedpiscale:boolean?,srgb:boolean?,}) -> (boolean)),
+		setPosition: ((x:number,y:number,displayindex:number) -> ()),
+		setTitle: ((title:string) -> ()),
+		setVSync: ((vsync:number) -> ()),
+		showMessageBox: ((title:string,message:string,type:MessageBoxType,attachtowindow:boolean) -> (boolean))&((title:string,message:string,buttonlist:{[any]: any},type:MessageBoxType,attachtowindow:boolean) -> (number)),
+		toPixels: ((value:number) -> (number))&((x:number,y:number) -> (number,number)),
+		updateMode: ((width:number,height:number,settings:{fullscreen:boolean,fullscreentype:FullscreenType,vsync:boolean,msaa:number,resizable:boolean,borderless:boolean,centered:boolean,display:number,minwidth:number,minheight:number,highdpi:boolean,x:number,y:number,}) -> (boolean)),
+	}
 }
-

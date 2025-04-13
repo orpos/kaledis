@@ -1,3 +1,4 @@
+use std::env::temp_dir;
 use std::io::Write;
 
 use anyhow::Context;
@@ -94,15 +95,14 @@ pub async fn get_update(reqwest: &reqwest::Client, allow_breaking: bool) -> anyh
 
         entry.read_to_end(&mut buffer).await.context("Failed to read the bytes.")?;
 
-        let local_path = std::env::current_exe().unwrap();
-        let exe = local_path.with_file_name("new.exe");
+        let exe = temp_dir().with_file_name("new.exe");
 
         {
             let mut new_exe = std::fs::File::create(&exe).unwrap();
             new_exe.write(&buffer).unwrap();
         }
-        Command::new(&exe).args(vec!["update", &local_path.display().to_string()]).spawn().unwrap();
-        return Ok(true);
+        Command::new(&exe).args(vec!["update", &temp_dir().display().to_string()]).spawn().unwrap();
+        std::process::exit(0);
     } else {
         println!("No update found.");
         return Ok(false);

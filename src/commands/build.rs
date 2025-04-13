@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::{ Arc, Mutex };
 
 use anyhow::Context;
+use ignore::WalkBuilder;
 use indexmap::IndexSet;
 use strum::IntoEnumIterator;
 use tokio::io::{ AsyncReadExt, AsyncWriteExt };
@@ -219,11 +220,12 @@ impl Builder {
     }
     pub async fn add_assets(&mut self) {
         self.bar.change_status("Adding asset files...".into()).await;
-        for path in glob
-            ::glob(&self.local.join("**/*").display().to_string())
-            .unwrap()
+        // TODO use override builder
+        for path in WalkBuilder::new(&self.local)
+            .build()
             .filter_map(Result::ok)
             .filter(|pth| {
+                let pth = pth.path();
                 let ext = pth
                     .extension()
                     .map(|x| x.to_str().unwrap())
@@ -234,6 +236,7 @@ impl Builder {
                     pth.is_dir()
                 )
             }) {
+            let path = path.path();
             if let Some(zip) = &mut self.zip {
                 zip.add_zip_f_from_path(&path, &self.local).await.unwrap();
             } else {
@@ -439,10 +442,6 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
             let fin = builder.finish_zip().unwrap();
             let love_executable = configs.project.love_path.join("love.exe");
 
-            let mut contents = File::open(love_executable).await?;
-            let mut buffer = Vec::new();
-
-            contents.read_to_end(&mut buffer).await?;
 
             let dist_folder = local.join("dist");
 
@@ -452,9 +451,17 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
 
             let new_exe = dist_folder.join(configs.project.name).with_extension("exe");
 
-            let mut f = File::create(&new_exe).await?;
-            f.write(&buffer).await?;
-            f.write(&fin).await?;
+            {
+                // Here we store the contents only when writing
+                let mut contents = File::open(love_executable).await?;
+                let mut buffer = Vec::new();
+
+                contents.read_to_end(&mut buffer).await?;
+
+                let mut f = File::create(&new_exe).await?;
+                f.write(&buffer).await?;
+                f.write(&fin).await?;
+            }
 
             println!("Saving executable in : {}", new_exe.display().to_string());
 

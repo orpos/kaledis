@@ -3,7 +3,7 @@ mod build;
 mod watch;
 mod update;
 
-use std::{ env::current_exe, path::PathBuf, thread, time::Duration };
+use std::{ env::{current_exe, temp_dir}, path::PathBuf, thread, time::Duration };
 
 use clap::{ Parser, Subcommand };
 use tokio::{ fs::{ copy, remove_file }, process::Command };
@@ -51,6 +51,9 @@ pub struct CLI {
 }
 
 pub async fn handle_commands(command: Commands) {
+    if temp_dir().join("new.exe").exists() {
+        let _ = remove_file(temp_dir().join("new.exe")).await;
+    }
     match command {
         Commands::Init { path } => {
             init::init(path);
@@ -68,8 +71,8 @@ pub async fn handle_commands(command: Commands) {
             // Artificial delay to wait for the previous instance to die
             if let Some(_) = is_established {
                 println!("Removing temporary file");
-                thread::sleep(Duration::from_millis(700));
-                remove_file(step.unwrap()).await.unwrap();
+                thread::sleep(Duration::from_millis(1100));
+                let _ = remove_file(step.unwrap()).await;
                 return;
             }
             if let Some(target) = step {

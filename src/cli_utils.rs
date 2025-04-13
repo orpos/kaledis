@@ -48,18 +48,3 @@ impl LoadingStatusBar {
         *self.status.write().await = data;
     }
 }
-
-#[macro_export]
-macro_rules! allow {
-    ($target:expr, $equal:expr) => {
-        {
-            $target == $equal
-        }
-    };
-    ($target:expr, $equal:expr, $($eq:expr),+) => {
-        {
-            allow!($target, $equal) ||
-            allow!($target, $($eq),+)
-        }
-    };
-}

@@ -1,44 +1,51 @@
-mod init;
 mod build;
-mod watch;
+pub mod init;
 mod update;
+mod watch;
 
-use std::{ env::{current_exe, temp_dir}, path::PathBuf, thread, time::Duration };
+use std::{
+    env::{current_exe, temp_dir},
+    path::PathBuf,
+    thread,
+    time::Duration,
+};
 
-use clap::{ Parser, Subcommand };
-use tokio::{ fs::{ copy, remove_file }, process::Command };
+use clap::{Parser, Subcommand};
+use tokio::{
+    fs::{copy, remove_file},
+    process::Command,
+};
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    #[clap(about = "Initializes a new Love2D project.")] Init {
-        path: Option<PathBuf>,
-    },
+    #[clap(about = "Initializes a new Love2D project.")]
+    Init { path: Option<PathBuf> },
     #[clap(
         about = "Transpiles everything, and builds a '.love' file inside a '.build' directory."
-    )] Build {
+    )]
+    Build {
         path: Option<PathBuf>,
-        #[arg(short, long, help="A config that joins all files in a single one.")]
-        one_file: bool
+        #[arg(short, long, help = "A config that joins all files in a single one.")]
+        one_file: bool,
     },
-    #[clap(
-        about = "Compiles the entire project to a executable, inside a 'dist' folder."
-    )] Compile {
+    #[clap(about = "Compiles the entire project to a executable, inside a 'dist' folder.")]
+    Compile {
         path: Option<PathBuf>,
-        #[arg(short, long, help="A config that joins all files in a single one.")]
-        one_file: bool
+        #[arg(short, long, help = "A config that joins all files in a single one.")]
+        one_file: bool,
     },
     #[clap(
         about = "Watches for changes in the project and builds and executes love automatically."
-    )] Dev {
-        path: Option<PathBuf>,
-    },
+    )]
+    Dev { path: Option<PathBuf> },
     #[clap(
         about = "Updates kaledis based of github releases. This will also be used internally to handle files. If you want just to update just call it without passing anything"
-    )] Update {
+    )]
+    Update {
         step: Option<PathBuf>,
         is_established: Option<String>,
-        #[arg(short, long, help="A config that joins all files in a single one.")]
-        allow_breaking: bool
+        #[arg(short, long, help = "A config that joins all files in a single one.")]
+        allow_breaking: bool,
     },
 }
 
@@ -52,22 +59,30 @@ pub struct CLI {
 
 pub async fn handle_commands(command: Commands) {
     if temp_dir().join("new.exe").exists() {
-        let _ = remove_file(temp_dir().join("new.exe")).await;
+        // let _ = remove_file(temp_dir().join("new.exe")).await;
     }
     match command {
         Commands::Init { path } => {
             init::init(path);
         }
         Commands::Build { path, one_file } => {
-            build::build(path, build::Strategy::Build, one_file).await.unwrap();
+            build::build(path, build::Strategy::Build, one_file)
+                .await
+                .unwrap();
         }
         Commands::Dev { path } => {
             watch::watch(path).await;
         }
         Commands::Compile { path, one_file } => {
-            build::build(path, build::Strategy::BuildAndCompile, one_file).await.unwrap();
+            build::build(path, build::Strategy::BuildAndCompile, one_file)
+                .await
+                .unwrap();
         }
-        Commands::Update { step, is_established, allow_breaking } => {
+        Commands::Update {
+            step,
+            is_established,
+            allow_breaking,
+        } => {
             // Artificial delay to wait for the previous instance to die
             if let Some(_) = is_established {
                 println!("Removing temporary file");
@@ -81,7 +96,11 @@ pub async fn handle_commands(command: Commands) {
                 remove_file(&target).await.unwrap();
                 copy(current_exe().unwrap(), &target).await.unwrap();
                 Command::new(target)
-                    .args(vec!["update", &current_exe().unwrap().display().to_string(), "true"])
+                    .args(vec![
+                        "update",
+                        &current_exe().unwrap().display().to_string(),
+                        "true",
+                    ])
                     .spawn()
                     .unwrap();
                 return;

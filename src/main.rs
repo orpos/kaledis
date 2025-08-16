@@ -1,13 +1,13 @@
-mod toml_conf;
+mod cli_utils;
 mod commands;
+mod toml_conf;
 mod utils;
 mod zip_utils;
-mod cli_utils;
 
-use std::{ process::ExitCode, thread };
+use std::{process::ExitCode, thread};
 
 use colored::Colorize;
-use commands::{ handle_commands, CLI };
+use commands::{handle_commands, CLI};
 
 use clap::Parser;
 use tokio::runtime;
@@ -23,21 +23,37 @@ fn print_banner() {
         "{}",
         "▒  ▒▒▒  ▒▒▒  ▒▒▒▒  ▒▒  ▒▒▒▒▒▒▒▒  ▒▒▒▒▒▒▒▒  ▒▒▒▒  ▒▒▒▒▒  ▒▒▒▒▒  ▒▒▒▒▒▒▒".purple()
     );
-    println!("{}", "▓     ▓▓▓▓▓  ▓▓▓▓  ▓▓  ▓▓▓▓▓▓▓▓      ▓▓▓▓  ▓▓▓▓  ▓▓▓▓▓  ▓▓▓▓▓▓      ▓▓".cyan());
-    println!("{}", "█  ███  ███        ██  ████████  ████████  ████  █████  ███████████  █".cyan());
-    println!("{}", "█  ████  ██  ████  ██        ██        ██       ███        ███      ██".cyan());
+    println!(
+        "{}",
+        "▓     ▓▓▓▓▓  ▓▓▓▓  ▓▓  ▓▓▓▓▓▓▓▓      ▓▓▓▓  ▓▓▓▓  ▓▓▓▓▓  ▓▓▓▓▓▓      ▓▓".cyan()
+    );
+    println!(
+        "{}",
+        "█  ███  ███        ██  ████████  ████████  ████  █████  ███████████  █".cyan()
+    );
+    println!(
+        "{}",
+        "█  ████  ██  ████  ██        ██        ██       ███        ███      ██".cyan()
+    );
     println!("");
 }
 
 fn run() -> ExitCode {
     print_banner();
     let args = CLI::parse();
-    let rt = runtime::Builder::new_multi_thread().enable_io().enable_time().build().unwrap();
+    let rt = runtime::Builder::new_multi_thread()
+        .enable_io()
+        .enable_time()
+        .build()
+        .unwrap();
     rt.block_on(handle_commands(args.cli));
     ExitCode::SUCCESS
 }
 
 fn main() -> ExitCode {
-    let child = thread::Builder::new().stack_size(STACK_SIZE).spawn(run).unwrap();
-    return child.join().unwrap_or(ExitCode::FAILURE)
+    let child = thread::Builder::new()
+        .stack_size(STACK_SIZE)
+        .spawn(run)
+        .unwrap();
+    return child.join().unwrap_or(ExitCode::FAILURE);
 }

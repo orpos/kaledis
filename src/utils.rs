@@ -1,4 +1,4 @@
-use std::{ env, path::PathBuf };
+use std::{env, path::PathBuf};
 
 pub fn relative(path: Option<PathBuf>) -> PathBuf {
     let ma = env::current_dir().unwrap();

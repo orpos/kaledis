@@ -1,0 +1,7 @@
+{
+	"aliases": {
+		"packages": "luau_packages",
+		"assets": "assets",
+		"libs" : "src/libs"
+	}
+}

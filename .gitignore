@@ -11,6 +11,6 @@ playground
 dal_custom/target
 
 # this is a folder that i normally use to test
-project/**/*
-project/.gitignore
-./project
+# project/**/*
+# project/.gitignore
+# ./project

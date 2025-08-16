@@ -1,7 +1,11 @@
-use std::{ io::Write, sync::{ Arc, Weak }, time::Duration };
+use std::{
+    io::Write,
+    sync::{Arc, Weak},
+    time::Duration,
+};
 
-use console::{ style, Term };
-use tokio::{ sync::RwLock, time::sleep };
+use console::{style, Term};
+use tokio::{sync::RwLock, time::sleep};
 
 pub struct LoadingStatusBar {
     status: Arc<RwLock<String>>,
@@ -18,8 +22,9 @@ async fn loading_animation(text: Weak<RwLock<String>>) {
         if let Some(text) = text.upgrade() {
             let data = &*text.read().await;
             term.write(
-                format!("{} {}\r", style(frames[frame_index]).dim().blue(), data).as_bytes()
-            ).unwrap();
+                format!("{} {}\r", style(frames[frame_index]).dim().blue(), data).as_bytes(),
+            )
+            .unwrap();
             frame_index += 1;
             frame_index %= frames.len();
             sleep(Duration::from_millis(100)).await;

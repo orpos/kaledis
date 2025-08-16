@@ -1,20 +1,52 @@
-use std::str::FromStr;
 use std::path::PathBuf;
-use std::sync::{ Arc, Mutex };
+use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use ignore::WalkBuilder;
 use indexmap::IndexSet;
+use serde_json::Value;
 use strum::IntoEnumIterator;
-use tokio::io::{ AsyncReadExt, AsyncWriteExt };
-use tokio::fs::{ self, create_dir, remove_dir_all, File };
+use tokio::fs::{self, create_dir, remove_dir_all, File};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use kaledis_dalbit::{ manifest::Manifest, transpile };
+use kaledis_dalbit::{manifest::Manifest, transpile};
 
 use crate::cli_utils::LoadingStatusBar;
-use crate::{ toml_conf::{ Config, Modules }, utils::relative };
+use crate::{allow, zip_utils::*};
+use crate::{
+    toml_conf::{Config, Modules},
+    utils::relative,
+};
 use colored::Colorize;
-use crate::{ allow, zip_utils::* };
+
+pub fn normalize_lua_path(path: PathBuf, root: PathBuf, alternative: PathBuf) -> PathBuf {
+    let mut new_path = PathBuf::new();
+    let target = path
+        .strip_prefix(&root)
+        .unwrap_or_else(|_| path.strip_prefix(alternative).unwrap());
+    if let Some(parent) = target.parent() {
+        let mut comps = parent.iter();
+
+        // Push the first path component untouched
+        if let Some(first) = comps.next() {
+            new_path.push(first);
+        }
+
+        // Replace dots in the remaining directories
+        for comp in comps {
+            let comp_str = comp.to_string_lossy().replace('.', "__");
+            new_path.push(comp_str);
+        }
+    }
+
+    // Append the filename without changes
+    if let Some(file_name) = path.file_name() {
+        new_path.push(file_name);
+    }
+
+    root.join(new_path)
+}
 
 pub enum ModelConf {
     Exclude(Vec<Modules>),
@@ -29,7 +61,8 @@ impl From<&Config> for ModelConf {
             if config.exclude_modules.len() > 0 {
                 eprintln!(
                     "{}",
-                    "Both modules and exclude modules used, the exclude modules will be ignored".red()
+                    "Both modules and exclude modules used, the exclude modules will be ignored"
+                        .red()
                 );
             }
             Self::Include(config.modules.clone())
@@ -44,9 +77,30 @@ struct Builder {
     strategy: Strategy,
     zip: Option<Zipper>,
     local: PathBuf,
+    src_path: PathBuf,
     build_path: PathBuf,
+    assets_path: PathBuf,
+    aliases: Vec<(String, String)>,
     bar: LoadingStatusBar,
     used_modules: Option<Arc<Mutex<IndexSet<String>>>>,
+}
+
+async fn read_aliases(path: &PathBuf) -> anyhow::Result<Vec<(String, String)>> {
+    let mut buffer = Vec::new();
+    if !fs::try_exists(path.join(".luaurc")).await? {
+        return Ok(vec![]);
+    }
+    let contents = fs::read_to_string(path.join(".luaurc")).await?;
+    let json: Value = serde_json::from_str(&contents)?;
+
+    if let Some(aliases) = json.get("aliases").and_then(|a| a.as_object()) {
+        for (k, v) in aliases.iter() {
+            if let Some(v_str) = v.as_str() {
+                buffer.push((k.clone(), v_str.to_string()));
+            }
+        }
+    }
+    Ok(buffer)
 }
 
 impl Builder {
@@ -54,12 +108,19 @@ impl Builder {
         local: &PathBuf,
         collect_used_modules: bool,
         run: Strategy,
-        one_file: bool
+        config_kaledis: &Config,
+        one_file: bool,
     ) -> anyhow::Result<Self> {
-        let config = get_transpiler(one_file).await.context("Failed to build manifest")?;
+        let config = get_transpiler(one_file)
+            .await
+            .context("Failed to build manifest")?;
+
         let bar = LoadingStatusBar::new("Building project...".into());
         bar.start_animation().await;
+        let optional_path =
+            |path: &Option<String>| local.join(path.as_ref().unwrap_or(&"".to_string()).clone());
         Ok(Self {
+            aliases: read_aliases(local).await?,
             transpiler_manifest: config,
             zip: if let Strategy::BuildDev = run {
                 None
@@ -69,6 +130,8 @@ impl Builder {
             strategy: run,
             bar,
             build_path: local.join(".build"),
+            src_path: optional_path(&config_kaledis.project.src_path),
+            assets_path: optional_path(&config_kaledis.project.asset_path),
             local: local.clone(),
             used_modules: if collect_used_modules {
                 Some(Arc::new(Mutex::new(IndexSet::new())))
@@ -81,16 +144,13 @@ impl Builder {
     pub fn generate_conf_modules(
         &self,
         imported_modules: Vec<Modules>,
-        model_conf: ModelConf
+        model_conf: ModelConf,
     ) -> String {
         let mut modules_string = "".to_string();
         for module in imported_modules {
             let enabled = match model_conf {
                 ModelConf::Include(ref models) | ModelConf::Exclude(ref models) => {
-                    let found_model = models
-                        .iter()
-                        .find(|x| **x == module)
-                        .is_some();
+                    let found_model = models.iter().find(|x| **x == module).is_some();
                     if let ModelConf::Exclude(_) = model_conf {
                         !found_model
                     } else {
@@ -111,7 +171,9 @@ impl Builder {
             // This clean function only happens when a new build is requested
             // and in dev i considered it unnecessary to persist
             if let Strategy::BuildDev = self.strategy {
-                self.bar.change_status("Cleaning build folder.".to_string()).await;
+                self.bar
+                    .change_status("Cleaning build folder.".to_string())
+                    .await;
             } else {
                 println!("Previous build folder found. Deleting it...");
             }
@@ -121,63 +183,76 @@ impl Builder {
         Ok(())
     }
     pub async fn process_file(&self, input: PathBuf, output: PathBuf) -> anyhow::Result<()> {
-        let mut additional_rules = vec![
-            kaledis_dalbit::modifiers::Modifier::DarkluaRule(
-                Box::new(kaledis_dalbit::modifiers::ModifyRelativePath {
-                    project_root: self.local.clone(),
-                })
-            )
-        ];
+        let mut additional_rules = vec![kaledis_dalbit::modifiers::Modifier::DarkluaRule(
+            Box::new(kaledis_dalbit::modifiers::ModifyPathModifier {
+                project_root_src: self.src_path.clone(),
+                project_root: self.local.clone(),
+                paths: self.aliases.clone(),
+            }),
+        )];
         if let Some(modules) = &self.used_modules {
-            additional_rules.push(
-                kaledis_dalbit::modifiers::Modifier::DarkluaRule(
-                    Box::new(kaledis_dalbit::modifiers::GetLoveModules {
-                        modules: Arc::clone(modules),
-                    })
-                )
-            );
+            additional_rules.push(kaledis_dalbit::modifiers::Modifier::DarkluaRule(Box::new(
+                kaledis_dalbit::modifiers::GetLoveModules {
+                    modules: Arc::clone(modules),
+                },
+            )));
         }
         let mut new_manifest = self.transpiler_manifest.clone();
         new_manifest.input = input;
-        new_manifest.output = output;
-        new_manifest.minify = if self.strategy == Strategy::BuildDev { true } else { false };
+        new_manifest.output = normalize_lua_path(output, self.local.clone(), self.src_path.clone());
+        new_manifest.minify = if self.strategy == Strategy::BuildDev {
+            true
+        } else {
+            false
+        };
         transpile::process(new_manifest, Some(&mut additional_rules)).await?;
         return Ok(());
     }
     pub async fn add_luau_file(&mut self, input: &PathBuf) -> anyhow::Result<()> {
-        let zip_path = input.strip_prefix(&self.local)?;
+        let zip_path = input
+            .strip_prefix(&self.src_path)
+            .unwrap_or(input.strip_prefix(&self.local)?);
 
         let out_path = self.local.join(".build").join(zip_path);
         self.process_file(input.clone(), out_path).await?;
 
         if let Some(zip) = &mut self.zip {
             zip.copy_zip_f_from_path(
-                &self.local.join(".build").join(zip_path).with_extension("lua"),
-                zip_path.with_extension("lua")
-            ).await?;
+                &self
+                    .local
+                    .join(".build")
+                    .join(zip_path)
+                    .with_extension("lua"),
+                zip_path.with_extension("lua"),
+            )
+            .await?;
         }
 
         Ok(())
     }
+    // TODO: do all of that in parallel and use multiple loading indicators
     pub async fn add_luau_files(&mut self) -> anyhow::Result<Vec<Modules>> {
-        self.bar.change_status(format!("{} {} {}", "Adding", "lua".green(), "files...")).await;
+        self.bar
+            .change_status(format!("{} {} {}", "Adding", "lua".green(), "files..."))
+            .await;
         if self.local.join("main.luau").exists() && self.transpiler_manifest.bundle {
             if let Err(dat) = self.add_luau_file(&self.local.join("main.luau")).await {
                 eprintln!("{:?}", dat);
                 panic!("{} Failed to process {} file", "[!]".red(), "main.luau");
             }
         } else {
-            for path in glob
-                ::glob(&(self.local.to_string_lossy().to_string() + "/**/*.luau"))?
-                .filter_map(Result::ok)
-                .filter(
-                    |path|
-                        !path
+            let luau_paths: Vec<_> =
+                glob::glob(&(self.local.to_string_lossy().to_string() + "/**/*.luau"))?
+                    .filter_map(Result::ok)
+                    .filter(|path| {
+                        let file = path
                             .file_name()
                             .map(|x| x.to_string_lossy().to_string())
-                            .unwrap_or("".to_string())
-                            .ends_with(".d.luau")
-                ) {
+                            .unwrap_or("".to_string());
+                        !file.ends_with(".d.luau")
+                    })
+                    .collect();
+            for path in luau_paths {
                 if let Err(dat) = self.add_luau_file(&path).await {
                     eprintln!("{:?}", dat);
                     eprintln!("{} Failed to process {} file", "[!]".red(), path.display());
@@ -185,35 +260,39 @@ impl Builder {
             }
         }
         if let Some(zip) = &mut self.zip {
-            for path in glob
-                ::glob(&(self.local.to_string_lossy().to_string() + "/**/__polyfill__.lua"))
-                .unwrap()
-                .filter_map(Result::ok) {
-                if
-                    path
-                        .file_name()
-                        .map(|x| x.to_string_lossy().to_string())
-                        .unwrap_or("".to_string())
-                        .ends_with(".d.luau")
+            for path in
+                glob::glob(&(self.local.to_string_lossy().to_string() + "/**/__polyfill__.lua"))
+                    .unwrap()
+                    .filter_map(Result::ok)
+            {
+                if path
+                    .file_name()
+                    .map(|x| x.to_string_lossy().to_string())
+                    .unwrap_or("".to_string())
+                    .ends_with(".d.luau")
                 {
                     continue;
                 }
                 let out_path = path.strip_prefix(&self.local.join(".build")).unwrap();
                 zip.copy_zip_f_from_path(
-                    &self.local.join(".build").join(out_path).with_extension("lua"),
-                    out_path.with_extension("lua")
-                ).await.unwrap();
+                    &self
+                        .local
+                        .join(".build")
+                        .join(out_path)
+                        .with_extension("lua"),
+                    out_path.with_extension("lua"),
+                )
+                .await
+                .unwrap();
             }
         }
         if let Some(modules) = &self.used_modules {
             let inside = modules.lock().unwrap();
-            Ok(
-                inside
-                    .iter()
-                    .map(|x| Modules::from_str(&uppercase_first(&x)))
-                    .filter_map(Result::ok)
-                    .collect()
-            )
+            Ok(inside
+                .iter()
+                .map(|x| Modules::from_str(&uppercase_first(&x)))
+                .filter_map(Result::ok)
+                .collect())
         } else {
             Ok(vec![])
         }
@@ -221,26 +300,25 @@ impl Builder {
     pub async fn add_assets(&mut self) {
         self.bar.change_status("Adding asset files...".into()).await;
         // TODO use override builder
-        for path in WalkBuilder::new(&self.local)
+        for path in WalkBuilder::new(&self.assets_path)
             .build()
             .filter_map(Result::ok)
             .filter(|pth| {
                 let pth = pth.path();
-                let ext = pth
-                    .extension()
-                    .map(|x| x.to_str().unwrap())
-                    .unwrap_or("");
-                !(
-                    pth.starts_with(self.local.join("dist")) ||
-                    allow!(ext, "lua", "luau", "toml") ||
-                    pth.is_dir()
-                )
-            }) {
+                let ext = pth.extension().map(|x| x.to_str().unwrap()).unwrap_or("");
+                !(pth.starts_with(self.local.join("dist"))
+                    || allow!(ext, "lua", "luau", "toml")
+                    || pth.starts_with(self.local.join("luau_packages"))
+                    || pth.ends_with(self.local.join("kaledis.schema.json"))
+                    || pth.is_dir())
+            })
+        {
             let path = path.path();
             if let Some(zip) = &mut self.zip {
                 zip.add_zip_f_from_path(&path, &self.local).await.unwrap();
             } else {
-                let final_ = self.local
+                let final_ = self
+                    .local
                     .join(".build")
                     .join(path.strip_prefix(self.local.clone()).unwrap());
                 if !final_.parent().unwrap().exists() {
@@ -283,7 +361,9 @@ pub async fn get_transpiler(one_file: bool) -> anyhow::Result<Manifest> {
         "remove_unused_if_branch"
     );
     // Thanks to new dalbit version this was made much easier
-    manifest.polyfill.cache().await?;
+    if let Some(polyfill) = manifest.polyfill.as_ref() {
+        polyfill.cache().await?;
+    }
     return Ok(manifest);
 }
 
@@ -311,6 +391,30 @@ pub enum Strategy {
 
 pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyhow::Result<()> {
     let local = relative(path);
+    macro_rules! create {
+        (file $nome:expr, $content:expr) => {{
+            let mut file = fs::File::create(local.join($nome)).await?;
+            file.write($content).await?;
+            file
+        }};
+        (exists $nome:expr) => {
+            local.join($nome).exists()
+        };
+        (override $nome:expr, $content:expr) => {{
+            let mut file = fs::File::open(local.join($nome)).await?;
+            file.write($content).await?;
+            file
+        }};
+    }
+    let schema_contents = serde_json::to_string_pretty(&schemars::schema_for!(Config))?;
+    if !create!(exists "kaledis.schema.json") {
+        println!(
+            "Added schema file, add a \"$schema\" = \"./kaledis.schema.json\" on top of kaledis.toml"
+        );
+        create!(file "kaledis.schema.json", schema_contents.as_bytes());
+    } else {
+        create!(override "kaledis.schema.json", schema_contents.as_bytes());
+    }
 
     if !local.join("kaledis.toml").exists() {
         println!("{}", "No Project found!".red());
@@ -327,8 +431,10 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
         &local,
         configs.project.detect_modules.unwrap_or(false),
         run.clone(),
-        one_file
-    ).await?;
+        &configs,
+        one_file,
+    )
+    .await?;
     builder.clean_build_folder().await?;
     let imported_modules = builder.add_luau_files().await?;
 
@@ -336,7 +442,10 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
 
     let model_conf: ModelConf = (&configs).into();
 
-    builder.bar.change_status("Adding config file...".into()).await;
+    builder
+        .bar
+        .change_status("Adding config file...".into())
+        .await;
     if !(local.join("conf.luau").exists() || local.join("conf.lua").exists()) {
         let modules = builder.generate_conf_modules(
             if let Strategy::BuildDev = run {
@@ -349,7 +458,7 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
                     Modules::iter().collect()
                 }
             },
-            model_conf
+            model_conf,
         );
         let conf_file = format!(
             r#"
@@ -388,7 +497,11 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
     end
         "#,
             format_option(
-                configs.project.identity.as_ref().map(|x| x.to_string_lossy().to_string())
+                configs
+                    .project
+                    .identity
+                    .as_ref()
+                    .map(|x| x.to_string_lossy().to_string())
             ),
             "false",
             configs.project.version,
@@ -399,7 +512,13 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
             configs.audio.mic,
             configs.audio.mix_with_system,
             configs.window.title,
-            format_option(configs.window.icon.as_ref().map(|x| x.to_string_lossy().to_string())),
+            format_option(
+                configs
+                    .window
+                    .icon
+                    .as_ref()
+                    .map(|x| x.to_string_lossy().to_string())
+            ),
             configs.window.width,
             configs.window.height,
             configs.window.borderless,
@@ -427,11 +546,15 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
             result.write(conf_file.as_bytes()).await?;
         } else {
             if let Some(zip) = &mut builder.zip {
-                zip.add_zip_f_from_buf("conf.lua", conf_file.as_bytes()).await?;
+                zip.add_zip_f_from_buf("conf.lua", conf_file.as_bytes())
+                    .await?;
             }
         }
     } else {
-        println!("{}", "Custom config file found! Overwriting configs...".yellow());
+        println!(
+            "{}",
+            "Custom config file found! Overwriting configs...".yellow()
+        );
     }
 
     match run {
@@ -441,7 +564,6 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
             builder.clean_build_folder().await?;
             let fin = builder.finish_zip().unwrap();
             let love_executable = configs.project.love_path.join("love.exe");
-
 
             let dist_folder = local.join("dist");
 

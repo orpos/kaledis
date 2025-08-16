@@ -1,17 +1,29 @@
-use std::{ fmt::Display, fs::read_to_string, path::{ Path, PathBuf } };
+use std::{
+    fmt::Display,
+    fs::read_to_string,
+    path::{Path, PathBuf},
+};
 
-use clap_serde_derive::{ clap::{ self }, serde::Serialize, ClapSerde };
+use clap_serde_derive::{
+    clap::{self},
+    serde::Serialize,
+    ClapSerde,
+};
+use schemars::JsonSchema;
 use serde::Deserialize;
 
 use strum::IntoEnumIterator;
-use strum_macros::{ EnumIter, EnumString };
+use strum_macros::{EnumIter, EnumString};
 
-#[derive(ClapSerde, Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(ClapSerde, Serialize, Deserialize, JsonSchema, Debug)]
 pub struct Audio {
     /// Request and use microphone capabilities in Android
     #[default(false)]
-    #[arg(short, long, help = "Request and use microphone capabilities in Android")]
+    #[arg(
+        short,
+        long,
+        help = "Request and use microphone capabilities in Android"
+    )]
     pub mic: bool,
     /// Keep background music playing when opening LOVE (boolean, iOS and Android only)
     #[default(true)]
@@ -23,7 +35,7 @@ pub struct Audio {
     pub mix_with_system: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, clap_serde_derive::clap::ValueEnum)]
+#[derive(Debug, Deserialize, Serialize, Clone, clap_serde_derive::clap::ValueEnum, JsonSchema)]
 pub enum FullscreenType {
     Desktop,
     Exclusive,
@@ -34,15 +46,18 @@ impl Display for FullscreenType {
     }
 }
 
-#[derive(ClapSerde, Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(ClapSerde, Serialize, Deserialize, JsonSchema, Debug)]
 pub struct Window {
     /// The window title
     #[default("Untitled".to_string())]
     #[arg(short, long, help = "The window title")]
     pub title: String,
     /// Filepath to an image to use as the window's icon
-    #[arg(short, long, help = "Filepath to an image to use as the window's icon.")]
+    #[arg(
+        short,
+        long,
+        help = "Filepath to an image to use as the window's icon."
+    )]
     pub icon: Option<PathBuf>,
     /// The window width
     #[default(800)]
@@ -86,13 +101,25 @@ pub struct Window {
     pub vsync: u32,
     /// The number of samples to use with multi-sampled antialiasing
     #[default(0)]
-    #[arg(short, long, help = "The number of samples to use with multi-sampled antialiasing")]
+    #[arg(
+        short,
+        long,
+        help = "The number of samples to use with multi-sampled antialiasing"
+    )]
     pub msaa: u32,
     /// The number of bits per sample in the depth buffer
-    #[arg(short, long, help = "The number of bits per sample in the depth buffer")]
+    #[arg(
+        short,
+        long,
+        help = "The number of bits per sample in the depth buffer"
+    )]
     pub depth: Option<u32>,
     /// The number of bits per sample in the stencil buffer
-    #[arg(short, long, help = "The number of bits per sample in the stencil buffer")]
+    #[arg(
+        short,
+        long,
+        help = "The number of bits per sample in the stencil buffer"
+    )]
     pub stencil: Option<u32>,
     /// Index of the monitor to show the window in
     #[default(1)]
@@ -100,7 +127,11 @@ pub struct Window {
     pub display: u8,
     /// Enable high-dpi mode for the window on a Retina display (boolean)
     #[default(false)]
-    #[arg(short, long, help = "Enable high-dpi mode for the window on a Retina display (boolean)")]
+    #[arg(
+        short,
+        long,
+        help = "Enable high-dpi mode for the window on a Retina display (boolean)"
+    )]
     pub highdpi: bool,
     /// Enable automatic DPI scaling when highdpi is set to true as well (boolean)
     #[default(true)]
@@ -111,10 +142,18 @@ pub struct Window {
     )]
     pub usedpiscale: bool,
     /// The x-coordinate of the window's position in the specified display
-    #[arg(short, long, help = "The x-coordinate of the window's position in the specified display")]
+    #[arg(
+        short,
+        long,
+        help = "The x-coordinate of the window's position in the specified display"
+    )]
     pub x: Option<u32>,
     /// The y-coordinate of the window's position in the specified display
-    #[arg(short, long, help = "The y-coordinate of the window's position in the specified display")]
+    #[arg(
+        short,
+        long,
+        help = "The y-coordinate of the window's position in the specified display"
+    )]
     pub y: Option<u32>,
 }
 
@@ -127,7 +166,8 @@ pub struct Window {
     Clone,
     clap_serde_derive::clap::ValueEnum,
     PartialEq,
-    Eq
+    Eq,
+    JsonSchema,
 )]
 pub enum Modules {
     /// Enable the audio module
@@ -174,11 +214,10 @@ impl Display for Modules {
     }
 }
 
-#[derive(ClapSerde, Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(ClapSerde, Serialize, Deserialize, JsonSchema, Debug)]
 pub struct Project {
     #[arg(short, long, help = "Enable detection algorithm.")]
-    pub detect_modules : Option<bool>,
+    pub detect_modules: Option<bool>,
 
     #[arg(short, long, help = "Save location.")]
     pub identity: Option<PathBuf>,
@@ -206,7 +245,11 @@ pub struct Project {
 
     /// Whenever to attach a console (Windows only)
     #[default(true)]
-    #[arg(short, long, help = "Whenever to attach a console when running the game")]
+    #[arg(
+        short,
+        long,
+        help = "Whenever to attach a console when running the game"
+    )]
     pub console: bool,
 
     /// Enable the accelerometer on iOS and Android by exposing it as a Joystick (boolean)
@@ -235,13 +278,20 @@ pub struct Project {
     )]
     pub gamma_correct: bool,
 
-    #[default(vec![])]
-    #[arg(short, long, help = "Define what dependencies the project uses")]
-    pub dependencies: Vec<String>,
+    // #[arg(short, long, help = "Define what dependencies the project uses (deprecated) please use pesde dependencies instead")]
+    // pub dependencies: Vec<String>,
+    #[arg(short, long, help = "Define what path the project uses for src")]
+    pub src_path: Option<String>,
+
+    #[arg(
+        short,
+        long,
+        help = "Define what path the project uses for assets (this will be auto generated as a type)"
+    )]
+    pub asset_path: Option<String>,
 }
 
-#[derive(ClapSerde, Serialize, Deserialize)]
-#[derive(Debug)]
+#[derive(ClapSerde, Serialize, Deserialize, JsonSchema, Debug)]
 pub struct Config {
     #[clap_serde]
     #[command(flatten)]

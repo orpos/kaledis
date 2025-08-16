@@ -1,6 +1,6 @@
 [package]
 name = "kaledis"
-version = "1.3.4"
+version = "2.0.0"
 edition = "2021"
 authors = ["lettuce-magician", "orpos"]
 documentation = "https://github.com/orpos/kaledis"
@@ -9,26 +9,31 @@ license-file = "LICENSE.md"
 description="A new way to LÖVE. Kaledis is a tool for allowing Luau to be used with Love2D via transpiling, alongside providing easier & simpler management of Love2D projects."
 
 [dependencies]
-clap = { version = "4.5.21", features = ["derive"] }
+clap = { version = "4.5.45", features = ["derive"] }
 clap-serde-derive = "0.2.1"
 colored = "3.0.0" 
 inquire = "0.7.5"
 serde = { version = "1.0.219", features = ["derive"] }
-tokio = { version = "1.44.2", features = ["full"] }
-toml = "0.8.20"
+tokio = { version = "1.47.1", features = ["full"] }
+toml = "0.9.5"
 url = { version = "2.5.3", features = ["serde"] }
-glob = "0.3.1"
-zip = "2.6.1"
-anyhow = "1.0.93"
+glob = "0.3.3"
+zip = "4.3.0"
+anyhow = "1.0.99"
 async-watcher = "0.3.0"
-reqwest = { version = "0.12.15", features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12.23", features = ["json", "rustls-tls"] }
 semver = "1.0.23"
-console = { version = "0.15.11", features = ["windows-console-colors"] }
+console = { version = "0.16.0", features = ["windows-console-colors"] }
 tokio-tar = "0.3.1"
-async-compression = { version = "0.4.18", features = ["gzip", "tokio"] }
+async-compression = { version = "0.4.27", features = ["gzip", "tokio"] }
 futures = "0.3.31"
-strum_macros = "0.27.1"
-strum = { version = "0.27.1", features = ["strum_macros"] }
-indexmap = "2.9.0"
-kaledis_dalbit = { version = "0.1.2" }
+strum_macros = "0.27.2"
+strum = { version = "0.27.2", features = ["strum_macros"] }
+indexmap = "2.10.0"
+kaledis_dalbit = { version = "0.2.4", path = "./dalbit"}
 ignore = "0.4.23"
+schemars = "1.0.4"
+serde_json = "1.0.142"
+
+[dev-dependencies]
+schemars = "1.0.4"

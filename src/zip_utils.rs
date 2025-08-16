@@ -1,7 +1,10 @@
-use std::{ io::{ Cursor, Write }, path::{ Path, PathBuf } };
+use std::{
+    io::{Cursor, Write},
+    path::{Path, PathBuf},
+};
 
-use tokio::{ fs::File, io::AsyncReadExt };
-use zip::{ result::ZipResult, write::SimpleFileOptions, ZipWriter };
+use tokio::{fs::File, io::AsyncReadExt};
+use zip::{result::ZipResult, write::SimpleFileOptions, ZipWriter};
 
 pub struct Zipper {
     inner: ZipWriter<Cursor<Vec<u8>>>,
@@ -21,7 +24,7 @@ impl Zipper {
         let zip = &mut self.inner;
         zip.start_file(
             name,
-            SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored)
+            SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored),
         )?;
         zip.write(buffer)?;
         Ok(())
@@ -30,19 +33,20 @@ impl Zipper {
     pub async fn add_zip_f_from_path(
         &mut self,
         name: &Path,
-        prefix: &PathBuf
+        prefix: &PathBuf,
     ) -> anyhow::Result<()> {
-        self.copy_zip_f_from_path(name, name.strip_prefix(prefix)?.to_path_buf()).await
+        self.copy_zip_f_from_path(name, name.strip_prefix(prefix)?.to_path_buf())
+            .await
     }
     pub async fn copy_zip_f_from_path(
         &mut self,
         name: &Path,
-        output: PathBuf
+        output: PathBuf,
     ) -> anyhow::Result<()> {
         let zip = &mut self.inner;
         zip.start_file_from_path(
             output,
-            SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored)
+            SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored),
         )?;
         let mut file = File::open(name).await?;
         let mut buffer = Vec::new();

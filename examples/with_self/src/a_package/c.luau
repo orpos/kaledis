@@ -1,0 +1,1 @@
+return require("@self/a") + require("@self").test2

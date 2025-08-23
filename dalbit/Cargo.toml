@@ -1,6 +1,6 @@
 [package]
 name = "kaledis_dalbit"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["jeparlefrancais <jeparlefrancais21@gmail.com>", "jiwonz", "orpos"]
 edition = "2021"
 description = "A fork of a Luau-to-Lua transpiler based on darklua to use for kaledis"

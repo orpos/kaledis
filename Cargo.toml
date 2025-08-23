@@ -1,6 +1,6 @@
 [package]
 name = "kaledis"
-version = "2.0.1"
+version = "2.0.2"
 edition = "2021"
 authors = ["lettuce-magician", "orpos"]
 documentation = "https://github.com/orpos/kaledis"
@@ -30,7 +30,7 @@ futures = "0.3.31"
 strum_macros = "0.27.2"
 strum = { version = "0.27.2", features = ["strum_macros"] }
 indexmap = "2.10.0"
-kaledis_dalbit = { version = "0.2.4", path = "./dalbit"}
+kaledis_dalbit = { version = "0.2.5", path = "./dalbit"}
 ignore = "0.4.23"
 schemars = "1.0.4"
 serde_json = "1.0.142"

@@ -1,12 +1,12 @@
 // This is a custom rule needed for making relative imports like ../ work in love2d   (letiul asked for this btw)
 // love2d gets with base the root of the project so i just translate it
 
-use std::path::{self, Path, PathBuf};
+use std::path::{ self, Path, PathBuf };
 
 use darklua_core::{
-    nodes::{Arguments, Block, Expression, Prefix, StringExpression},
-    process::{DefaultVisitor, NodeProcessor, NodeVisitor},
-    rules::{Context, FlawlessRule, RuleConfiguration, RuleConfigurationError, RuleProperties},
+    nodes::{ Arguments, Block, Expression, Prefix, StringExpression },
+    process::{ DefaultVisitor, NodeProcessor, NodeVisitor },
+    rules::{ Context, FlawlessRule, RuleConfiguration, RuleConfigurationError, RuleProperties },
 };
 
 pub const RELATIVE_PATH_MODIFIER_NAME: &str = "path_modifier";
@@ -22,13 +22,15 @@ struct Processor<'a> {
 fn to_module_path<T: Into<PathBuf>>(
     project_root_src: &PathBuf,
     project_root: &PathBuf,
-    new_path: T,
+    new_path: T
 ) -> String {
     let path_buf: PathBuf = new_path.into();
     return path_buf
         .strip_prefix(project_root_src)
         .unwrap_or_else(|_| path_buf.strip_prefix(project_root).unwrap())
         .into_iter()
+        // due to love2d custom require we use this to stop conflicts
+        // as such this should be enforced in build time and by this rule
         .map(|x| x.to_str().unwrap().replace(".", "__"))
         .collect::<Vec<String>>()
         .join(".")
@@ -38,7 +40,7 @@ fn to_module_path<T: Into<PathBuf>>(
 
 pub fn find_init_luau_folder(
     project_root: &PathBuf,
-    start_dir: impl AsRef<Path>,
+    start_dir: impl AsRef<Path>
 ) -> std::io::Result<Option<PathBuf>> {
     let mut current = start_dir.as_ref().to_path_buf();
 
@@ -66,45 +68,56 @@ impl<'a> NodeProcessor for Processor<'a> {
                         let require = expr.get_value().to_string();
                         let is_relative = require.starts_with("../") || require.starts_with("./");
                         for preset in self.paths {
-                            if let Some(requested_package) =
-                                require.strip_prefix(&format!("@{}/", preset.0))
-                            {
-                                let pth = path::absolute(
-                                    self.project_root
-                                        .join(&preset.1)
-                                        .join(PathBuf::from(requested_package)),
+                            if
+                                let Some(requested_package) = require.strip_prefix(
+                                    &format!("@{}/", preset.0)
                                 )
-                                .expect("Failed To Find Module");
-                                *expr = StringExpression::from_value(to_module_path(
-                                    self.project_root_src,
-                                    self.project_root,
-                                    pth,
-                                ));
+                            {
+                                let pth = path
+                                    ::absolute(
+                                        self.project_root
+                                            .join(&preset.1)
+                                            .join(PathBuf::from(requested_package))
+                                    )
+                                    .expect("Failed To Find Module");
+                                *expr = StringExpression::from_value(
+                                    to_module_path(self.project_root_src, self.project_root, pth)
+                                );
                                 return;
                             };
                         }
-                        if is_relative || require.starts_with("@self/") {
+                        if is_relative || require.starts_with("@self") {
                             let pth: PathBuf;
-                            if let Some(data) = require.strip_prefix("@self/") {
-                                let init_folder =
-                                    find_init_luau_folder(self.project_root, self.path).unwrap();
-                                let module_path = init_folder.as_ref().unwrap_or(self.project_root);
+                            if let Some(data) = require.strip_prefix("@self") {
+                                let init_folder = find_init_luau_folder(
+                                    self.project_root,
+                                    self.path
+                                ).unwrap();
+                                let module_path = init_folder
+                                    .as_ref()
+                                    .unwrap_or(self.project_root)
+                                    .join(
+                                        if data.starts_with("/") {
+                                            data.strip_prefix("/").unwrap()
+                                        } else {
+                                            "init"
+                                        }
+                                    );
                                 pth = path::absolute(module_path).expect("Failed To Find Module");
                             } else {
-                                pth = path::absolute(
-                                    self.path
-                                        .parent()
-                                        .unwrap()
-                                        .join(&require.trim_start_matches("@self/")),
-                                )
-                                .expect("Failed To Find Module");
+                                pth = path
+                                    ::absolute(
+                                        self.path
+                                            .parent()
+                                            .unwrap()
+                                            .join(&require.trim_start_matches("@self/"))
+                                    )
+                                    .expect("Failed To Find Module");
                             }
 
-                            *expr = StringExpression::from_value(to_module_path(
-                                self.project_root_src,
-                                self.project_root,
-                                pth,
-                            ));
+                            *expr = StringExpression::from_value(
+                                to_module_path(self.project_root_src, self.project_root, pth)
+                            );
                         }
                     }
                 }

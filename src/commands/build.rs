@@ -115,6 +115,23 @@ impl Builder {
             .await
             .context("Failed to build manifest")?;
 
+        {
+            let globals_path = local.join("globals.d.luau");
+            if globals_path.exists() {
+                let contents = fs::read(&globals_path).await?;
+                let new_contents = include_bytes!("../../static/globals.d.luau");
+                if contents != new_contents {
+                    println!("Updating globals.d.luau");
+                    if let Err(e) = fs::write(globals_path, new_contents).await {
+                        eprintln!("{:?}", e);
+                        eprintln!("Failed to update globals.d.luau, Resuming...");
+                    } else {
+                        println!("Updated globals.d.luau");
+                    };
+                }
+            }
+        }
+
         let bar = LoadingStatusBar::new("Building project...".into());
         bar.start_animation().await;
         let optional_path =

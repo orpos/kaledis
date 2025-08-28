@@ -15,12 +15,10 @@ struct LuauIoProcessor<'a> {
 }
 
 fn generate_io_module_content() -> String {
-    r#"-- Comprehensive IO module for Luau (adapted from Lua's io library)
--- This module provides all IO functionality in a single require
+    r#"
 
 local io = {}
 
--- File modes for opening files
 io.modes = {
     read = "r",
     write = "w", 
@@ -36,41 +34,30 @@ io.modes = {
     append_read_binary = "a+b"
 }
 
--- Default input and output files
-io.stdin = nil  -- Will be set by the runtime
-io.stdout = nil -- Will be set by the runtime  
-io.stderr = nil -- Will be set by the runtime
+io.stdin = nil
+io.stdout = nil
+io.stderr = nil 
 
--- File operations
 function io.open(filename: string, mode: string?): (any?, string?)
     mode = mode or "r"
-    -- This would interface with the actual file system
-    -- Implementation depends on your Luau runtime
     local success, file_or_error = pcall(function()
-        -- Your actual file opening implementation here
         return {
             read = function(self, format)
-                -- File read implementation
                 return ""
             end,
             write = function(self, ...)
-                -- File write implementation  
                 return true
             end,
             close = function(self)
-                -- File close implementation
                 return true
             end,
             flush = function(self)
-                -- File flush implementation
                 return true
             end,
             seek = function(self, whence, offset)
-                -- File seek implementation
                 return 0
             end,
             setvbuf = function(self, mode, size)
-                -- Set buffering mode
                 return true
             end
         }
@@ -192,7 +179,6 @@ function io.type(obj: any): string?
     return nil
 end
 
--- Additional utility functions for common operations
 function io.readFile(filename: string): (string?, string?)
     local file, err = io.open(filename, "r")
     if not file then
@@ -235,7 +221,6 @@ function io.exists(filename: string): boolean
     return false
 end
 
--- Path utilities
 io.path = {}
 
 function io.path.join(...): string
@@ -267,7 +252,6 @@ function io.path.extension(path: string): string
     return path:match("%.([^./]+)$") or ""
 end
 
--- Export the module
 return io"#.to_string()
 }
 

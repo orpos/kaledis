@@ -1349,3 +1349,28 @@ declare love: {
 		updateMode: ((width:number,height:number,settings:{fullscreen:boolean,fullscreentype:FullscreenType,vsync:boolean,msaa:number,resizable:boolean,borderless:boolean,centered:boolean,display:number,minwidth:number,minheight:number,highdpi:boolean,x:number,y:number,}) -> (boolean)),
 	}
 }
+
+
+type IOFile = {
+    close: (self: IOFile) -> boolean,
+    flush: (self: IOFile) -> boolean,
+    lines: (self: IOFile, format: string?) -> (() -> string?)?,
+    read: (self: IOFile, ...string) -> ...any,
+    seek: (self: IOFile, whence: string?, offset: number?) -> number,
+    setvbuf: (self: IOFile, mode: string, size: number?) -> boolean,
+    write: (self: IOFile, ...string) -> IOFile,
+}
+
+declare io: {
+    close: (file: IOFile?) -> boolean,
+    flush: () -> boolean,
+    input: (file: (string | IOFile)?) -> IOFile,
+    lines: (filename: string?, format: string?) -> (() -> string?)?,
+    open: (filename: string, mode: string?) -> IOFile?,
+    output: (file: (string | IOFile)?) -> IOFile,
+    popen: (prog: string, mode: string) -> IOFile,
+    read: (...string) -> ...any,
+    tmpfile: () -> IOFile,
+    type: (obj: any) -> ("file" | "closed file" | nil),
+    write: (...string) -> IOFile,
+}

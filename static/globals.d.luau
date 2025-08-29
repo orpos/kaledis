@@ -1636,3 +1636,13 @@ declare Socket:{
 		pump: LTN12Pump,
 	},
 }
+
+declare os: typeof(os) & {
+	execute: (command: string) -> (number | boolean | nil);
+	exit: (code: number?, close: boolean?) -> never;
+	getenv: (varname: string) -> string | nil;
+	remove: (filename: string) -> boolean;
+	rename: (oldname: string, newname: string) -> boolean;
+	setlocale: (locale: string?, category: string?) -> string | nil;
+	tmpname: () -> string;
+}

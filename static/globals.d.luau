@@ -1646,3 +1646,13 @@ declare os: typeof(os) & {
 	setlocale: (locale: string?, category: string?) -> string | nil;
 	tmpname: () -> string;
 }
+
+declare package: {
+    path: string;
+    cpath: string;
+    loaded: { [module: string]: any };
+    preload: { [module: string]: () -> any };
+    searchers: Array<(modname: string) -> (() -> any) | string>;
+
+    loadlib: (libname: string, funcname: string) -> (() -> any) | nil;
+}

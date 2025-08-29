@@ -113,9 +113,10 @@ impl Injector {
 
         if let Some(removes) = self.removes() {
                     for lib in removes {
-                        if lib == "io" {
+                        if lib == "io" || lib == "package" {
                             continue;
                         }
+
                         libraries_texts.push(format!("local {}=nil ", lib));
                     }
                 }

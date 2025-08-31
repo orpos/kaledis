@@ -1648,11 +1648,11 @@ declare os: typeof(os) & {
 }
 
 declare package: {
-    path: string;
-    cpath: string;
-    loaded: { [module: string]: any };
-    preload: { [module: string]: () -> any };
-    searchers: Array<(modname: string) -> (() -> any) | string>;
+    path: string,
+    cpath: string,
+    loaded: { [string]: any },
+    preload: { [string]: () -> any },
+    searchers: { (modname: string) -> (() -> any) | string },
 
-    loadlib: (libname: string, funcname: string) -> (() -> any) | nil;
+    loadlib: (libname: string, funcname: string) -> (() -> any)?,
 }

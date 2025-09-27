@@ -112,14 +112,26 @@ impl Injector {
         }
 
         if let Some(removes) = self.removes() {
-            for lib in removes {
-                if lib == "io" {
-                    continue;
-                }
-                libraries_texts.push(format!("local {}=nil ", lib));
-            }
-        }
+                    for lib in removes {
+                        if lib == "io" || lib == "package" {
+                            continue;
+                        }
 
+                        libraries_texts.push(format!("local {}=nil ", lib));
+                    }
+                }
+
+                libraries_texts.push("local enet = require(\"enet\") ".to_string());
+
+                libraries_texts.push("local SocketMod=require(\"socket\") ".to_string());
+                libraries_texts.push("local http=require(\"socket.http\") ".to_string());
+                libraries_texts.push("local ftp=require(\"socket.ftp\") ".to_string());
+                libraries_texts.push("local smtp=require(\"socket.smtp\") ".to_string());
+                libraries_texts.push("local url=require(\"socket.url\") ".to_string());
+                libraries_texts.push("local mime=require(\"mime\") ".to_string());
+                libraries_texts.push("local ltn12=require(\"ltn12\") ".to_string());
+
+                libraries_texts.push("local Socket={socket=SocketMod,dns=SocketMod.dns,tcp=SocketMod.tcp,udp=SocketMod.udp,unix=SocketMod.unix,connect=SocketMod.connect,bind=SocketMod.bind,select=SocketMod.select,sleep=SocketMod.sleep,gettime=SocketMod.gettime,protect=SocketMod.protect,newtry=SocketMod.newtry,sink=SocketMod.sink,source=SocketMod.source,skip=SocketMod.skip,choose=SocketMod.choose,http=http,ftp=ftp,smtp=smtp,url=url,mime=mime,ltn12=ltn12}".to_string());
         let libraries_text = libraries_texts.join("");
         if let Some(first_line) = lines.get_mut(0) {
             first_line.insert_str(0, &libraries_text);

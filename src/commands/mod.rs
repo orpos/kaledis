@@ -1,6 +1,7 @@
 mod build;
 pub mod init;
 mod update;
+mod update_polyfill;
 mod watch;
 
 use std::{
@@ -47,6 +48,9 @@ pub enum Commands {
         #[arg(short, long, help = "A config that joins all files in a single one.")]
         allow_breaking: bool,
     },
+
+    #[clap(about = "Updates the polyfill used")]
+    UpdatePolyfill,
 }
 
 #[derive(Parser, Debug)]
@@ -58,9 +62,9 @@ pub struct CLI {
 }
 
 pub async fn handle_commands(command: Commands) {
-    if temp_dir().join("new.exe").exists() {
-        // let _ = remove_file(temp_dir().join("new.exe")).await;
-    }
+    // if temp_dir().join("new.exe").exists() {
+    // let _ = remove_file(temp_dir().join("new.exe")).await;
+    // }
     match command {
         Commands::Init { path } => {
             init::init(path);
@@ -77,6 +81,9 @@ pub async fn handle_commands(command: Commands) {
             build::build(path, build::Strategy::BuildAndCompile, one_file)
                 .await
                 .unwrap();
+        }
+        Commands::UpdatePolyfill => {
+            update_polyfill::update_polyfill().await.unwrap();
         }
         Commands::Update {
             step,

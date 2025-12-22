@@ -20,7 +20,7 @@ jobs:
             arch: x86_64
             target: x86_64-pc-windows-msvc
 
-          - os: macos-13
+          - os: macOS-15-intel
             host: macos
             arch: x86_64
             target: x86_64-apple-darwin
@@ -78,7 +78,7 @@ jobs:
   publish:
     name: Publish to crates.io
     runs-on: ubuntu-latest
-    needs: [ build ]
+    needs: [build]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -91,7 +91,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
-    needs: [ build, publish ]
+    needs: [build, publish]
     steps:
       - uses: actions/checkout@v4
         with:

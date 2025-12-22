@@ -50,7 +50,7 @@ pub struct Polyfill {
     globals: HashMap<String, bool>,
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     #[serde(default)]
-    config: HashMap<String, bool>,
+    pub config: HashMap<String, bool>,
     injection_path: PathBuf,
 }
 
@@ -136,7 +136,7 @@ pub struct Globals {
 
 /// Represents a loaded polyfill cache.
 pub struct PolyfillCache {
-    repository: Repository,
+    repository: Option<Repository>,
     path: PathBuf,
     globals: Globals,
     removes: Option<Vec<String>>,
@@ -164,24 +164,31 @@ fn index_path(url: &Url) -> anyhow::Result<PathBuf> {
 impl PolyfillCache {
     /// Creates a new polyfill from git repository.
     pub async fn new(url: &Url) -> Result<Self> {
-        let path = index_path(url)?;
-        let repository = match Repository::open(path.as_path()) {
-            Ok(repo) => repo,
-            Err(_) => {
-                if let Err(err) = fs_err::remove_dir_all(path.as_path()) {
-                    if err.kind() != io::ErrorKind::NotFound {
-                        return Err(err.into());
+        let path = if url.scheme() == "file" {
+            url.to_file_path().unwrap()
+        } else {
+            index_path(url)?
+        };
+        let repository = if url.scheme() == "file" {
+            None
+        } else {
+            Some(match Repository::open(path.as_path()) {
+                Ok(repo) => repo,
+                Err(_) => {
+                    if let Err(err) = fs_err::remove_dir_all(path.as_path()) {
+                        if err.kind() != io::ErrorKind::NotFound {
+                            return Err(err.into());
+                        }
                     }
-                }
 
-                fs_err::create_dir_all(path.as_path())?;
-                let auth = GitAuthenticator::new();
-                auth.clone_repo(url, &path.as_path())?
-            }
+                    fs_err::create_dir_all(path.as_path())?;
+                    let auth = GitAuthenticator::new();
+                    auth.clone_repo(url, &path.as_path())?
+                }
+            })
         };
 
         log::info!("repository is ready");
-
         //let manifest = Manifest::from_file(path.join("polyfill.toml")).await?;
         let manifest_content = fs::read_to_string(path.join("polyfill.toml")).await?;
         let manifest: PolyfillManifest = toml::from_str(&manifest_content)?;
@@ -198,8 +205,6 @@ impl PolyfillCache {
             exports,
         };
 
-        log::info!("polyfill ready");
-
         Ok(Self {
             path,
             repository,
@@ -211,25 +216,27 @@ impl PolyfillCache {
 
     /// Fetches and updates polyfill repository using git.
     pub fn fetch(&self) -> Result<()> {
-        let mut remote = self.repository.find_remote("origin")?;
+        if self.repository.is_none() {
+            return Ok(());
+        }
+
+        let repo = self.repository.as_ref().unwrap();
+
+        let mut remote = repo.find_remote("origin")?;
         let auth = GitAuthenticator::new();
-        auth.fetch(&self.repository, &mut remote, &["main"], None)
+        auth.fetch(&repo, &mut remote, &["main"], None)
             .with_context(|| format!("Could not fetch git repository"))?;
 
         let mut options = git2::build::CheckoutBuilder::new();
         options.force();
 
-        let commit = self
-            .repository
-            .find_reference("FETCH_HEAD")?
-            .peel_to_commit()?;
-        self.repository
-            .reset(
-                &commit.into_object(),
-                git2::ResetType::Hard,
-                Some(&mut options),
-            )
-            .with_context(|| format!("Could not reset git repo to fetch_head"))?;
+        let commit = repo.find_reference("FETCH_HEAD")?.peel_to_commit()?;
+        repo.reset(
+            &commit.into_object(),
+            git2::ResetType::Hard,
+            Some(&mut options),
+        )
+        .with_context(|| format!("Could not reset git repo to fetch_head"))?;
 
         Ok(())
     }

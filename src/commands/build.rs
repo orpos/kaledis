@@ -13,6 +13,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use kaledis_dalbit::{manifest::Manifest, polyfill::Polyfill, transpile};
 
 use crate::cli_utils::LoadingStatusBar;
+use crate::toml_conf::CustomPolyfillConfig;
 use crate::{allow, zip_utils::*};
 use crate::{
     toml_conf::{Config, Modules},
@@ -80,6 +81,7 @@ struct Builder {
     src_path: PathBuf,
     build_path: PathBuf,
     assets_path: PathBuf,
+    polyfill_path: Option<PathBuf>,
     aliases: Vec<(String, String)>,
     bar: LoadingStatusBar,
     used_modules: Option<Arc<Mutex<IndexSet<String>>>>,
@@ -117,7 +119,9 @@ impl Builder {
 
         {
             let globals_path = local.join("globals.d.luau");
-            if globals_path.exists() {
+            if globals_path.exists()
+                && !config_kaledis.project.using_custom_globals.unwrap_or(false)
+            {
                 let contents = fs::read(&globals_path).await?;
                 let new_contents = include_bytes!("../../static/globals.d.luau");
                 if contents != new_contents {
@@ -137,6 +141,11 @@ impl Builder {
         let optional_path =
             |path: &Option<String>| local.join(path.as_ref().unwrap_or(&"".to_string()).clone());
         Ok(Self {
+            polyfill_path: config_kaledis
+                .polyfill
+                .as_ref()
+                .map(|x| x.location.as_ref().map(|x| local.join(&x)))
+                .flatten(),
             aliases: read_aliases(local).await?,
             transpiler_manifest: config,
             zip: if let Strategy::BuildDev = run {
@@ -266,6 +275,11 @@ impl Builder {
                             .file_name()
                             .map(|x| x.to_string_lossy().to_string())
                             .unwrap_or("".to_string());
+                        if let Some(polyfill_path) = &self.polyfill_path {
+                            if path.starts_with(polyfill_path) {
+                                return false;
+                            }
+                        }
                         !file.ends_with(".d.luau")
                     })
                     .collect();
@@ -353,7 +367,7 @@ impl Builder {
 
 pub async fn get_transpiler(
     one_file: bool,
-    polyfill_config: Option<&Polyfill>,
+    polyfill_config: Option<&CustomPolyfillConfig>,
 ) -> anyhow::Result<Manifest> {
     let mut manifest = Manifest {
         minify: true,
@@ -362,11 +376,9 @@ pub async fn get_transpiler(
         bundle: one_file,
         ..Default::default()
     };
-
     if let Some(polyfill) = polyfill_config {
-        manifest.polyfill = Some(polyfill.clone());
+        manifest.polyfill = Some(polyfill.polyfill().await.unwrap());
     }
-
     macro_rules! add_modifiers {
         ($modifier:expr) => {
             manifest.modifiers.insert($modifier.to_string(), true);
@@ -386,7 +398,9 @@ pub async fn get_transpiler(
     );
     // Thanks to new dalbit version this was made much easier
     if let Some(polyfill) = manifest.polyfill.as_ref() {
-        polyfill.cache().await?;
+        if polyfill_config.is_none() {
+            polyfill.cache().await?;
+        }
     }
     return Ok(manifest);
 }
@@ -494,10 +508,10 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
         t.accelerometerjoystick = {}
         t.externalstorage = {}
         t.gammacorrect = {}
-    
+
         t.audio.mic = {}
-        t.audio.mixwithsystem = {}   
-    
+        t.audio.mixwithsystem = {}
+
         t.window.title = {:?}
         t.window.icon = {}
         t.window.width = {}

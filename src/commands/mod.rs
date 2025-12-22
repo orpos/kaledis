@@ -1,21 +1,12 @@
 mod build;
 pub mod init;
-mod update;
 mod update_polyfill;
 mod watch;
+// mod update;
 
-use std::{
-    env::{current_exe, temp_dir},
-    path::PathBuf,
-    thread,
-    time::Duration,
-};
+use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use tokio::{
-    fs::{copy, remove_file},
-    process::Command,
-};
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
@@ -39,15 +30,6 @@ pub enum Commands {
         about = "Watches for changes in the project and builds and executes love automatically."
     )]
     Dev { path: Option<PathBuf> },
-    #[clap(
-        about = "Updates kaledis based of github releases. This will also be used internally to handle files. If you want just to update just call it without passing anything"
-    )]
-    Update {
-        step: Option<PathBuf>,
-        is_established: Option<String>,
-        #[arg(short, long, help = "A config that joins all files in a single one.")]
-        allow_breaking: bool,
-    },
 
     #[clap(about = "Updates the polyfill used")]
     UpdatePolyfill,
@@ -62,9 +44,6 @@ pub struct CLI {
 }
 
 pub async fn handle_commands(command: Commands) {
-    // if temp_dir().join("new.exe").exists() {
-    // let _ = remove_file(temp_dir().join("new.exe")).await;
-    // }
     match command {
         Commands::Init { path } => {
             init::init(path);
@@ -84,35 +63,6 @@ pub async fn handle_commands(command: Commands) {
         }
         Commands::UpdatePolyfill => {
             update_polyfill::update_polyfill().await.unwrap();
-        }
-        Commands::Update {
-            step,
-            is_established,
-            allow_breaking,
-        } => {
-            // Artificial delay to wait for the previous instance to die
-            if let Some(_) = is_established {
-                println!("Removing temporary file");
-                thread::sleep(Duration::from_millis(1100));
-                let _ = remove_file(step.unwrap()).await;
-                return;
-            }
-            if let Some(target) = step {
-                println!("Removing old version");
-                thread::sleep(Duration::from_millis(700));
-                remove_file(&target).await.unwrap();
-                copy(current_exe().unwrap(), &target).await.unwrap();
-                Command::new(target)
-                    .args(vec![
-                        "update",
-                        &current_exe().unwrap().display().to_string(),
-                        "true",
-                    ])
-                    .spawn()
-                    .unwrap();
-                return;
-            }
-            update::update(allow_breaking).await;
         }
     }
 }

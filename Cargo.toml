@@ -11,7 +11,7 @@ description="A new way to LÖVE. Kaledis is a tool for allowing Luau to be used 
 [dependencies]
 clap = { version = "4.5.45", features = ["derive"] }
 clap-serde-derive = "0.2.1"
-colored = "3.0.0" 
+colored = "3.0.0"
 inquire = "0.7.5"
 serde = { version = "1.0.219", features = ["derive"] }
 tokio = { version = "1.47.1", features = ["full"] }
@@ -24,7 +24,6 @@ async-watcher = "0.3.0"
 reqwest = { version = "0.12.23", features = ["json", "rustls-tls"] }
 semver = "1.0.23"
 console = { version = "0.16.0", features = ["windows-console-colors"] }
-tokio-tar = "0.3.1"
 async-compression = { version = "0.4.27", features = ["gzip", "tokio"] }
 futures = "0.3.31"
 strum_macros = "0.27.2"

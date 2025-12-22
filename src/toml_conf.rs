@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fmt::Display,
     fs::read_to_string,
     path::{Path, PathBuf},
@@ -9,12 +10,53 @@ use clap_serde_derive::{
     serde::Serialize,
     ClapSerde,
 };
-use kaledis_dalbit::polyfill::Polyfill;
-use schemars::{JsonSchema, Schema, SchemaGenerator};
+use kaledis_dalbit::polyfill::{Polyfill, DEFAULT_INJECTION_PATH};
+use schemars::JsonSchema;
 use serde::Deserialize;
 
 use strum::IntoEnumIterator;
 use strum_macros::{EnumIter, EnumString};
+use url::Url;
+
+#[derive(ClapSerde, Serialize, Deserialize, Debug, Clone, JsonSchema)]
+pub struct CustomPolyfillConfig {
+    #[arg(
+        short,
+        long,
+        help = "The location of the custom polyfill. It can be a git repository or a local file path."
+    )]
+    pub location: Option<String>,
+    #[default(None)]
+    #[clap(skip)]
+    pub configs: Option<HashMap<String, bool>>,
+}
+
+impl CustomPolyfillConfig {
+    pub async fn polyfill(&self) -> anyhow::Result<Polyfill> {
+        let mut pol = self.get_polyfill().await?;
+        if let Some(configs) = &self.configs {
+            pol.config = configs.clone();
+        }
+        Ok(pol)
+    }
+    async fn get_polyfill(&self) -> anyhow::Result<Polyfill> {
+        if let Some(path) = &self.location {
+            // Relative path
+            if path.starts_with(".") {
+                let abs_path = tokio::fs::canonicalize(path).await?;
+                return Ok(Polyfill::new(
+                    Url::from_directory_path(abs_path).unwrap(),
+                    DEFAULT_INJECTION_PATH.into(),
+                ));
+            }
+            return Ok(Polyfill::new(
+                Url::parse(path)?,
+                DEFAULT_INJECTION_PATH.into(),
+            ));
+        }
+        Ok(Polyfill::default())
+    }
+}
 
 #[derive(ClapSerde, Serialize, Deserialize, JsonSchema, Debug)]
 pub struct Audio {
@@ -220,6 +262,9 @@ pub struct Project {
     #[arg(short, long, help = "Enable detection algorithm.")]
     pub detect_modules: Option<bool>,
 
+    #[arg(short, long, help = "disables automatic override of globals.d.luau.")]
+    pub using_custom_globals: Option<bool>,
+
     #[arg(short, long, help = "Save location.")]
     pub identity: Option<PathBuf>,
 
@@ -292,7 +337,7 @@ pub struct Project {
     pub asset_path: Option<String>,
 }
 
-#[derive(ClapSerde, Serialize, Deserialize, Debug)]
+#[derive(ClapSerde, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct Config {
     #[clap_serde]
     #[command(flatten)]
@@ -307,34 +352,13 @@ pub struct Config {
     pub audio: Audio,
 
     #[clap(skip)]
-    #[default(None)]
-    pub polyfill: Option<Polyfill>,
+    pub polyfill: Option<CustomPolyfillConfig>,
 
     #[default(Modules::iter().collect())]
     pub modules: Vec<Modules>,
 
     #[default(vec![])]
     pub exclude_modules: Vec<Modules>,
-}
-
-#[derive(JsonSchema, Debug)]
-#[allow(dead_code)]
-struct ConfigSchema {
-    pub project: Project,
-    pub window: Window,
-    pub audio: Audio,
-    pub modules: Vec<Modules>,
-    pub exclude_modules: Vec<Modules>,
-}
-
-impl JsonSchema for Config {
-    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
-        ConfigSchema::json_schema(gen)
-    }
-
-    fn schema_name() -> std::borrow::Cow<'static, str> {
-        ConfigSchema::schema_name()
-    }
 }
 
 impl Config {

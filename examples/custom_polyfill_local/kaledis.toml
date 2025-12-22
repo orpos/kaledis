@@ -4,14 +4,13 @@ exclude_modules = []
 
 [project]
 detect_modules = true
-name = "test1"
-love_path = "C:\\Program Files\\LOVE"
+name = "polyfill_local"
+love_path = 'C:\Program Files\LOVE'
 version = "11.5"
 console = true
 accelerometer_joystick = true
 external_storage = false
 gamma_correct = false
-dependencies = []
 src_path = "src"
 asset_path = "assets"
 
@@ -34,3 +33,7 @@ usedpiscale = true
 [audio]
 mic = false
 mix_with_system = true
+
+
+[polyfill]
+location="./dalbit-polyfill"

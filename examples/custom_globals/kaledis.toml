@@ -1,0 +1,36 @@
+"$schema" = "./kaledis.schema.json"
+modules = ["Audio", "Data", "Event", "Font", "Graphics", "Image", "Joystick", "Keyboard", "Math", "Mouse", "Physics", "Sound", "System", "Thread", "Timer", "Touch", "Video", "Window"]
+exclude_modules = []
+
+[project]
+detect_modules = true
+name = "globals"
+love_path = 'C:\Program Files\LOVE'
+version = "11.5"
+console = true
+accelerometer_joystick = true
+external_storage = false
+gamma_correct = false
+src_path = "src"
+asset_path = "assets"
+using_custom_globals = true
+
+[window]
+title = "Untitled"
+width = 800
+height = 600
+borderless = false
+resizable = false
+minwidth = 1
+minheight = 1
+fullscreen = false
+fullscreentype = "Desktop"
+vsync = 1
+msaa = 0
+display = 1
+highdpi = false
+usedpiscale = true
+
+[audio]
+mic = false
+mix_with_system = true

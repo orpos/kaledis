@@ -10,7 +10,7 @@ use strum::IntoEnumIterator;
 use tokio::fs::{self, create_dir, remove_dir_all, File};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use kaledis_dalbit::{manifest::Manifest, transpile};
+use kaledis_dalbit::{manifest::Manifest, polyfill::Polyfill, transpile};
 
 use crate::cli_utils::LoadingStatusBar;
 use crate::{allow, zip_utils::*};
@@ -111,7 +111,7 @@ impl Builder {
         config_kaledis: &Config,
         one_file: bool,
     ) -> anyhow::Result<Self> {
-        let config = get_transpiler(one_file)
+        let config = get_transpiler(one_file, config_kaledis.polyfill.as_ref())
             .await
             .context("Failed to build manifest")?;
 
@@ -351,7 +351,10 @@ impl Builder {
     }
 }
 
-pub async fn get_transpiler(one_file: bool) -> anyhow::Result<Manifest> {
+pub async fn get_transpiler(
+    one_file: bool,
+    polyfill_config: Option<&Polyfill>,
+) -> anyhow::Result<Manifest> {
     let mut manifest = Manifest {
         minify: true,
         file_extension: Some("lua".to_string()),
@@ -359,6 +362,10 @@ pub async fn get_transpiler(one_file: bool) -> anyhow::Result<Manifest> {
         bundle: one_file,
         ..Default::default()
     };
+
+    if let Some(polyfill) = polyfill_config {
+        manifest.polyfill = Some(polyfill.clone());
+    }
 
     macro_rules! add_modifiers {
         ($modifier:expr) => {

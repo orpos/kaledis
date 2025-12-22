@@ -9,7 +9,8 @@ use clap_serde_derive::{
     serde::Serialize,
     ClapSerde,
 };
-use schemars::JsonSchema;
+use kaledis_dalbit::polyfill::Polyfill;
+use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::Deserialize;
 
 use strum::IntoEnumIterator;
@@ -291,7 +292,7 @@ pub struct Project {
     pub asset_path: Option<String>,
 }
 
-#[derive(ClapSerde, Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(ClapSerde, Serialize, Deserialize, Debug)]
 pub struct Config {
     #[clap_serde]
     #[command(flatten)]
@@ -305,11 +306,35 @@ pub struct Config {
     #[command(flatten)]
     pub audio: Audio,
 
+    #[clap(skip)]
+    #[default(None)]
+    pub polyfill: Option<Polyfill>,
+
     #[default(Modules::iter().collect())]
     pub modules: Vec<Modules>,
 
     #[default(vec![])]
     pub exclude_modules: Vec<Modules>,
+}
+
+#[derive(JsonSchema, Debug)]
+#[allow(dead_code)]
+struct ConfigSchema {
+    pub project: Project,
+    pub window: Window,
+    pub audio: Audio,
+    pub modules: Vec<Modules>,
+    pub exclude_modules: Vec<Modules>,
+}
+
+impl JsonSchema for Config {
+    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+        ConfigSchema::json_schema(gen)
+    }
+
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        ConfigSchema::schema_name()
+    }
 }
 
 impl Config {

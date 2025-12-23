@@ -1,0 +1,54 @@
+"$schema" = "./kaledis.schema.json"
+modules = ["Audio", "Data", "Event", "Font", "Graphics", "Image", "Joystick", "Keyboard", "Math", "Mouse", "Physics", "Sound", "System", "Thread", "Timer", "Touch", "Video", "Window"]
+exclude_modules = []
+
+[project]
+detect_modules = true
+name = "git"
+love_path = 'C:\Program Files\LOVE'
+version = "11.5"
+console = true
+accelerometer_joystick = true
+external_storage = false
+gamma_correct = false
+src_path = "src"
+asset_path = "assets"
+
+[window]
+title = "Untitled"
+width = 800
+height = 600
+borderless = false
+resizable = false
+minwidth = 1
+minheight = 1
+fullscreen = false
+fullscreentype = "Desktop"
+vsync = 1
+msaa = 0
+display = 1
+highdpi = false
+usedpiscale = true
+
+[audio]
+mic = false
+mix_with_system = true
+
+[polyfill]
+location="https://github.com/CavefulGames/dalbit-polyfill"
+
+
+[polyfill.configs]
+# this setting allows type checking (usually for tables. because userdata mimics using tables)
+# if you really sure userdata is not used as table, you can disable it for extra optimization.
+# while still not recommended to disable it, you can turn this off if you don't use any newproxy().
+runtime_type_checking = false
+hash_iterator = false # not recommended to disable it since it's an important luau's feature.
+allow_debug_library_usage = false # if you allow, the polyfill will use like debug.getmetatable thing.
+test = false # enable it if you want to test polyfill.
+emulate_frozen_table = false # emulates frozen tables
+emulate_newproxy = false # emulates userdata's behavior
+emulate_type_error = false # emulates luau's type error and messages too
+emulate_next = false
+luau_hash_table = false
+buffer_out_of_bounds = false # if you want to enable checking out of bounds error for buffer

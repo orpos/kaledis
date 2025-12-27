@@ -10,7 +10,7 @@ use strum::IntoEnumIterator;
 use tokio::fs::{self, create_dir, remove_dir_all, File};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use kaledis_dalbit::{manifest::Manifest, polyfill::Polyfill, transpile};
+use kaledis_dalbit::{manifest::Manifest, transpile};
 
 use crate::cli_utils::LoadingStatusBar;
 use crate::toml_conf::CustomPolyfillConfig;

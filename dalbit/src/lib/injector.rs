@@ -112,26 +112,61 @@ impl Injector {
         }
 
         if let Some(removes) = self.removes() {
-                    for lib in removes {
-                        if lib == "io" || lib == "package" {
-                            continue;
-                        }
-
-                        libraries_texts.push(format!("local {}=nil ", lib));
-                    }
+            for lib in removes {
+                if lib == "io" || lib == "package" {
+                    continue;
                 }
 
-                libraries_texts.push("local enet = require(\"enet\") ".to_string());
+                libraries_texts.push(format!("local {}=nil ", lib));
+            }
+        }
 
-                libraries_texts.push("local SocketMod=require(\"socket\") ".to_string());
-                libraries_texts.push("local http=require(\"socket.http\") ".to_string());
-                libraries_texts.push("local ftp=require(\"socket.ftp\") ".to_string());
-                libraries_texts.push("local smtp=require(\"socket.smtp\") ".to_string());
-                libraries_texts.push("local url=require(\"socket.url\") ".to_string());
-                libraries_texts.push("local mime=require(\"mime\") ".to_string());
-                libraries_texts.push("local ltn12=require(\"ltn12\") ".to_string());
+        // TODO: look for the libraries only once the main problem is the conflict between the polyfill replacements
+        // and the kaledis replacementes
+        // in a future update this would be solved by using a custom polyfill repository
+        // since this way we already use the normal injector
+        let love2d_libraries = vec!["Socket", "Enet", "http", "ftp", "smtp", "mime", "ltn12"];
+        let internal_socket_modules = vec![
+            "dns", "tcp", "udp", "unix", "connect", "bind", "select", "sleep", "gettime",
+            "protect", "newtry", "sink", "source", "skip", "choose",
+        ];
+        let mut collect_used_love_modules = CollectUsedLibraries::new(HashSet::from_iter(
+            love2d_libraries.iter().map(|x| x.to_string()),
+        ));
+        collect_used_love_modules.visit_ast(&ast);
 
-                libraries_texts.push("local Socket={socket=SocketMod,dns=SocketMod.dns,tcp=SocketMod.tcp,udp=SocketMod.udp,unix=SocketMod.unix,connect=SocketMod.connect,bind=SocketMod.bind,select=SocketMod.select,sleep=SocketMod.sleep,gettime=SocketMod.gettime,protect=SocketMod.protect,newtry=SocketMod.newtry,sink=SocketMod.sink,source=SocketMod.source,skip=SocketMod.skip,choose=SocketMod.choose,http=http,ftp=ftp,smtp=smtp,url=url,mime=mime,ltn12=ltn12}".to_string());
+        let is_using_socket = collect_used_love_modules
+            .used_libraries
+            .get(&"Socket".to_string())
+            .is_some();
+        let is_using_enet = collect_used_love_modules
+            .used_libraries
+            .get(&"Enet".to_string())
+            .is_some();
+        if is_using_enet {
+            libraries_texts.push("local Enet = require(\"enet\")".to_string());
+        }
+        if is_using_socket {
+            let mut end: String = r#"local ___SOCKET = require("socket");
+local Socket={socket=___SOCKET,"#
+                .to_string();
+            for internal in internal_socket_modules {
+                end += &format!("{}=___SOCKET.{},", internal, internal);
+            }
+            for library in collect_used_love_modules.used_libraries {
+                if library == "Enet" || library == "Socket" {
+                    continue;
+                }
+                if library == "mime" || library == "ltn12" {
+                    end += &format!("{}=require(\"{}\"),", library, library);
+                    continue;
+                }
+                end += &format!("{}=require(\"socket.{}\"),", library, library);
+            }
+            end = end.trim_end_matches(",").to_string();
+            end += "}";
+            libraries_texts.push(end);
+        }
         let libraries_text = libraries_texts.join("");
         if let Some(first_line) = lines.get_mut(0) {
             first_line.insert_str(0, &libraries_text);

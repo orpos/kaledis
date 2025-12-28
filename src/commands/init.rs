@@ -5,7 +5,7 @@ use inquire::{Confirm, MultiSelect, Select, Text};
 use strum::IntoEnumIterator;
 
 use crate::{
-    toml_conf::{self, Config, Modules, Project, Window},
+    toml_conf::{Config, Modules},
     utils::relative,
 };
 
@@ -108,32 +108,31 @@ pub fn init(path: Option<PathBuf>) {
         .prompt()
         .unwrap();
 
-    let config = toml_conf::Config {
-        modules,
-        project: Project {
-            name: project_name.clone(),
-            love_path: location.clone(),
-            src_path: if use_src_folder {
-                Some("src".to_string())
-            } else {
-                None
-            },
-            asset_path: if use_assets_folder {
-                Some("assets".to_string())
-            } else {
-                None
-            },
-            detect_modules: if type_of_modules == "manual" {
-                None
-            } else {
-                Some(true)
-            },
-            ..Default::default()
+    let conf = format!(
+        r#""$schema" = "./kaledis.schema.json"
+[project]
+name = "{}"
+love_path = "{}"
+{}{}
+[window]
+title = "{}"
+
+[audio]
+"#,
+        &project_name,
+        &location.to_string_lossy().replace("\\", "/"),
+        if use_src_folder {
+            "src_path=\"src\"\n"
+        } else {
+            ""
         },
-        ..Default::default()
-    };
-    let conf = "\"$schema\" = \"./kaledis.schema.json\"\n".to_string()
-        + &toml::to_string(&config).unwrap();
+        if type_of_modules == "manual" {
+            ""
+        } else {
+            "detect_modules=true\n"
+        },
+        "Untitled"
+    );
 
     if !local.exists() {
         fs::create_dir(&local).unwrap();

@@ -1705,6 +1705,7 @@ dependencies = [
  "indexmap 2.12.1",
  "inquire",
  "kaledis_dalbit",
+ "paste",
  "reqwest",
  "schemars",
  "semver",

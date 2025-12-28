@@ -5,29 +5,55 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap_serde_derive::{
-    clap::{self},
-    serde::Serialize,
-    ClapSerde,
-};
+use clap_serde_derive::serde::Serialize;
 use kaledis_dalbit::polyfill::{Polyfill, DEFAULT_INJECTION_PATH};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use strum::IntoEnumIterator;
 use strum_macros::{EnumIter, EnumString};
 use url::Url;
 
-#[derive(ClapSerde, Serialize, Deserialize, Debug, Clone, JsonSchema)]
+macro_rules! default_create {
+    ($type: expr, $value: expr) => {
+        paste::paste! {
+            pub fn [<fn_ $value>]() -> $type {
+                $value
+            }
+        }
+    };
+    ($type: tt, $value: expr, $name : tt) => {
+        pub fn $name() -> $type {
+            $value
+        }
+    };
+}
+
+mod defaults {
+    use strum::IntoEnumIterator;
+
+    use crate::toml_conf::Modules;
+
+    default_create!(bool, true);
+    default_create!(bool, false);
+    default_create!(u8, 1, u8_1);
+    default_create!(u32, 1, u32_1);
+    default_create!(u32, 0, u32_0);
+    default_create!(u32, 800, u32_800);
+    default_create!(u32, 600, u32_600);
+    default_create!(String, "Untitled".to_string(), untitled);
+    default_create!(String, "11.5".to_string(), love_version);
+    pub fn modules() -> Vec<Modules> {
+        Modules::iter().collect()
+    }
+    pub fn empty_modules() -> Vec<Modules> {
+        vec![]
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 pub struct CustomPolyfillConfig {
-    #[arg(
-        short,
-        long,
-        help = "The location of the custom polyfill. It can be a git repository or a local file path."
-    )]
+    // The location of the custom polyfill. It can be a git repository or a local file path.
     pub location: Option<String>,
-    #[default(None)]
-    #[clap(skip)]
     pub configs: Option<HashMap<String, bool>>,
 }
 
@@ -58,28 +84,20 @@ impl CustomPolyfillConfig {
     }
 }
 
-#[derive(ClapSerde, Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct Audio {
     /// Request and use microphone capabilities in Android
-    #[default(false)]
-    #[arg(
-        short,
-        long,
-        help = "Request and use microphone capabilities in Android"
-    )]
+    #[serde(default = "defaults::fn_false")]
+    #[schemars(with = "Option<bool>")]
     pub mic: bool,
+    #[serde(default = "defaults::fn_true")]
     /// Keep background music playing when opening LOVE (boolean, iOS and Android only)
-    #[default(true)]
-    #[arg(
-        short,
-        long,
-        help = "Keep background music playing when opening LOVE (boolean, iOS and Android only) "
-    )]
     pub mix_with_system: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, clap_serde_derive::clap::ValueEnum, JsonSchema)]
+#[derive(Debug, Deserialize, Serialize, Clone, JsonSchema, Default)]
 pub enum FullscreenType {
+    #[default]
     Desktop,
     Exclusive,
 }
@@ -89,129 +107,69 @@ impl Display for FullscreenType {
     }
 }
 
-#[derive(ClapSerde, Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct Window {
     /// The window title
-    #[default("Untitled".to_string())]
-    #[arg(short, long, help = "The window title")]
+    #[serde(default = "defaults::untitled")]
     pub title: String,
     /// Filepath to an image to use as the window's icon
-    #[arg(
-        short,
-        long,
-        help = "Filepath to an image to use as the window's icon."
-    )]
     pub icon: Option<PathBuf>,
     /// The window width
-    #[default(800)]
-    #[arg(short, long, help = "The window width.")]
+    #[serde(default = "defaults::u32_800")]
     pub width: u32,
     /// The window height
-    #[default(600)]
-    #[arg(short, long, help = "The window height.")]
+    #[serde(default = "defaults::u32_600")]
     pub height: u32,
     /// Remove all border visuals from the window
-    #[default(false)]
-    #[arg(short, long, help = "Remove all border visuals from the window.")]
+    #[serde(default = "defaults::fn_false")]
+    #[schemars(with = "Option<bool>")]
     pub borderless: bool,
     /// Let the window be user-resizable (boolean)
-    #[default(false)]
-    #[arg(short, long, help = "Let the window be user-resizable.")]
+    #[serde(default = "defaults::fn_false")]
+    #[schemars(with = "Option<bool>")]
     pub resizable: bool,
     /// Minimum window width if the window is resizable
-    #[default(1)]
-    #[arg(short, long, help = "Minimum window width if the window is resizable.")]
+    #[serde(default = "defaults::u32_1")]
     pub minwidth: u32,
     /// Minimum window height if the window is resizable
-    #[default(1)]
-    #[arg(short, long, help = "Minimum window height if the window is resizable")]
+    #[serde(default = "defaults::u32_1")]
     pub minheight: u32,
     /// Enable fullscreen
-    #[default(false)]
-    #[arg(short, long, help = "Enable fullscreen")]
+    #[serde(default = "defaults::fn_false")]
+    #[schemars(with = "Option<bool>")]
     pub fullscreen: bool,
     // Choose between "desktop" fullscreen or "exclusive" fullscreen mode
-    #[arg(
-        short,
-        long,
-        help = "Choose between \"desktop\" fullscreen or \"exclusive\" fullscreen mode"
-    )]
-    #[default(FullscreenType::Desktop)]
+    #[serde(default)]
+    #[schemars(with = "Option<FullscreenType>")]
     pub fullscreentype: FullscreenType,
     /// Vertical sync mode
-    #[default(1)]
-    #[arg(short, long, help = "Vertical sync mode")]
+    #[serde(default = "defaults::u32_1")]
     pub vsync: u32,
     /// The number of samples to use with multi-sampled antialiasing
-    #[default(0)]
-    #[arg(
-        short,
-        long,
-        help = "The number of samples to use with multi-sampled antialiasing"
-    )]
+    #[serde(default = "defaults::u32_0")]
+    #[schemars(with = "Option<u32>")]
     pub msaa: u32,
     /// The number of bits per sample in the depth buffer
-    #[arg(
-        short,
-        long,
-        help = "The number of bits per sample in the depth buffer"
-    )]
     pub depth: Option<u32>,
     /// The number of bits per sample in the stencil buffer
-    #[arg(
-        short,
-        long,
-        help = "The number of bits per sample in the stencil buffer"
-    )]
     pub stencil: Option<u32>,
     /// Index of the monitor to show the window in
-    #[default(1)]
-    #[arg(short, long, help = "Index of the monitor to show the window in")]
+    #[serde(default = "defaults::u8_1")]
     pub display: u8,
     /// Enable high-dpi mode for the window on a Retina display (boolean)
-    #[default(false)]
-    #[arg(
-        short,
-        long,
-        help = "Enable high-dpi mode for the window on a Retina display (boolean)"
-    )]
+    #[serde(default = "defaults::fn_false")]
+    #[schemars(with = "Option<bool>")]
     pub highdpi: bool,
     /// Enable automatic DPI scaling when highdpi is set to true as well (boolean)
-    #[default(true)]
-    #[arg(
-        short,
-        long,
-        help = "Enable automatic DPI scaling when highdpi is set to true as well (boolean)"
-    )]
+    #[serde(default = "defaults::fn_true")]
     pub usedpiscale: bool,
     /// The x-coordinate of the window's position in the specified display
-    #[arg(
-        short,
-        long,
-        help = "The x-coordinate of the window's position in the specified display"
-    )]
     pub x: Option<u32>,
     /// The y-coordinate of the window's position in the specified display
-    #[arg(
-        short,
-        long,
-        help = "The y-coordinate of the window's position in the specified display"
-    )]
     pub y: Option<u32>,
 }
 
-#[derive(
-    EnumString,
-    EnumIter,
-    Debug,
-    Deserialize,
-    Serialize,
-    Clone,
-    clap_serde_derive::clap::ValueEnum,
-    PartialEq,
-    Eq,
-    JsonSchema,
-)]
+#[derive(EnumString, EnumIter, Debug, Deserialize, Serialize, Clone, PartialEq, Eq, JsonSchema)]
 pub enum Modules {
     /// Enable the audio module
     Audio,
@@ -257,107 +215,61 @@ impl Display for Modules {
     }
 }
 
-#[derive(ClapSerde, Serialize, Deserialize, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct Project {
-    #[arg(short, long, help = "Enable detection algorithm.")]
+    /// Enable detection algorithm.
     pub detect_modules: Option<bool>,
-
-    #[arg(short, long, help = "disables automatic override of globals.d.luau.")]
+    /// Disables automatic override of globals.d.luau."
     pub using_custom_globals: Option<bool>,
-
-    #[arg(short, long, help = "Save location.")]
+    /// Save location."
     pub identity: Option<PathBuf>,
-
-    /// Name of the project
-    #[arg(short, long, help = "Name of the project")]
+    /// Name of the project"
     pub name: String,
-
     /// Where the Love2D executable is located
-    #[arg(short, long, help = "Where the Love2D executable is located")]
     pub love_path: PathBuf,
-
     /// What version of Love2D to use
-    #[default("11.5".to_string())]
-    #[arg(short, long, help = "What version of Love2D to use")]
+    #[serde(default = "defaults::love_version")]
+    /// What version of Love2D to use"
     pub version: String,
 
     /// Allows a custom configuration file to be used, that will later be merged with the TOML whenever building the project
-    #[arg(
-        short,
-        long,
-        help = "Allows a custom configuration file to be used, that will later be merged with the TOML whenever building the project"
-    )]
     pub custom_conf: Option<PathBuf>,
 
     /// Whenever to attach a console (Windows only)
-    #[default(true)]
-    #[arg(
-        short,
-        long,
-        help = "Whenever to attach a console when running the game"
-    )]
+    #[serde(default = "defaults::fn_true")]
     pub console: bool,
 
     /// Enable the accelerometer on iOS and Android by exposing it as a Joystick (boolean)
-    #[default(true)]
-    #[arg(
-        short,
-        help = "Enable the accelerometer on iOS and Android by exposing it as a Joystick "
-    )]
+    #[serde(default = "defaults::fn_true")]
     pub accelerometer_joystick: bool,
 
     /// If it's true, allows saving files (and read from the save directory) in external storage on Android
-    #[default(false)]
-    #[arg(
-        short,
-        long,
-        help = "If it's true, allows saving files (and read from the save directory) in external storage on Android"
-    )]
+    #[serde(default = "defaults::fn_false")]
+    #[schemars(with = "Option<bool>")]
     pub external_storage: bool,
 
     /// Enable gamma-correct rendering, when supported by the system (boolean)
-    #[default(false)]
-    #[arg(
-        short,
-        long,
-        help = "Enable gamma-correct rendering, when supported by the system (boolean)"
-    )]
+    #[serde(default = "defaults::fn_false")]
+    #[schemars(with = "Option<bool>")]
     pub gamma_correct: bool,
 
-    // #[arg(short, long, help = "Define what dependencies the project uses (deprecated) please use pesde dependencies instead")]
-    // pub dependencies: Vec<String>,
-    #[arg(short, long, help = "Define what path the project uses for src")]
+    /// Define what path the project uses for src
     pub src_path: Option<String>,
 
-    #[arg(
-        short,
-        long,
-        help = "Define what path the project uses for assets (this will be auto generated as a type)"
-    )]
+    /// Define what path the project uses for assets (this will be auto generated as a type)
     pub asset_path: Option<String>,
 }
 
-#[derive(ClapSerde, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
 pub struct Config {
-    #[clap_serde]
-    #[command(flatten)]
     pub project: Project,
-
-    #[clap_serde]
-    #[command(flatten)]
     pub window: Window,
-
-    #[clap_serde]
-    #[command(flatten)]
     pub audio: Audio,
-
-    #[clap(skip)]
     pub polyfill: Option<CustomPolyfillConfig>,
-
-    #[default(Modules::iter().collect())]
+    #[serde(default = "defaults::modules")]
     pub modules: Vec<Modules>,
-
-    #[default(vec![])]
+    #[serde(default = "defaults::empty_modules")]
+    #[schemars(with = "Option<Vec<Modules>>")]
     pub exclude_modules: Vec<Modules>,
 }
 

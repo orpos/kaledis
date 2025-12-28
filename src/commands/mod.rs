@@ -53,6 +53,8 @@ pub async fn handle_commands(command: Commands) {
             include_bytes!("../../static/globals.d.luau"),
         )
         .await;
+
+        // Shows errors
         if err.is_err() {
             eprintln!("{:?}", err.unwrap_err());
         }

@@ -1,6 +1,5 @@
 function love.load()
     -- This will run once when the game loads
-    
 end
 
 function love.update(dt)

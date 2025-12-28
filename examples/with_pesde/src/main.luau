@@ -1,22 +1,8 @@
-local byteparse = require("@libs/b")
-
-local function print_table(tbl, indent)
-    indent = indent or 0
-    local prefix = string.rep("  ", indent)
-    for k, v in pairs(tbl) do
-        if type(v) == "table" then
-            print(prefix .. tostring(k) .. " = {")
-            print_table(v, indent + 1)
-            print(prefix .. "}")
-        else
-            print(prefix .. tostring(k) .. " = " .. tostring(v))
-        end
-    end
-end
+local byteparse= require("@packages/byteparse")
 
 function love.load()
     -- This will run once when the game loads
-    
+    print(byteparse.zterm_string("test"))
 end
 
 function love.update(dt)

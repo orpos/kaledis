@@ -1,32 +1,11 @@
-modules = ["Audio", "Data", "Event", "Font", "Graphics", "Image", "Joystick", "Keyboard", "Math", "Mouse", "Physics", "Sound", "System", "Thread", "Timer", "Touch", "Video", "Window"]
-exclude_modules = []
+"$schema" = "./kaledis.schema.json"
 
 [project]
 name = "test"
-love_path = "love"
-version = "11.5"
-console = true
-accelerometer_joystick = true
-external_storage = false
-gamma_correct = false
-dependencies = []
+love_path = "C:/Program Files/LOVE"
+detect_modules=true
 
 [window]
 title = "Untitled"
-width = 800
-height = 600
-borderless = false
-resizable = false
-minwidth = 1
-minheight = 1
-fullscreen = false
-fullscreentype = "Desktop"
-vsync = 1
-msaa = 0
-display = 1
-highdpi = false
-usedpiscale = true
 
 [audio]
-mic = false
-mix_with_system = true

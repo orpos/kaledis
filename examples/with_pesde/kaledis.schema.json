@@ -7,16 +7,50 @@
       "$ref": "#/$defs/Audio"
     },
     "exclude_modules": {
-      "type": "array",
+      "type": [
+        "array",
+        "null"
+      ],
+      "default": [],
       "items": {
         "$ref": "#/$defs/Modules"
       }
     },
     "modules": {
       "type": "array",
+      "default": [
+        "Audio",
+        "Data",
+        "Event",
+        "Font",
+        "Graphics",
+        "Image",
+        "Joystick",
+        "Keyboard",
+        "Math",
+        "Mouse",
+        "Physics",
+        "Sound",
+        "System",
+        "Thread",
+        "Timer",
+        "Touch",
+        "Video",
+        "Window"
+      ],
       "items": {
         "$ref": "#/$defs/Modules"
       }
+    },
+    "polyfill": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CustomPolyfillConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "project": {
       "$ref": "#/$defs/Project"
@@ -28,9 +62,7 @@
   "required": [
     "project",
     "window",
-    "audio",
-    "modules",
-    "exclude_modules"
+    "audio"
   ],
   "$defs": {
     "Audio": {
@@ -38,17 +70,38 @@
       "properties": {
         "mic": {
           "description": "Request and use microphone capabilities in Android",
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
         },
         "mix_with_system": {
           "description": "Keep background music playing when opening LOVE (boolean, iOS and Android only)",
-          "type": "boolean"
+          "type": "boolean",
+          "default": true
         }
-      },
-      "required": [
-        "mic",
-        "mix_with_system"
-      ]
+      }
+    },
+    "CustomPolyfillConfig": {
+      "type": "object",
+      "properties": {
+        "configs": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "location": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     },
     "FullscreenType": {
       "type": "string",
@@ -156,9 +209,11 @@
       "properties": {
         "accelerometer_joystick": {
           "description": "Enable the accelerometer on iOS and Android by exposing it as a Joystick (boolean)",
-          "type": "boolean"
+          "type": "boolean",
+          "default": true
         },
         "asset_path": {
+          "description": "Define what path the project uses for assets (this will be auto generated as a type)",
           "type": [
             "string",
             "null"
@@ -166,7 +221,8 @@
         },
         "console": {
           "description": "Whenever to attach a console (Windows only)",
-          "type": "boolean"
+          "type": "boolean",
+          "default": true
         },
         "custom_conf": {
           "description": "Allows a custom configuration file to be used, that will later be merged with the TOML whenever building the project",
@@ -175,13 +231,8 @@
             "null"
           ]
         },
-        "dependencies": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "detect_modules": {
+          "description": "Enable detection algorithm.",
           "type": [
             "boolean",
             "null"
@@ -189,13 +240,22 @@
         },
         "external_storage": {
           "description": "If it's true, allows saving files (and read from the save directory) in external storage on Android",
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
         },
         "gamma_correct": {
           "description": "Enable gamma-correct rendering, when supported by the system (boolean)",
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
         },
         "identity": {
+          "description": "Save location.\"",
           "type": [
             "string",
             "null"
@@ -206,29 +266,32 @@
           "type": "string"
         },
         "name": {
-          "description": "Name of the project",
+          "description": "Name of the project\"",
           "type": "string"
         },
         "src_path": {
+          "description": "Define what path the project uses for src",
           "type": [
             "string",
             "null"
           ]
         },
+        "using_custom_globals": {
+          "description": "Disables automatic override of globals.d.luau.\"",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "version": {
-          "description": "What version of Love2D to use",
-          "type": "string"
+          "description": "What version of Love2D to use\nWhat version of Love2D to use\"",
+          "type": "string",
+          "default": "11.5"
         }
       },
       "required": [
         "name",
-        "love_path",
-        "version",
-        "console",
-        "accelerometer_joystick",
-        "external_storage",
-        "gamma_correct",
-        "dependencies"
+        "love_path"
       ]
     },
     "Window": {
@@ -236,7 +299,11 @@
       "properties": {
         "borderless": {
           "description": "Remove all border visuals from the window",
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
         },
         "depth": {
           "description": "The number of bits per sample in the depth buffer",
@@ -251,25 +318,43 @@
           "description": "Index of the monitor to show the window in",
           "type": "integer",
           "format": "uint8",
+          "default": 1,
           "maximum": 255,
           "minimum": 0
         },
         "fullscreen": {
           "description": "Enable fullscreen",
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
         },
         "fullscreentype": {
-          "$ref": "#/$defs/FullscreenType"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FullscreenType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Desktop"
         },
         "height": {
           "description": "The window height",
           "type": "integer",
           "format": "uint32",
+          "default": 600,
           "minimum": 0
         },
         "highdpi": {
           "description": "Enable high-dpi mode for the window on a Retina display (boolean)",
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
         },
         "icon": {
           "description": "Filepath to an image to use as the window's icon",
@@ -282,23 +367,33 @@
           "description": "Minimum window height if the window is resizable",
           "type": "integer",
           "format": "uint32",
+          "default": 1,
           "minimum": 0
         },
         "minwidth": {
           "description": "Minimum window width if the window is resizable",
           "type": "integer",
           "format": "uint32",
+          "default": 1,
           "minimum": 0
         },
         "msaa": {
           "description": "The number of samples to use with multi-sampled antialiasing",
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "format": "uint32",
+          "default": 0,
           "minimum": 0
         },
         "resizable": {
           "description": "Let the window be user-resizable (boolean)",
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
         },
         "stencil": {
           "description": "The number of bits per sample in the stencil buffer",
@@ -311,22 +406,26 @@
         },
         "title": {
           "description": "The window title",
-          "type": "string"
+          "type": "string",
+          "default": "Untitled"
         },
         "usedpiscale": {
           "description": "Enable automatic DPI scaling when highdpi is set to true as well (boolean)",
-          "type": "boolean"
+          "type": "boolean",
+          "default": true
         },
         "vsync": {
           "description": "Vertical sync mode",
           "type": "integer",
           "format": "uint32",
+          "default": 1,
           "minimum": 0
         },
         "width": {
           "description": "The window width",
           "type": "integer",
           "format": "uint32",
+          "default": 800,
           "minimum": 0
         },
         "x": {
@@ -347,23 +446,7 @@
           "format": "uint32",
           "minimum": 0
         }
-      },
-      "required": [
-        "title",
-        "width",
-        "height",
-        "borderless",
-        "resizable",
-        "minwidth",
-        "minheight",
-        "fullscreen",
-        "fullscreentype",
-        "vsync",
-        "msaa",
-        "display",
-        "highdpi",
-        "usedpiscale"
-      ]
+      }
     }
   }
 }

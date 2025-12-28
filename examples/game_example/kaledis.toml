@@ -1,9 +1,10 @@
 "$schema" = "./kaledis.schema.json"
+
 [project]
-name = "test"
+name = "game_example"
 love_path = "C:/Program Files/LOVE"
 src_path="src"
-modules=["Audio","Data","Event"]
+detect_modules=true
 
 [window]
 title = "Untitled"

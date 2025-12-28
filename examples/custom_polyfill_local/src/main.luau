@@ -1,5 +1,6 @@
 function love.load()
     -- This will run once when the game loads
+    -- This should be true since our polyfill makes the value be always 0.0089
     print(os.clock() == 0.0089)
 end
 

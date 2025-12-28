@@ -1,5 +1,6 @@
 use std::{env, fs, io::Write, path::PathBuf};
 
+use clap::builder::Str;
 use colored::Colorize;
 use inquire::{Confirm, MultiSelect, Select, Text};
 use strum::IntoEnumIterator;
@@ -110,6 +111,7 @@ pub fn init(path: Option<PathBuf>) {
 
     let conf = format!(
         r#""$schema" = "./kaledis.schema.json"
+
 [project]
 name = "{}"
 love_path = "{}"
@@ -126,10 +128,10 @@ title = "{}"
         } else {
             ""
         },
-        if type_of_modules == "manual" {
-            ""
+        if type_of_modules == "manual" { 
+            format!("modules=[{}]\n", modules.iter().map(|x|format!("\"{}\"", &x)).collect::<Vec<String>>().join(","))
         } else {
-            "detect_modules=true\n"
+            "detect_modules=true\n".to_string()
         },
         "Untitled"
     );

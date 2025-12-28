@@ -5,17 +5,6 @@ name = "kaledis/test"
 version = "0.1.0"
 target = "luau"
 
-[graph."daily3014/cryptography@1.9.5 luau"]
-direct = ["cryptography", { name = "daily3014/cryptography", version = "^1.9.5", index = "default" }, "standard"]
-
-[graph."daily3014/cryptography@1.9.5 luau".pkg_ref]
-ref_ty = "pesde"
-index_url = "https://github.com/pesde-pkg/index"
-
-[graph."daily3014/cryptography@1.9.5 luau".pkg_ref.dependencies]
-rojo = [{ name = "pesde/rojo", version = "^7.4.4", index = "https://github.com/pesde-pkg/index", target = "lune" }, "dev"]
-scripts = [{ name = "pesde/scripts_rojo", version = "^0.1.0", index = "https://github.com/pesde-pkg/index", target = "lune" }, "dev"]
-
 [graph."plainenglish/byteparse@1.2.1 luau"]
 direct = ["byteparse", { name = "plainenglish/byteparse", version = "^1.2.1", index = "default" }, "standard"]
 

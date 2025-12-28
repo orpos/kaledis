@@ -21,7 +21,7 @@ glob = "0.3.3"
 ignore = "0.4.23"
 indexmap = "2.10.0"
 inquire = "0.7.5"
-kaledis_dalbit = { path = "./dalbit", version = "0.2.8" }
+kaledis_dalbit = { path = "./dalbit", version = "0.2.9" }
 paste = "1.0.15"
 reqwest = { version = "0.12.23", features = ["json", "rustls-tls"] }
 schemars = { version = "1.1.0", features = ["derive"] }

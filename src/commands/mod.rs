@@ -4,9 +4,10 @@ mod update_polyfill;
 mod watch;
 // mod update;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, process::Termination};
 
 use clap::{Parser, Subcommand};
+use tokio::fs;
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
@@ -44,6 +45,22 @@ pub struct CLI {
 }
 
 pub async fn handle_commands(command: Commands) {
+    // automatically adds the globals
+    if let Some(user_dir) = std::env::home_dir() {
+        let err = fs::create_dir(user_dir.join(".kaledis")).await;
+        let f_err = fs::write(
+            user_dir.join(".kaledis").join("globals.d.luau"),
+            include_bytes!("../../static/globals.d.luau"),
+        )
+        .await;
+        if err.is_err() {
+            eprintln!("{:?}", err.unwrap_err());
+        }
+        if f_err.is_err() {
+            eprintln!("{:?}", f_err.unwrap_err());
+        }
+    }
+
     match command {
         Commands::Init { path } => {
             init::init(path);

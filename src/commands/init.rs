@@ -186,7 +186,11 @@ pub fn init(path: Option<PathBuf>) {
         create!(file "main.luau", include_bytes!("../../static/main.luau"));
     }
     create!(file "kaledis.toml", conf.as_bytes());
-    create!(file "globals.d.luau", include_bytes!("../../static/globals.d.luau"));
-    create!(file_absolute local.join(".vscode").join("settings.json"), include_bytes!("../../static/vscode_settings.json"));
+    if let None = std::env::home_dir() {
+        create!(file "globals.d.luau", include_bytes!("../../static/globals.d.luau"));
+        create!(file_absolute local.join(".vscode").join("settings.json"), include_bytes!("../../static/vscode_settings_local.json"));
+    } else {
+        create!(file_absolute local.join(".vscode").join("settings.json"), include_bytes!("../../static/vscode_settings.json"));
+    }
     create!(file ".gitignore", include_bytes!("../../static/.gitignore"));
 }

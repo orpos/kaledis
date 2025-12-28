@@ -1,6 +1,6 @@
 {
 	"luau-lsp.require.mode": "relativeToFile",
-	"luau-lsp.types.definitionFiles": ["globals.d.luau"],
+	"luau-lsp.types.definitionFiles": ["~/.kaledis/globals.d.luau"],
 	"luau-lsp.platform.type": "roblox",
 	"luau-lsp.sourcemap.enabled": false
 }

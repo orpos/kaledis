@@ -56,7 +56,8 @@ pub async fn handle_commands(command: Commands) {
 
         // Shows errors
         if err.is_err() {
-            eprintln!("{:?}", err.unwrap_err());
+            // TODO: ignore already created dir error
+            // eprintln!("{:?}", err.unwrap_err());
         }
         if f_err.is_err() {
             eprintln!("{:?}", f_err.unwrap_err());

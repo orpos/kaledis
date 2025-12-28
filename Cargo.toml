@@ -1,36 +1,36 @@
 [package]
 name = "kaledis"
-version = "2.1.1"
+version = "2.2.0"
 edition = "2021"
 authors = ["lettuce-magician", "orpos"]
 documentation = "https://github.com/orpos/kaledis"
 repository = "https://github.com/orpos/kaledis"
 license-file = "LICENSE.md"
-description="A new way to LÖVE. Kaledis is a tool for allowing Luau to be used with Love2D via transpiling, alongside providing easier & simpler management of Love2D projects."
+description = "A new way to LÖVE. Kaledis is a tool for allowing Luau to be used with Love2D via transpiling, alongside providing easier & simpler management of Love2D projects."
 
 [dependencies]
+anyhow = "1.0.99"
+async-compression = { version = "0.4.27", features = ["gzip", "tokio"] }
+async-watcher = "0.3.0"
 clap = { version = "4.5.45", features = ["derive"] }
 clap-serde-derive = "0.2.1"
 colored = "3.0.0"
+console = { version = "0.16.0", features = ["windows-console-colors"] }
+futures = "0.3.31"
+glob = "0.3.3"
+ignore = "0.4.23"
+indexmap = "2.10.0"
 inquire = "0.7.5"
+kaledis_dalbit = { path = "./dalbit", version = "0.2.8" }
+paste = "1.0.15"
+reqwest = { version = "0.12.23", features = ["json", "rustls-tls"] }
+schemars = { version = "1.1.0", features = ["derive"] }
+semver = "1.0.23"
 serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.142"
+strum = { version = "0.27.2", features = ["strum_macros"] }
+strum_macros = "0.27.2"
 tokio = { version = "1.47.1", features = ["full"] }
 toml = "0.9.5"
 url = { version = "2.5.3", features = ["serde"] }
-glob = "0.3.3"
 zip = "4.3.0"
-anyhow = "1.0.99"
-async-watcher = "0.3.0"
-reqwest = { version = "0.12.23", features = ["json", "rustls-tls"] }
-semver = "1.0.23"
-console = { version = "0.16.0", features = ["windows-console-colors"] }
-async-compression = { version = "0.4.27", features = ["gzip", "tokio"] }
-futures = "0.3.31"
-strum_macros = "0.27.2"
-strum = { version = "0.27.2", features = ["strum_macros"] }
-indexmap = "2.10.0"
-kaledis_dalbit = { version = "0.2.8", path = "./dalbit"}
-ignore = "0.4.23"
-schemars = { version = "1.1.0", features = ["derive"] }
-serde_json = "1.0.142"
-paste = "1.0.15"

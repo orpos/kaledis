@@ -1690,7 +1690,7 @@ dependencies = [
 
 [[package]]
 name = "kaledis"
-version = "2.1.1"
+version = "2.2.0"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -1721,7 +1721,7 @@ dependencies = [
 
 [[package]]
 name = "kaledis_dalbit"
-version = "0.2.8"
+version = "0.2.9"
 dependencies = [
  "anyhow",
  "async-trait",

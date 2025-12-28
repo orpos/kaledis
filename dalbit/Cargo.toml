@@ -1,48 +1,48 @@
 [package]
 name = "kaledis_dalbit"
-version = "0.2.8"
+version = "0.2.9"
 authors = ["jeparlefrancais <jeparlefrancais21@gmail.com>", "jiwonz", "orpos"]
 edition = "2021"
 description = "A fork of a Luau-to-Lua transpiler based on darklua to use for kaledis"
 repository = "https://github.com/orpos/kaledis"
-keywords = ["luau", "lua", "transpiler"]
+keywords = ["lua", "luau", "transpiler"]
 license = "MIT"
 readme = "README.md"
-
-[badges]
-github = { repository = "CavefulGames/dal" }
 
 [lib]
 name = "kaledis_dalbit"
 path = "src/lib/mod.rs"
 
-[profile.dev.package.full_moon]
-opt-level = 3
-
 [dependencies]
 anyhow = "1.0.99"
+async-trait = "0.1.89"
+async-walkdir = "2.1.0"
 auth-git2 = "0.5.8"
 blake3 = "1.8.2"
 clap = { version = "4.5.45", features = ["derive"] }
+darklua = "0.16.0"
 dirs = "6.0.0"
+durationfmt = "0.1.1"
+env_logger = "0.11.8"
+fs-err = "3.1.1"
+full_moon = { version = "2.0.0", features = ["lua53", "luau"] }
+futures-lite = "2.6.1"
 git2 = { version = "0.20.2", features = ["vendored-openssl"] }
 hex = "0.4.3"
+indexmap = { version = "2.10.0", features = ["serde"] }
+log = "0.4.27"
+path-slash = "0.2.1"
+pathdiff = "0.2.2"
 serde = { version = "1.0.219", features = ["derive"] }
 strfmt = "0.2.5"
 strum = "0.27.2"
 strum_macros = "0.27.2"
 tokio = { version = "1.47.1", features = ["full"] }
 toml = "0.9.5"
-log = "0.4.27"
-pathdiff = "0.2.2"
-path-slash = "0.2.1"
-durationfmt = "0.1.1"
-async-trait = "0.1.89"
-full_moon = { version = "2.0.0", features = ["luau", "lua53"] }
-env_logger = "0.11.8"
-indexmap = { version = "2.10.0", features = ["serde"] }
 url = { version = "2.5.4", features = ["serde"] }
-fs-err = "3.1.1"
-async-walkdir = "2.1.0"
-futures-lite = "2.6.1"
-darklua = "0.16.0"
+
+[badges]
+github = { repository = "CavefulGames/dal" }
+
+[profile.dev.package.full_moon]
+opt-level = 3

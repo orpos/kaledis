@@ -85,6 +85,7 @@ struct Builder {
     aliases: Vec<(String, String)>,
     bar: LoadingStatusBar,
     used_modules: Option<Arc<Mutex<IndexSet<String>>>>,
+    experimental_hmr: bool,
 }
 
 async fn read_aliases(path: &PathBuf) -> anyhow::Result<Vec<(String, String)>> {
@@ -136,11 +137,32 @@ impl Builder {
             }
         }
 
+        {
+            let schema_path = local.join("kaledis.schema.json");
+            if schema_path.exists() && !config_kaledis.project.using_custom_globals.unwrap_or(false)
+            {
+                let contents = fs::read(&schema_path).await?;
+                let schema = schemars::schema_for!(Config);
+                let content_str = serde_json::to_string_pretty(&schema).unwrap();
+                let new_contents = content_str.as_bytes();
+                if contents != new_contents {
+                    println!("Updating kaledis schema");
+                    if let Err(e) = fs::write(schema_path, new_contents).await {
+                        eprintln!("{:?}", e);
+                        eprintln!("Failed to update kaledis schema, Resuming...");
+                    } else {
+                        println!("Updated kaledis schema");
+                    };
+                }
+            }
+        }
+
         let bar = LoadingStatusBar::new("Building project...".into());
         bar.start_animation().await;
         let optional_path =
             |path: &Option<String>| local.join(path.as_ref().unwrap_or(&"".to_string()).clone());
         Ok(Self {
+            experimental_hmr: config_kaledis.experimental_hmr,
             polyfill_path: config_kaledis
                 .polyfill
                 .as_ref()
@@ -231,7 +253,8 @@ impl Builder {
         } else {
             false
         };
-        transpile::process(new_manifest, Some(&mut additional_rules)).await?;
+        new_manifest.hmr = self.strategy == Strategy::BuildDev && self.experimental_hmr;
+        transpile::process(new_manifest, Some(additional_rules)).await?;
         return Ok(());
     }
     pub async fn add_luau_file(&mut self, input: &PathBuf) -> anyhow::Result<()> {
@@ -258,6 +281,13 @@ impl Builder {
     }
     // TODO: do all of that in parallel and use multiple loading indicators
     pub async fn add_luau_files(&mut self) -> anyhow::Result<Vec<Modules>> {
+        if self.experimental_hmr {
+            let _ = tokio::fs::write(
+                self.build_path.join("lick.lua"),
+                include_bytes!("../../static/lick.lua"),
+            )
+            .await;
+        }
         self.bar
             .change_status(format!("{} {} {}", "Adding", "lua".green(), "files..."))
             .await;
@@ -500,39 +530,39 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
         );
         let conf_file = format!(
             r#"
-    function love.conf(t)
-        t.identity = {}
-        t.appendidentity = {}
-        t.version = {:?}
-        t.console = {}
-        t.accelerometerjoystick = {}
-        t.externalstorage = {}
-        t.gammacorrect = {}
+function love.conf(t)
+    t.identity = {}
+    t.appendidentity = {}
+    t.version = {:?}
+    t.console = {}
+    t.accelerometerjoystick = {}
+    t.externalstorage = {}
+    t.gammacorrect = {}
 
-        t.audio.mic = {}
-        t.audio.mixwithsystem = {}
+    t.audio.mic = {}
+    t.audio.mixwithsystem = {}
 
-        t.window.title = {:?}
-        t.window.icon = {}
-        t.window.width = {}
-        t.window.height = {}
-        t.window.borderless = {}
-        t.window.resizable = {}
-        t.window.minwidth = {}
-        t.window.minheight = {}
-        t.window.fullscreen = {}
-        t.window.fullscreentype = {}
-        t.window.vsync = {}
-        t.window.msaa = {}
-        t.window.depth = {}
-        t.window.stencil = {}
-        t.window.display = {}
-        t.window.highdpi = {}
-        t.window.usedpiscale = {}
-        t.window.x = {}
-        t.window.y = {}
-        {}
-    end
+    t.window.title = {:?}
+    t.window.icon = {}
+    t.window.width = {}
+    t.window.height = {}
+    t.window.borderless = {}
+    t.window.resizable = {}
+    t.window.minwidth = {}
+    t.window.minheight = {}
+    t.window.fullscreen = {}
+    t.window.fullscreentype = {}
+    t.window.vsync = {}
+    t.window.msaa = {}
+    t.window.depth = {}
+    t.window.stencil = {}
+    t.window.display = {}
+    t.window.highdpi = {}
+    t.window.usedpiscale = {}
+    t.window.x = {}
+    t.window.y = {}
+    {}
+end
         "#,
             format_option(
                 configs

@@ -1,6 +1,5 @@
 use std::{env, fs, io::Write, path::PathBuf};
 
-use clap::builder::Str;
 use colored::Colorize;
 use inquire::{Confirm, MultiSelect, Select, Text};
 use strum::IntoEnumIterator;
@@ -14,7 +13,7 @@ pub fn replace_bytes<T>(source: &mut Vec<T>, from: &[T], to: &[T])
 where
     T: Clone + PartialEq,
 {
-    let mut result = source;
+    let result = source;
     let from_len = from.len();
     let to_len = to.len();
 

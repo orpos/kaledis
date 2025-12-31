@@ -93,7 +93,7 @@ impl NodeProcessor for Processor {
                     }
                     TableEntry::Field(field_entry) => {
                         let key = field_entry.get_field().get_name();
-                        str_table.insert(key.to_owned(), i);
+                        str_table.insert(key.as_bytes().to_vec(), i);
                     }
                 }
             }
@@ -108,7 +108,7 @@ impl NodeProcessor for Processor {
                 let new_entry = match entry {
                     TableEntry::Index(index_entry) => {
                         if *i <= num_index {
-                            Some(TableEntry::Value(index_entry.get_value().clone()))
+                            Some(TableEntry::Value(Box::new(index_entry.get_value().clone())))
                         } else {
                             Some(TableEntry::Index(index_entry.clone()))
                         }
@@ -140,7 +140,7 @@ impl NodeProcessor for Processor {
                 side_effect_stmts.insert(0, local_assign_stmt.into());
                 let return_stmt = ReturnStatement::one(var);
                 let func_block = Block::new(side_effect_stmts, Some(return_stmt.into()));
-                let func = Expression::Function(FunctionExpression::from_block(func_block));
+                let func = Expression::Function(Box::new(FunctionExpression::from_block(func_block)));
                 let parenthese_func = ParentheseExpression::new(func);
                 let func_call = FunctionCall::from_prefix(parenthese_func);
                 let call_exp = Expression::Call(Box::new(func_call));

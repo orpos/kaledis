@@ -17,7 +17,8 @@ pub struct Manifest {
     pub minify: bool,
     pub modifiers: IndexMap<String, bool>,
     pub polyfill: Option<Polyfill>,
-    pub bundle: bool
+    pub bundle: bool,
+    pub hmr : bool
 }
 
 impl Default for Manifest {
@@ -30,7 +31,8 @@ impl Default for Manifest {
             minify: true,
             modifiers: IndexMap::new(),
             polyfill: Some(Polyfill::default()),
-            bundle: false
+            bundle: false,
+            hmr: false
         }
     }
 }

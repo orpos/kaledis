@@ -48,14 +48,14 @@ async fn private_process(
     manifest: &Manifest,
     input: &PathBuf,
     output: &PathBuf,
-    additional_modifiers: Option<&mut Vec<Modifier>>,
+    additional_modifiers: Option<Vec<Modifier>>,
     bundle: bool
 ) -> Result<Vec<PathBuf>> {
     let resources = Resources::from_file_system();
 
     let mut modifiers = Vec::new();
-    if let Some(additional_modifiers) = additional_modifiers {
-        modifiers.append(additional_modifiers);
+    if let Some(mut additional_modifiers) = additional_modifiers {
+        modifiers.append(&mut additional_modifiers);
     }
     {
         let mut transpiling_modifiers = IndexMap::new();
@@ -185,7 +185,7 @@ async fn private_process(
 
 pub async fn process(
     manifest: Manifest,
-    additional_modifiers_a: Option<&mut Vec<Modifier>>
+    additional_modifiers_a: Option<Vec<Modifier>>
 ) -> Result<()> {
     let output_files = private_process(
         &manifest,
@@ -230,7 +230,7 @@ pub async fn process(
                 &manifest,
                 polyfill_cache.globals_path(),
                 &module_path,
-                Some(&mut additional_modifiers),
+                Some(additional_modifiers),
                 true
             ).await?;
 
@@ -251,7 +251,8 @@ pub async fn process(
                 module_path,
                 exports,
                 manifest.target_version().to_lua_version(),
-                polyfill_cache.removes().to_owned()
+                polyfill_cache.removes().to_owned(),
+                manifest.hmr
             );
 
             for source_path in &output_files {

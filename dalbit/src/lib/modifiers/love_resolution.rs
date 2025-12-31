@@ -65,19 +65,19 @@ impl<'a> NodeProcessor for Processor<'a> {
                 let args = function_call.mutate_arguments();
                 if let Arguments::Tuple(dat) = args {
                     if let Some(Expression::String(expr)) = dat.iter_mut_values().next() {
-                        let require = expr.get_value().to_string();
-                        let is_relative = require.starts_with("../") || require.starts_with("./");
+                        let require = expr.get_value();
+                        let is_relative = require.starts_with(b"../") || require.starts_with(b"./");
                         for preset in self.paths {
                             if
                                 let Some(requested_package) = require.strip_prefix(
-                                    &format!("@{}/", preset.0)
+                                    format!("@{}/", preset.0).as_bytes()
                                 )
                             {
                                 let pth = path
                                     ::absolute(
                                         self.project_root
                                             .join(&preset.1)
-                                            .join(PathBuf::from(requested_package))
+                                            .join(PathBuf::from(String::from_utf8_lossy(requested_package).to_string()))
                                     )
                                     .expect("Failed To Find Module");
                                 *expr = StringExpression::from_value(
@@ -86,9 +86,9 @@ impl<'a> NodeProcessor for Processor<'a> {
                                 return;
                             };
                         }
-                        if is_relative || require.starts_with("@self") {
+                        if is_relative || require.starts_with(b"@self") {
                             let pth: PathBuf;
-                            if let Some(data) = require.strip_prefix("@self") {
+                            if let Some(data) = require.strip_prefix(b"@self") {
                                 let init_folder = find_init_luau_folder(
                                     self.project_root,
                                     self.path
@@ -97,10 +97,10 @@ impl<'a> NodeProcessor for Processor<'a> {
                                     .as_ref()
                                     .unwrap_or(self.project_root)
                                     .join(
-                                        if data.starts_with("/") {
-                                            data.strip_prefix("/").unwrap()
+                                        if data.starts_with(b"/") {
+                                            String::from_utf8_lossy(data.strip_prefix(b"/").unwrap()).to_string()
                                         } else {
-                                            "init"
+                                            "init".to_string()
                                         }
                                     );
                                 pth = path::absolute(module_path).expect("Failed To Find Module");
@@ -110,7 +110,7 @@ impl<'a> NodeProcessor for Processor<'a> {
                                         self.path
                                             .parent()
                                             .unwrap()
-                                            .join(&require.trim_start_matches("@self/"))
+                                            .join(String::from_utf8_lossy(require).to_string().trim_start_matches("@self/"))
                                     )
                                     .expect("Failed To Find Module");
                             }

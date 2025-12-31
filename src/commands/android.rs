@@ -9,52 +9,16 @@ use async_watcher::AsyncDebouncer;
 use colored::Colorize;
 use console::Term;
 use tokio::{
-    process::{Child, Command},
-    sync::broadcast::{channel, Sender},
+    fs::File, io::{AsyncReadExt, AsyncWriteExt}, net::{TcpStream, tcp}, process::{Child, Command}, sync::broadcast::{Sender, channel}
 };
 
 use crate::{commands::build, toml_conf::Config, utils::relative};
-
-#[derive(Clone)]
-struct WatchDaemon<'a> {
-    path: &'a PathBuf,
-    base_path: Option<PathBuf>,
-    love_path: PathBuf,
-    love_executable: PathBuf,
-}
-
-impl<'a> WatchDaemon<'a> {
-    pub fn new(path: &'a PathBuf, love_path: PathBuf, base_path: Option<PathBuf>) -> Self {
-        Self {
-            path,
-            love_executable: love_path.join("love.exe"),
-            love_path,
-            base_path,
-        }
-    }
-    pub async fn build(&self) -> anyhow::Result<()> {
-        build::build(self.base_path.clone(), build::Strategy::BuildDev, false)
-            .await
-            .context("Building")?;
-        Ok(())
-    }
-    pub async fn run(&self) -> anyhow::Result<Child> {
-        if !self.path.join(".build").exists() {
-            anyhow::bail!("No bundle found."); // maybe we forgot to build it
-        }
-        Ok(Command::new(&self.love_executable)
-            .current_dir(&self.love_path)
-            .arg(self.path.join(".build"))
-            .spawn()
-            .context("Spawning the process")?)
-    }
-}
 
 async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender: Sender<Message>) {
     let local = local.clone();
     tokio::spawn(async move {
         let (mut c, mut r) =
-            AsyncDebouncer::new_with_channel(Duration::from_millis(20), Some(Duration::from_millis(20)))
+            AsyncDebouncer::new_with_channel(Duration::from_millis(1), Some(Duration::from_millis(1)))
                 .await
                 .unwrap();
 
@@ -121,6 +85,8 @@ async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<Mess
 }
 
 pub async fn watch(base_path: Option<PathBuf>) {
+    let connection_string = inquire::Text::new("Put the text written in your android device: ").prompt().unwrap();
+
     let local = relative(base_path.clone());
     println!("Watching...");
     println!("Press [L] if you want to build manually");
@@ -136,7 +102,6 @@ pub async fn watch(base_path: Option<PathBuf>) {
     let configs = Config::from_toml_file(local.join("kaledis.toml")).unwrap();
     let love_path = configs.project.love_path;
 
-    let daemon = WatchDaemon::new(&local, love_path, base_path);
 
     let watching = Arc::new(RwLock::new(false));
     let (sender, mut receiver) = channel::<Message>(2);
@@ -146,25 +111,18 @@ pub async fn watch(base_path: Option<PathBuf>) {
 
     let mut child: Option<Child> = None;
     while let Ok(message) = receiver.recv().await {
-        if !configs.experimental_hmr {
-            if let Some(mut child) = child.take() {
-                if let Err(err) = child.kill().await {
-                    eprintln!("{}\n{}", err, "Failed to kill love2d process.".red());
-                } else if let Message::CloseLove = message {
-                    println!("{} Closed love.", "[+]".blue());
-                };
-            }
-        }
         if let Message::CloseDev = message {
             break;
         }
         if let Message::BuildProject = message {
-            if !(configs.experimental_hmr && child.is_some()) {
-                child = daemon.build().await.and(daemon.run().await).ok();
-            }
-            else {
-                let _ = daemon.build().await;
-            }
+            // child = daemon.build().await.and(daemon.run().await).ok();
+            build::build(Some(local.clone()), build::Strategy::BuildDev, true).await.unwrap();
+            let mut file_to_send = File::open(local.join(".build").join("main.lua")).await.unwrap();
+            let mut connection = TcpStream::connect(&connection_string).await.unwrap();
+            let mut buffer = vec![];
+            file_to_send.read_to_end(&mut buffer).await.unwrap();
+            connection.write(&buffer).await.unwrap();
+            connection.shutdown().await.unwrap();
         }
     }
 }

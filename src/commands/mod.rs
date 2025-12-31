@@ -1,8 +1,9 @@
-mod build;
+pub mod build;
 pub mod init;
-mod update_polyfill;
-mod watch;
+pub mod update_polyfill;
+pub mod watch;
 // mod update;
+pub mod android;
 
 use std::{path::PathBuf, process::Termination};
 
@@ -31,6 +32,11 @@ pub enum Commands {
         about = "Watches for changes in the project and builds and executes love automatically."
     )]
     Dev { path: Option<PathBuf> },
+
+    #[clap(
+        about = "Watches for changes in the project and builds and executes love automatically."
+    )]
+    AndroidDev { path: Option<PathBuf> },
 
     #[clap(about = "Updates the polyfill used")]
     UpdatePolyfill,
@@ -65,6 +71,9 @@ pub async fn handle_commands(command: Commands) {
     }
 
     match command {
+        Commands::AndroidDev { path } => {
+            android::watch(path).await;
+        }
         Commands::Init { path } => {
             init::init(path);
         }

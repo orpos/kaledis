@@ -271,6 +271,9 @@ pub struct Config {
     #[serde(default = "defaults::empty_modules")]
     #[schemars(with = "Option<Vec<Modules>>")]
     pub exclude_modules: Vec<Modules>,
+    #[serde(default = "defaults::fn_false")]
+    #[schemars(with = "Option<bool>")]
+    pub experimental_hmr: bool,
 }
 
 impl Config {

@@ -76,7 +76,7 @@ impl NodeProcessor for Processor {
                 Prefix::Index(index) => {
                     if let Expression::String(string) = index.get_index() {
                         if let Prefix::Identifier(identifier) = index.get_prefix() {
-                            Some((identifier.get_name(), string.get_value()))
+                            Some((identifier.get_name(), &String::from_utf8_lossy(string.get_value()).to_string()))
                         } else {
                             None
                         }

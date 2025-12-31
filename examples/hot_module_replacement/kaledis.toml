@@ -1,8 +1,8 @@
 "$schema" = "./kaledis.schema.json"
-experimental_hmr = false
+experimental_hmr = true
 
 [project]
-name = "game_example"
+name = "test"
 love_path = "C:/Program Files/LOVE"
 src_path="src"
 detect_modules=true

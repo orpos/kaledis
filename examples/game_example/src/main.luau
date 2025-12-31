@@ -1,10 +1,10 @@
+local x,y = 0,0
 function love.load()
 	-- This will run once when the game loads
+    y = 0
+    x = 0
 end
 
-
-local y = 0
-local x = 0
 function love.update(dt)
     -- Here we handle the logic for moving the character
 	if love.keyboard.isDown("down") then
@@ -23,5 +23,6 @@ end
 
 function love.draw()
 	-- Here we draw the character
-    love.graphics.rectangle("fill", x, y, 50, 50)
+    love.graphics.print("now it's acceptable")
+    -- love.graphics.rectangle("fill", x, y, 50, 50)
 end

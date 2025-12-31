@@ -70,6 +70,210 @@ type DisplayOrientation = "unknown"|"landscape"|"landscapeflipped"|"portrait"|"p
 type FullscreenType = "desktop"|"exclusive"|"normal"
 type MessageBoxType = "info"|"warning"|"error"
 
+--- The superclass of all LÖVE types.
+declare class Object
+	--- ______________________________
+	--- Destroys the object's Lua reference. The object will be completely deleted if it's not referenced by any other LÖVE object or thread.
+	--- This method can be used to immediately clean up resources without waiting for Lua's garbage collector.
+	--- @return success True if the object was released by this call, false if it had been previously released.
+	function release(self) : (boolean)
+	--- ______________________________
+	--- Gets the type of the object as a string.
+	--- @return type The type as a string.
+	function type(self) : (string)
+	--- ______________________________
+	--- Checks whether an object is of a certain type. If the object has the type with the specified name in its hierarchy, this function will return true.
+	--- @param name The name of the type to check for.
+	--- @return b True if the object is of the specified type, false otherwise.
+	function typeOf(self, name: string) : (boolean)
+end
+	--- Superclass for all things that can be drawn on screen. This is an abstract type that can't be created directly.
+declare class Drawable extends Object
+end
+--- Superclass for drawable objects which represent a texture. All Textures can be drawn with Quads. This is an abstract type that can't be created directly.
+declare class Texture extends Drawable
+	--- ______________________________
+	--- Gets the DPI scale factor of the Texture.
+	--- The DPI scale factor represents relative pixel density. A DPI scale factor of 2 means the texture has twice the pixel density in each dimension (4 times as many pixels in the same area) compared to a texture with a DPI scale factor of 1.
+	--- For example, a texture with pixel dimensions of 100x100 with a DPI scale factor of 2 will be drawn as if it was 50x50. This is useful with high-dpi /  retina displays to easily allow swapping out higher or lower pixel density Images and Canvases without needing any extra manual scaling logic.
+	--- @return dpiscale The DPI scale factor of the Texture.
+	function getDPIScale(self) : (number)
+	--- ______________________________
+	--- Gets the depth of a Volume Texture. Returns 1 for 2D, Cubemap, and Array textures.
+	--- @return depth The depth of the volume Texture.
+	function getDepth(self) : (number)
+	--- ______________________________
+	--- Gets the comparison mode used when sampling from a depth texture in a shader.
+	--- Depth texture comparison modes are advanced low-level functionality typically used with shadow mapping in 3D.
+	--- @return compare The comparison mode used when sampling from this texture in a shader, or nil if setDepthSampleMode has not been called on this Texture.
+	function getDepthSampleMode(self) : (CompareMode)
+	--- ______________________________
+	--- Gets the width and height of the Texture.
+	--- @return width The width of the Texture.
+	--- @return height The height of the Texture.
+	function getDimensions(self) : (number, number)
+	--- ______________________________
+	--- Gets the filter mode of the Texture.
+	--- @return min Filter mode to use when minifying the texture (rendering it at a smaller size on-screen than its size in pixels).
+	--- @return mag Filter mode to use when magnifying the texture (rendering it at a smaller size on-screen than its size in pixels).
+	--- @return anisotropy Maximum amount of anisotropic filtering used.
+	function getFilter(self) : (FilterMode, FilterMode, number)
+	--- ______________________________
+	--- Gets the pixel format of the Texture.
+	--- @return format The pixel format the Texture was created with.
+	function getFormat(self) : (PixelFormat)
+	--- ______________________________
+	--- Gets the height of the Texture.
+	--- @return height The height of the Texture.
+	function getHeight(self) : (number)
+	--- ______________________________
+	--- Gets the number of layers / slices in an Array Texture. Returns 1 for 2D, Cubemap, and Volume textures.
+	--- @return layers The number of layers in the Array Texture.
+	function getLayerCount(self) : (number)
+	--- ______________________________
+	--- Gets the number of mipmaps contained in the Texture. If the texture was not created with mipmaps, it will return 1.
+	--- @return mipmaps The number of mipmaps in the Texture.
+	function getMipmapCount(self) : (number)
+	--- ______________________________
+	--- Gets the mipmap filter mode for a Texture. Prior to 11.0 this method only worked on Images.
+	--- @return mode The filter mode used in between mipmap levels. nil if mipmap filtering is not enabled.
+	--- @return sharpness Value used to determine whether the image should use more or less detailed mipmap levels than normal when drawing.
+	function getMipmapFilter(self) : (FilterMode, number)
+	--- ______________________________
+	--- Gets the width and height in pixels of the Texture.
+	--- Texture:getDimensions gets the dimensions of the texture in units scaled by the texture's DPI scale factor, rather than pixels. Use getDimensions for calculations related to drawing the texture (calculating an origin offset, for example), and getPixelDimensions only when dealing specifically with pixels, for example when using Canvas:newImageData.
+	--- @return pixelwidth The width of the Texture, in pixels.
+	--- @return pixelheight The height of the Texture, in pixels.
+	function getPixelDimensions(self) : (number, number)
+	--- ______________________________
+	--- Gets the height in pixels of the Texture.
+	--- DPI scale factor, rather than pixels. Use getHeight for calculations related to drawing the texture (calculating an origin offset, for example), and getPixelHeight only when dealing specifically with pixels, for example when using Canvas:newImageData.
+	--- @return pixelheight The height of the Texture, in pixels.
+	function getPixelHeight(self) : (number)
+	--- ______________________________
+	--- Gets the width in pixels of the Texture.
+	--- DPI scale factor, rather than pixels. Use getWidth for calculations related to drawing the texture (calculating an origin offset, for example), and getPixelWidth only when dealing specifically with pixels, for example when using Canvas:newImageData.
+	--- @return pixelwidth The width of the Texture, in pixels.
+	function getPixelWidth(self) : (number)
+	--- ______________________________
+	--- Gets the type of the Texture.
+	--- @return texturetype The type of the Texture.
+	function getTextureType(self) : (TextureType)
+	--- ______________________________
+	--- Gets the width of the Texture.
+	--- @return width The width of the Texture.
+	function getWidth(self) : (number)
+	--- ______________________________
+	--- Gets the wrapping properties of a Texture.
+	--- This function returns the currently set horizontal and vertical wrapping modes for the texture.
+	--- @return horiz Horizontal wrapping mode of the texture.
+	--- @return vert Vertical wrapping mode of the texture.
+	--- @return depth Wrapping mode for the z-axis of a Volume texture.
+	function getWrap(self) : (WrapMode, WrapMode, WrapMode)
+	--- ______________________________
+	--- Gets whether the Texture can be drawn and sent to a Shader.
+	--- Canvases created with stencil and/or depth PixelFormats are not readable by default, unless readable=true is specified in the settings table passed into love.graphics.newCanvas.
+	--- Non-readable Canvases can still be rendered to.
+	--- @return readable Whether the Texture is readable.
+	function isReadable(self) : (boolean)
+	--- ______________________________
+	--- Sets the comparison mode used when sampling from a depth texture in a shader. Depth texture comparison modes are advanced low-level functionality typically used with shadow mapping in 3D.
+	--- When using a depth texture with a comparison mode set in a shader, it must be declared as a sampler2DShadow and used in a GLSL 3 Shader. The result of accessing the texture in the shader will return a float between 0 and 1, proportional to the number of samples (up to 4 samples will be used if bilinear filtering is enabled) that passed the test set by the comparison operation.
+	--- Depth texture comparison can only be used with readable depth-formatted Canvases.
+	--- @param compare The comparison mode used when sampling from this texture in a shader.
+	function setDepthSampleMode(self, compare: CompareMode) : ()
+	--- ______________________________
+	--- Sets the filter mode of the Texture.
+	--- @param min Filter mode to use when minifying the texture (rendering it at a smaller size on-screen than its size in pixels).
+	--- @param mag Filter mode to use when magnifying the texture (rendering it at a larger size on-screen than its size in pixels).
+	--- @param anisotropy Maximum amount of anisotropic filtering to use.
+	function setFilter(self, min: FilterMode, mag: FilterMode?, anisotropy: number?) : ()
+	--- ______________________________
+	--- Sets the mipmap filter mode for a Texture. Prior to 11.0 this method only worked on Images.
+	--- Mipmapping is useful when drawing a texture at a reduced scale. It can improve performance and reduce aliasing issues.
+	--- In created with the mipmaps flag enabled for the mipmap filter to have any effect. In versions prior to 0.10.0 it's best to call this method directly after creating the image with love.graphics.newImage, to avoid bugs in certain graphics drivers.
+	--- Due to hardware restrictions and driver bugs, in versions prior to 0.10.0 images that weren't loaded from a CompressedData must have power-of-two dimensions (64x64, 512x256, etc.) to use mipmaps.
+	--- On mobile devices (Android and iOS), the sharpness parameter is not supported and will do nothing. You can use a custom compressed and its CompressedData has mipmap data included, it will use that.
+	--- @param filtermode The filter mode to use in between mipmap levels. 'nearest' will often give better performance.
+	--- @param sharpness A positive sharpness value makes the texture use a more detailed mipmap level when drawing, at the expense of performance. A negative value does the reverse.
+	function setMipmapFilter(self, filtermode: FilterMode, sharpness: number?) : ()
+	--- ______________________________
+	--- Sets the mipmap filter mode for a Texture. Prior to 11.0 this method only worked on Images.
+	--- Mipmapping is useful when drawing a texture at a reduced scale. It can improve performance and reduce aliasing issues.
+	--- In created with the mipmaps flag enabled for the mipmap filter to have any effect. In versions prior to 0.10.0 it's best to call this method directly after creating the image with love.graphics.newImage, to avoid bugs in certain graphics drivers.
+	--- Due to hardware restrictions and driver bugs, in versions prior to 0.10.0 images that weren't loaded from a CompressedData must have power-of-two dimensions (64x64, 512x256, etc.) to use mipmaps.
+	--- Disables mipmap filtering.
+	function setMipmapFilter(self) : ()
+	--- ______________________________
+	--- Sets the wrapping properties of a Texture.
+	--- This function sets the way a Texture is repeated when it is drawn with a Quad that is larger than the texture's extent, or when a custom Shader is used which uses texture coordinates outside of [0, 1]. A texture may be clamped or set to repeat in both horizontal and vertical directions.
+	--- Clamped textures appear only once (with the edges of the texture stretching to fill the extent of the Quad), whereas repeated ones repeat as many times as there is room in the Quad.
+	--- @param horiz Horizontal wrapping mode of the texture.
+	--- @param vert Vertical wrapping mode of the texture.
+	--- @param depth Wrapping mode for the z-axis of a Volume texture.
+	function setWrap(self, horiz: WrapMode, vert: WrapMode?, depth: WrapMode?) : ()
+end
+	--- A drawable video.
+declare class Video extends Drawable
+	--- ______________________________
+	--- Gets the width and height of the Video in pixels.
+	--- @return width The width of the Video.
+	--- @return height The height of the Video.
+	function getDimensions(self) : (number, number)
+	--- ______________________________
+	--- Gets the scaling filters used when drawing the Video.
+	--- @return min The filter mode used when scaling the Video down.
+	--- @return mag The filter mode used when scaling the Video up.
+	--- @return anisotropy Maximum amount of anisotropic filtering used.
+	function getFilter(self) : (FilterMode, FilterMode, number)
+	--- ______________________________
+	--- Gets the height of the Video in pixels.
+	--- @return height The height of the Video.
+	function getHeight(self) : (number)
+	--- ______________________________
+	--- Gets the audio Source used for playing back the video's audio. May return nil if the video has no audio, or if Video:setSource is called with a nil argument.
+	--- @return source The audio Source used for audio playback, or nil if the video has no audio.
+	function getSource(self) : (Source)
+	--- ______________________________
+	--- Gets the VideoStream object used for decoding and controlling the video.
+	--- @return stream The VideoStream used for decoding and controlling the video.
+	function getStream(self) : (VideoStream)
+	--- ______________________________
+	--- Gets the width of the Video in pixels.
+	--- @return width The width of the Video.
+	function getWidth(self) : (number)
+	--- ______________________________
+	--- Gets whether the Video is currently playing.
+	--- @return playing Whether the video is playing.
+	function isPlaying(self) : (boolean)
+	--- ______________________________
+	--- Pauses the Video.
+	function pause(self) : ()
+	--- ______________________________
+	--- Starts playing the Video. In order for the video to appear onscreen it must be drawn with love.graphics.draw.
+	function play(self) : ()
+	--- ______________________________
+	--- Rewinds the Video to the beginning.
+	function rewind(self) : ()
+	--- ______________________________
+	--- Sets the current playback position of the Video.
+	--- @param offset The time in seconds since the beginning of the Video.
+	function seek(self, offset: number) : ()
+	--- ______________________________
+	--- Sets the scaling filters used when drawing the Video.
+	--- @param min The filter mode used when scaling the Video down.
+	--- @param mag The filter mode used when scaling the Video up.
+	--- @param anisotropy Maximum amount of anisotropic filtering used.
+	function setFilter(self, min: FilterMode, mag: FilterMode, anisotropy: number?) : ()
+	--- ______________________________
+	--- Sets the audio Source used for playing back the video's audio. The audio Source also controls playback speed and synchronization.
+	--- @param source The audio Source used for audio playback, or nil to disable audio synchronization.
+	function setSource(self, source: Source?) : ()
+	--- ______________________________
+	--- Gets the current playback position of the Video.
+	--- @return seconds The time in seconds since the beginning of the Video.
+	function tell(self) : (number)
+end
 --- The superclass of all data.
 declare class Data extends Object
 	--- ______________________________
@@ -94,23 +298,7 @@ declare class Data extends Object
 	--- @return data The raw data.
 	function getString(self) : (string)
 end
-	--- The superclass of all LÖVE types.
-declare class Object
-	--- ______________________________
-	--- Destroys the object's Lua reference. The object will be completely deleted if it's not referenced by any other LÖVE object or thread.
-	--- This method can be used to immediately clean up resources without waiting for Lua's garbage collector.
-	--- @return success True if the object was released by this call, false if it had been previously released.
-	function release(self) : (boolean)
-	--- ______________________________
-	--- Gets the type of the object as a string.
-	--- @return type The type as a string.
-	function type(self) : (string)
-	--- ______________________________
-	--- Checks whether an object is of a certain type. If the object has the type with the specified name in its hierarchy, this function will return true.
-	--- @param name The name of the type to check for.
-	--- @return b True if the object is of the specified type, false otherwise.
-	function typeOf(self, name: string) : (boolean)
-end
+	
 	--- Attach multiple bodies together to interact in unique ways.
 declare class Joint extends Object
 	--- ______________________________
@@ -769,9 +957,7 @@ declare class Canvas extends Texture
 	--- @param ... Additional arguments to call the function with.
 	function renderTo(self, func:  ((...any) -> ()), ...: any) : ()
 end
-	--- Superclass for all things that can be drawn on screen. This is an abstract type that can't be created directly.
-declare class Drawable extends Object
-end
+
 	--- Defines the shape of characters that can be drawn onto the screen.
 declare class Font extends Object
 	--- ______________________________
@@ -1993,190 +2179,7 @@ declare class Text extends Drawable
 	--- @param align The alignment of the text.
 	function setf(self, coloredtext: {color1: {},string1: string,color2: {},string2: string,[any]: ({}&string),}, wraplimit: number, align: AlignMode) : ()
 end
-	--- Superclass for drawable objects which represent a texture. All Textures can be drawn with Quads. This is an abstract type that can't be created directly.
-declare class Texture extends Drawable
-	--- ______________________________
-	--- Gets the DPI scale factor of the Texture.
-	--- The DPI scale factor represents relative pixel density. A DPI scale factor of 2 means the texture has twice the pixel density in each dimension (4 times as many pixels in the same area) compared to a texture with a DPI scale factor of 1.
-	--- For example, a texture with pixel dimensions of 100x100 with a DPI scale factor of 2 will be drawn as if it was 50x50. This is useful with high-dpi /  retina displays to easily allow swapping out higher or lower pixel density Images and Canvases without needing any extra manual scaling logic.
-	--- @return dpiscale The DPI scale factor of the Texture.
-	function getDPIScale(self) : (number)
-	--- ______________________________
-	--- Gets the depth of a Volume Texture. Returns 1 for 2D, Cubemap, and Array textures.
-	--- @return depth The depth of the volume Texture.
-	function getDepth(self) : (number)
-	--- ______________________________
-	--- Gets the comparison mode used when sampling from a depth texture in a shader.
-	--- Depth texture comparison modes are advanced low-level functionality typically used with shadow mapping in 3D.
-	--- @return compare The comparison mode used when sampling from this texture in a shader, or nil if setDepthSampleMode has not been called on this Texture.
-	function getDepthSampleMode(self) : (CompareMode)
-	--- ______________________________
-	--- Gets the width and height of the Texture.
-	--- @return width The width of the Texture.
-	--- @return height The height of the Texture.
-	function getDimensions(self) : (number, number)
-	--- ______________________________
-	--- Gets the filter mode of the Texture.
-	--- @return min Filter mode to use when minifying the texture (rendering it at a smaller size on-screen than its size in pixels).
-	--- @return mag Filter mode to use when magnifying the texture (rendering it at a smaller size on-screen than its size in pixels).
-	--- @return anisotropy Maximum amount of anisotropic filtering used.
-	function getFilter(self) : (FilterMode, FilterMode, number)
-	--- ______________________________
-	--- Gets the pixel format of the Texture.
-	--- @return format The pixel format the Texture was created with.
-	function getFormat(self) : (PixelFormat)
-	--- ______________________________
-	--- Gets the height of the Texture.
-	--- @return height The height of the Texture.
-	function getHeight(self) : (number)
-	--- ______________________________
-	--- Gets the number of layers / slices in an Array Texture. Returns 1 for 2D, Cubemap, and Volume textures.
-	--- @return layers The number of layers in the Array Texture.
-	function getLayerCount(self) : (number)
-	--- ______________________________
-	--- Gets the number of mipmaps contained in the Texture. If the texture was not created with mipmaps, it will return 1.
-	--- @return mipmaps The number of mipmaps in the Texture.
-	function getMipmapCount(self) : (number)
-	--- ______________________________
-	--- Gets the mipmap filter mode for a Texture. Prior to 11.0 this method only worked on Images.
-	--- @return mode The filter mode used in between mipmap levels. nil if mipmap filtering is not enabled.
-	--- @return sharpness Value used to determine whether the image should use more or less detailed mipmap levels than normal when drawing.
-	function getMipmapFilter(self) : (FilterMode, number)
-	--- ______________________________
-	--- Gets the width and height in pixels of the Texture.
-	--- Texture:getDimensions gets the dimensions of the texture in units scaled by the texture's DPI scale factor, rather than pixels. Use getDimensions for calculations related to drawing the texture (calculating an origin offset, for example), and getPixelDimensions only when dealing specifically with pixels, for example when using Canvas:newImageData.
-	--- @return pixelwidth The width of the Texture, in pixels.
-	--- @return pixelheight The height of the Texture, in pixels.
-	function getPixelDimensions(self) : (number, number)
-	--- ______________________________
-	--- Gets the height in pixels of the Texture.
-	--- DPI scale factor, rather than pixels. Use getHeight for calculations related to drawing the texture (calculating an origin offset, for example), and getPixelHeight only when dealing specifically with pixels, for example when using Canvas:newImageData.
-	--- @return pixelheight The height of the Texture, in pixels.
-	function getPixelHeight(self) : (number)
-	--- ______________________________
-	--- Gets the width in pixels of the Texture.
-	--- DPI scale factor, rather than pixels. Use getWidth for calculations related to drawing the texture (calculating an origin offset, for example), and getPixelWidth only when dealing specifically with pixels, for example when using Canvas:newImageData.
-	--- @return pixelwidth The width of the Texture, in pixels.
-	function getPixelWidth(self) : (number)
-	--- ______________________________
-	--- Gets the type of the Texture.
-	--- @return texturetype The type of the Texture.
-	function getTextureType(self) : (TextureType)
-	--- ______________________________
-	--- Gets the width of the Texture.
-	--- @return width The width of the Texture.
-	function getWidth(self) : (number)
-	--- ______________________________
-	--- Gets the wrapping properties of a Texture.
-	--- This function returns the currently set horizontal and vertical wrapping modes for the texture.
-	--- @return horiz Horizontal wrapping mode of the texture.
-	--- @return vert Vertical wrapping mode of the texture.
-	--- @return depth Wrapping mode for the z-axis of a Volume texture.
-	function getWrap(self) : (WrapMode, WrapMode, WrapMode)
-	--- ______________________________
-	--- Gets whether the Texture can be drawn and sent to a Shader.
-	--- Canvases created with stencil and/or depth PixelFormats are not readable by default, unless readable=true is specified in the settings table passed into love.graphics.newCanvas.
-	--- Non-readable Canvases can still be rendered to.
-	--- @return readable Whether the Texture is readable.
-	function isReadable(self) : (boolean)
-	--- ______________________________
-	--- Sets the comparison mode used when sampling from a depth texture in a shader. Depth texture comparison modes are advanced low-level functionality typically used with shadow mapping in 3D.
-	--- When using a depth texture with a comparison mode set in a shader, it must be declared as a sampler2DShadow and used in a GLSL 3 Shader. The result of accessing the texture in the shader will return a float between 0 and 1, proportional to the number of samples (up to 4 samples will be used if bilinear filtering is enabled) that passed the test set by the comparison operation.
-	--- Depth texture comparison can only be used with readable depth-formatted Canvases.
-	--- @param compare The comparison mode used when sampling from this texture in a shader.
-	function setDepthSampleMode(self, compare: CompareMode) : ()
-	--- ______________________________
-	--- Sets the filter mode of the Texture.
-	--- @param min Filter mode to use when minifying the texture (rendering it at a smaller size on-screen than its size in pixels).
-	--- @param mag Filter mode to use when magnifying the texture (rendering it at a larger size on-screen than its size in pixels).
-	--- @param anisotropy Maximum amount of anisotropic filtering to use.
-	function setFilter(self, min: FilterMode, mag: FilterMode?, anisotropy: number?) : ()
-	--- ______________________________
-	--- Sets the mipmap filter mode for a Texture. Prior to 11.0 this method only worked on Images.
-	--- Mipmapping is useful when drawing a texture at a reduced scale. It can improve performance and reduce aliasing issues.
-	--- In created with the mipmaps flag enabled for the mipmap filter to have any effect. In versions prior to 0.10.0 it's best to call this method directly after creating the image with love.graphics.newImage, to avoid bugs in certain graphics drivers.
-	--- Due to hardware restrictions and driver bugs, in versions prior to 0.10.0 images that weren't loaded from a CompressedData must have power-of-two dimensions (64x64, 512x256, etc.) to use mipmaps.
-	--- On mobile devices (Android and iOS), the sharpness parameter is not supported and will do nothing. You can use a custom compressed and its CompressedData has mipmap data included, it will use that.
-	--- @param filtermode The filter mode to use in between mipmap levels. 'nearest' will often give better performance.
-	--- @param sharpness A positive sharpness value makes the texture use a more detailed mipmap level when drawing, at the expense of performance. A negative value does the reverse.
-	function setMipmapFilter(self, filtermode: FilterMode, sharpness: number?) : ()
-	--- ______________________________
-	--- Sets the mipmap filter mode for a Texture. Prior to 11.0 this method only worked on Images.
-	--- Mipmapping is useful when drawing a texture at a reduced scale. It can improve performance and reduce aliasing issues.
-	--- In created with the mipmaps flag enabled for the mipmap filter to have any effect. In versions prior to 0.10.0 it's best to call this method directly after creating the image with love.graphics.newImage, to avoid bugs in certain graphics drivers.
-	--- Due to hardware restrictions and driver bugs, in versions prior to 0.10.0 images that weren't loaded from a CompressedData must have power-of-two dimensions (64x64, 512x256, etc.) to use mipmaps.
-	--- Disables mipmap filtering.
-	function setMipmapFilter(self) : ()
-	--- ______________________________
-	--- Sets the wrapping properties of a Texture.
-	--- This function sets the way a Texture is repeated when it is drawn with a Quad that is larger than the texture's extent, or when a custom Shader is used which uses texture coordinates outside of [0, 1]. A texture may be clamped or set to repeat in both horizontal and vertical directions.
-	--- Clamped textures appear only once (with the edges of the texture stretching to fill the extent of the Quad), whereas repeated ones repeat as many times as there is room in the Quad.
-	--- @param horiz Horizontal wrapping mode of the texture.
-	--- @param vert Vertical wrapping mode of the texture.
-	--- @param depth Wrapping mode for the z-axis of a Volume texture.
-	function setWrap(self, horiz: WrapMode, vert: WrapMode?, depth: WrapMode?) : ()
-end
-	--- A drawable video.
-declare class Video extends Drawable
-	--- ______________________________
-	--- Gets the width and height of the Video in pixels.
-	--- @return width The width of the Video.
-	--- @return height The height of the Video.
-	function getDimensions(self) : (number, number)
-	--- ______________________________
-	--- Gets the scaling filters used when drawing the Video.
-	--- @return min The filter mode used when scaling the Video down.
-	--- @return mag The filter mode used when scaling the Video up.
-	--- @return anisotropy Maximum amount of anisotropic filtering used.
-	function getFilter(self) : (FilterMode, FilterMode, number)
-	--- ______________________________
-	--- Gets the height of the Video in pixels.
-	--- @return height The height of the Video.
-	function getHeight(self) : (number)
-	--- ______________________________
-	--- Gets the audio Source used for playing back the video's audio. May return nil if the video has no audio, or if Video:setSource is called with a nil argument.
-	--- @return source The audio Source used for audio playback, or nil if the video has no audio.
-	function getSource(self) : (Source)
-	--- ______________________________
-	--- Gets the VideoStream object used for decoding and controlling the video.
-	--- @return stream The VideoStream used for decoding and controlling the video.
-	function getStream(self) : (VideoStream)
-	--- ______________________________
-	--- Gets the width of the Video in pixels.
-	--- @return width The width of the Video.
-	function getWidth(self) : (number)
-	--- ______________________________
-	--- Gets whether the Video is currently playing.
-	--- @return playing Whether the video is playing.
-	function isPlaying(self) : (boolean)
-	--- ______________________________
-	--- Pauses the Video.
-	function pause(self) : ()
-	--- ______________________________
-	--- Starts playing the Video. In order for the video to appear onscreen it must be drawn with love.graphics.draw.
-	function play(self) : ()
-	--- ______________________________
-	--- Rewinds the Video to the beginning.
-	function rewind(self) : ()
-	--- ______________________________
-	--- Sets the current playback position of the Video.
-	--- @param offset The time in seconds since the beginning of the Video.
-	function seek(self, offset: number) : ()
-	--- ______________________________
-	--- Sets the scaling filters used when drawing the Video.
-	--- @param min The filter mode used when scaling the Video down.
-	--- @param mag The filter mode used when scaling the Video up.
-	--- @param anisotropy Maximum amount of anisotropic filtering used.
-	function setFilter(self, min: FilterMode, mag: FilterMode, anisotropy: number?) : ()
-	--- ______________________________
-	--- Sets the audio Source used for playing back the video's audio. The audio Source also controls playback speed and synchronization.
-	--- @param source The audio Source used for audio playback, or nil to disable audio synchronization.
-	function setSource(self, source: Source?) : ()
-	--- ______________________________
-	--- Gets the current playback position of the Video.
-	--- @return seconds The time in seconds since the beginning of the Video.
-	function tell(self) : (number)
-end
+
 	--- Represents compressed image data designed to stay compressed in RAM.
 	--- CompressedImageData encompasses standard compressed texture formats such as  DXT1, DXT5, and BC5 / 3Dc.
 	--- You can't draw CompressedImageData directly to the screen. See Image for that.
@@ -9604,3 +9607,37 @@ declare jit: {
 	--- The debug modules -jbc, -jv and -jdump make extensive use of these functions. Please check out their source code, if you want to know more.
 	util: any
 }
+
+--- This is part of the experimental hot module replacement
+declare lick : {
+	--- show debug output
+	debug: boolean,
+	--- reset the game and call love.load on file change
+	reset: boolean,
+	--- clear the screen on file change
+	clearFlag: boolean,
+	--- sleep time in seconds
+	sleepTime: number,
+	--- show message when a file is reloaded
+	showReloadMessage: boolean,
+	--- message to show when a chunk is loaded
+	chunkLoadMessage : string,
+	--- include files in watchlist for changes
+	updateAllFiles: boolean,
+	--- clear all packages in package.loaded on file change
+	clearPackages: boolean,
+	--- default file to load
+	defaultFile: string,
+	--- file extensions to watch
+	fileExtensions: {string},
+	--- entry point for the game, if empty, all files are reloaded
+	entryPoint: string,
+	--- X offset for debug text from the center (positive moves right)
+	debugTextXOffset: number,
+	--- Maximum width for debug text
+	debugTextWidth: number,
+	--- Opacity of the debug text (0.0 to 1.0)
+	debugTextAlpha: number,
+	--- Alignment of the debug text ("left", "right", "center", "justify")
+	debugTextAlignment: "right" | "left" |"center" |"justify"
+};

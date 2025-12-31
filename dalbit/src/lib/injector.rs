@@ -53,6 +53,7 @@ impl Visitor for CollectUsedLibraries {
 pub struct Injector {
     module_path: PathBuf,
     exports: HashSet<String>,
+    use_hmr: bool,
     removes: Option<Vec<String>>,
     lua_version: LuaVersion,
 }
@@ -63,9 +64,11 @@ impl Injector {
         exports: HashSet<String>,
         lua_version: LuaVersion,
         removes: Option<Vec<String>>,
+        use_hmr: bool
     ) -> Self {
         Self {
             module_path,
+            use_hmr,
             exports,
             removes,
             lua_version,
@@ -93,6 +96,10 @@ impl Injector {
 
         let mut lines: Vec<String> = code.lines().map(String::from).collect();
         let mut libraries_texts: Vec<String> = Vec::new();
+
+        if self.use_hmr && source_path.ends_with("main.lua") {
+            libraries_texts.push("local lick=require(\"lick\")".to_string());
+        }
 
         let ast = full_moon::parse_fallible(code.as_str(), self.lua_version)
             .into_result()

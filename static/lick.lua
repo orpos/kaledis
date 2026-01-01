@@ -1,5 +1,9 @@
 -- Credit: https://codeberg.org/usysrc/LICK
 
+-- Maybe i will use https://github.com/jasonjmcghee/livelove/ in the future for a better dx
+-- the main difference is that i would use darklua to make the changes instead of lua doing them
+-- that way we can use it in android and have the same dx
+
 -- lick.lua
 --
 -- simple LIVECODING environment for Löve
@@ -13,8 +17,8 @@ lick.clearFlag = false                 -- clear the screen on file change
 lick.sleepTime = 0.001                 -- sleep time in seconds
 lick.showReloadMessage = true          -- show message when a file is reloaded
 lick.chunkLoadMessage = "CHUNK LOADED" -- message to show when a chunk is loaded
-lick.updateAllFiles = false            -- include files in watchlist for changes
-lick.clearPackages = false             -- clear all packages in package.loaded on file change
+lick.updateAllFiles = true            -- include files in watchlist for changes
+lick.clearPackages = true             -- clear all packages in package.loaded on file change
 lick.defaultFile = "main.lua"          -- default file to load
 lick.fileExtensions = { ".lua" }       -- file extensions to watch
 lick.entryPoint = "main.lua"           -- entry point for the game, if empty, all files are reloaded

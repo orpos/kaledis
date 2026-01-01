@@ -8,27 +8,55 @@ use anyhow::Context;
 use async_watcher::AsyncDebouncer;
 use colored::Colorize;
 use console::Term;
-use itertools::Itertools;
 use tokio::{
     process::{Child, Command},
-    sync::broadcast::{Sender, channel},
+    sync::broadcast::{channel, Sender},
 };
 
-use crate::{
-    commands::build::{self, Builder},
-    toml_conf::Config,
-    utils::relative,
-};
+use crate::{commands::build2, toml_conf::Config, utils::relative};
+
+#[derive(Clone)]
+struct WatchDaemon<'a> {
+    path: &'a PathBuf,
+    base_path: Option<PathBuf>,
+    love_path: PathBuf,
+    love_executable: PathBuf,
+}
+
+impl<'a> WatchDaemon<'a> {
+    pub fn new(path: &'a PathBuf, love_path: PathBuf, base_path: Option<PathBuf>) -> Self {
+        Self {
+            path,
+            love_executable: love_path.join("love.exe"),
+            love_path,
+            base_path,
+        }
+    }
+    pub async fn build(&self) -> anyhow::Result<()> {
+        build2::build(self.base_path.clone(), build2::Strategy::BuildDev, false)
+            .await
+            .context("Building")?;
+        Ok(())
+    }
+    pub async fn run(&self) -> anyhow::Result<Child> {
+        if !self.path.join(".build").exists() {
+            anyhow::bail!("No bundle found."); // maybe we forgot to build it
+        }
+        Ok(Command::new(&self.love_executable)
+            .current_dir(&self.love_path)
+            .arg(self.path.join(".build"))
+            .spawn()
+            .context("Spawning the process")?)
+    }
+}
 
 async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender: Sender<Message>) {
     let local = local.clone();
     tokio::spawn(async move {
-        let (mut c, mut r) = AsyncDebouncer::new_with_channel(
-            Duration::from_millis(20),
-            Some(Duration::from_millis(20)),
-        )
-        .await
-        .unwrap();
+        let (mut c, mut r) =
+            AsyncDebouncer::new_with_channel(Duration::from_millis(20), Some(Duration::from_millis(20)))
+                .await
+                .unwrap();
 
         c.watcher()
             .watch(&local, async_watcher::notify::RecursiveMode::Recursive)
@@ -48,22 +76,7 @@ async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender:
             {
                 continue;
             }
-            sender
-                .send(Message::BuildProject(Some(
-                    data.iter()
-                        .map(|x| x.path.clone())
-                        .filter(|x| {
-                            if let Some(ext) = x.extension() {
-                                if ext == "luau" {
-                                    return true;
-                                }
-                            };
-                            false
-                        })
-                        .unique()
-                        .collect(),
-                )))
-                .unwrap();
+            sender.send(Message::BuildProject).unwrap();
         }
     });
 }
@@ -71,7 +84,7 @@ async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender:
 #[derive(Clone, PartialEq, Eq, Debug)]
 enum Message {
     CloseLove,
-    BuildProject(Option<Vec<PathBuf>>),
+    BuildProject,
     CloseDev,
 }
 
@@ -91,7 +104,7 @@ async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<Mess
                     *auto_save = !*auto_save;
                 }
                 console::Key::Char('L') | console::Key::Char('l') => {
-                    sender.send(Message::BuildProject(None)).unwrap();
+                    sender.send(Message::BuildProject).unwrap();
                 }
                 console::Key::Char('Q') | console::Key::Char('q') => {
                     sender.send(Message::CloseDev).unwrap();
@@ -121,11 +134,9 @@ pub async fn watch(base_path: Option<PathBuf>) {
     }
 
     let configs = Config::from_toml_file(local.join("kaledis.toml")).unwrap();
+    let love_path = configs.project.love_path;
 
-    // let daemon = WatchDaemon::new(&local, love_path, base_path);
-    let mut builder = Builder::new(local.clone(), configs, build::Strategy::BuildDev, false)
-        .await
-        .unwrap();
+    let daemon = WatchDaemon::new(&local, love_path, base_path);
 
     let watching = Arc::new(RwLock::new(false));
     let (sender, mut receiver) = channel::<Message>(2);
@@ -134,9 +145,8 @@ pub async fn watch(base_path: Option<PathBuf>) {
     spawn_file_reader(watching, &local, sender.clone()).await;
 
     let mut child: Option<Child> = None;
-    builder.clean_build_folder().await.unwrap();
     while let Ok(message) = receiver.recv().await {
-        if !builder.config.experimental_hmr {
+        if !configs.experimental_hmr {
             if let Some(mut child) = child.take() {
                 if let Err(err) = child.kill().await {
                     eprintln!("{}\n{}", err, "Failed to kill love2d process.".red());
@@ -148,40 +158,12 @@ pub async fn watch(base_path: Option<PathBuf>) {
         if let Message::CloseDev = message {
             break;
         }
-        if let Message::BuildProject(change) = message {
-            if builder.config.experimental_hmr
-                && let Some(files) = change
-            {
-                builder.add_assets().await;
-                builder.build_files(files).await;
-            } else {
-                builder.clean_build_folder().await.unwrap();
-                let modules = builder.add_luau_files().await.unwrap();
-                builder.add_assets().await;
-                builder.make_conf_file(modules).await;
+        if let Message::BuildProject = message {
+            if !(configs.experimental_hmr && child.is_some()) {
+                child = daemon.build().await.and(daemon.run().await).ok();
             }
-
-            if !builder.config.experimental_hmr {
-                if let Some(mut child) = child.take() {
-                    child.kill().await.unwrap();
-                }
-                child = Some(
-                    Command::new(&builder.config.project.love_path.join("love.exe"))
-                        .current_dir(&builder.config.project.love_path)
-                        .arg(&builder.paths.build)
-                        .spawn()
-                        .context("Spawning the process")
-                        .unwrap(),
-                );
-            } else if let None = child {
-                child = Some(
-                    Command::new(&builder.config.project.love_path.join("love.exe"))
-                        .current_dir(&builder.config.project.love_path)
-                        .arg(&builder.paths.build)
-                        .spawn()
-                        .context("Spawning the process")
-                        .unwrap(),
-                );
+            else {
+                let _ = daemon.build().await;
             }
         }
     }

@@ -1,7 +1,7 @@
 [package]
 name = "kaledis"
 version = "2.2.0"
-edition = "2021"
+edition = "2024"
 authors = ["lettuce-magician", "orpos"]
 documentation = "https://github.com/orpos/kaledis"
 repository = "https://github.com/orpos/kaledis"
@@ -12,25 +12,38 @@ description = "A new way to LÖVE. Kaledis is a tool for allowing Luau to be use
 anyhow = "1.0.99"
 async-compression = { version = "0.4.27", features = ["gzip", "tokio"] }
 async-watcher = "0.3.0"
+auth-git2 = "0.5.8"
+blake3 = "1.8.2"
 clap = { version = "4.5.45", features = ["derive"] }
 clap-serde-derive = "0.2.1"
 colored = "3.0.0"
 console = { version = "0.16.0", features = ["windows-console-colors"] }
+darklua = "0.17.3"
+dirs = "6.0.0"
+fs-err = "3.2.2"
+full_moon = { version = "2.0.0", features = ["lua53", "luau"] }
 futures = "0.3.31"
+futures-lite = "2.6.1"
+git2 = "0.20.3"
 glob = "0.3.3"
+hex = "0.4.3"
 ignore = "0.4.23"
 indexmap = "2.10.0"
+indicatif = { version = "0.18.3", features = ["tokio"] }
 inquire = "0.7.5"
-kaledis_dalbit = { path = "./dalbit", version = "0.2.9" }
+itertools = "0.14.0"
 paste = "1.0.15"
+rayon = "1.11.0"
 reqwest = { version = "0.12.23", features = ["json", "rustls-tls"] }
 schemars = { version = "1.1.0", features = ["derive"] }
 semver = "1.0.23"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.142"
+strfmt = "0.2.5"
 strum = { version = "0.27.2", features = ["strum_macros"] }
 strum_macros = "0.27.2"
 tokio = { version = "1.47.1", features = ["full"] }
 toml = "0.9.5"
 url = { version = "2.5.3", features = ["serde"] }
+walkdir = "2.5.0"
 zip = "4.3.0"

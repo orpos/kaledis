@@ -10,4 +10,5 @@ end
 
 function love.draw()
     -- This will run every time a new frame will be drawn
+    love.graphics.print(os.clock())
 end

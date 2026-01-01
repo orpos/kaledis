@@ -3,6 +3,7 @@ mod commands;
 mod toml_conf;
 mod utils;
 mod zip_utils;
+mod dalbit;
 
 use std::{process::ExitCode, thread};
 

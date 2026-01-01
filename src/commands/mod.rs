@@ -1,9 +1,12 @@
-pub mod build;
+// pub mod build;
 pub mod init;
 pub mod update_polyfill;
-pub mod watch;
+// pub mod watch;
 // mod update;
 pub mod android;
+pub mod build;
+pub mod watch;
+pub mod build_utils;
 
 use std::{path::PathBuf, process::Termination};
 

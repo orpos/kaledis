@@ -1,7 +1,6 @@
 use full_moon::LuaVersion;
 use serde::{Deserialize, Serialize};
 
-pub mod injector;
 pub mod manifest;
 pub mod modifiers;
 pub mod polyfill;

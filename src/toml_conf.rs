@@ -6,7 +6,7 @@ use std::{
 };
 
 use clap_serde_derive::serde::Serialize;
-use kaledis_dalbit::polyfill::{Polyfill, DEFAULT_INJECTION_PATH};
+use crate::dalbit::polyfill::{Polyfill, DEFAULT_INJECTION_PATH};
 use schemars::JsonSchema;
 use serde::Deserialize;
 

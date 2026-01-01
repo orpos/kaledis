@@ -4,30 +4,37 @@ use anyhow::{anyhow, Result};
 use full_moon::{
     ast::{Ast, Expression, Field, LastStmt},
     tokenizer::TokenKind,
+    LuaVersion,
 };
-use tokio::fs;
-
-use crate::TargetVersion;
+use std::fs;
+// use tokio::fs;
 
 pub enum ParseTarget {
     FullMoonAst(Ast),
-    File(PathBuf, TargetVersion),
+    File(PathBuf),
 }
 
-pub(crate) async fn parse_file(path: &PathBuf, target_version: &TargetVersion) -> Result<Ast> {
-    let code = fs::read_to_string(path).await?;
-    let ast = full_moon::parse_fallible(code.as_str(), target_version.to_lua_version().clone())
-        .into_result()
-        .map_err(|errors| anyhow!("full_moon parsing error: {:?}", errors))?;
+pub(crate) fn parse_file(path: &PathBuf, is_luau: bool) -> Result<Ast> {
+    let code = fs::read_to_string(path)?;
+    let ast = full_moon::parse_fallible(
+        code.as_str(),
+        if is_luau {
+            LuaVersion::luau()
+        } else {
+            LuaVersion::lua51()
+        },
+    )
+    .into_result()
+    .map_err(|errors| anyhow!("full_moon parsing error: {:?}", errors))?;
 
     Ok(ast)
 }
 
 /// Gets exports of lua modules by parsing last statement's table constructor.
-pub async fn get_exports_from_last_stmt(target: &ParseTarget) -> Result<Option<HashSet<String>>> {
+pub fn get_exports_from_last_stmt(target: &ParseTarget) -> Result<Option<HashSet<String>>> {
     let ast = match target {
         ParseTarget::FullMoonAst(ast) => ast,
-        ParseTarget::File(path, target_version) => &parse_file(path, target_version).await?,
+        ParseTarget::File(path) => &parse_file(&path, path.ends_with("luau"))?,
     };
     let block = ast.nodes();
 
@@ -54,7 +61,6 @@ pub async fn get_exports_from_last_stmt(target: &ParseTarget) -> Result<Option<H
                         if let Expression::String(string_token) = key {
                             let string_token = string_token.token();
                             if let TokenKind::StringLiteral = string_token.token_kind() {
-                                log::debug!("[get_exports_from_last_stmt] ExpressionKey token kind: {:?} string: {}", string_token.token_kind(), string_token.to_string());
                                 Some(string_token.to_string().trim().to_owned())
                             } else {
                                 None
@@ -70,7 +76,6 @@ pub async fn get_exports_from_last_stmt(target: &ParseTarget) -> Result<Option<H
                     } => {
                         let key = key.token();
                         if let TokenKind::Identifier = key.token_kind() {
-                            log::debug!("[get_exports_from_last_stmt] NameKey token kind: {:?} string: {}", key.token_kind(), key.to_string());
                             Some(key.to_string().trim().to_owned())
                         } else {
                             None

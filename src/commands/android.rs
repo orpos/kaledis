@@ -8,19 +8,25 @@ use anyhow::Context;
 use async_watcher::AsyncDebouncer;
 use colored::Colorize;
 use console::Term;
+use itertools::Itertools;
 use tokio::{
-    fs::File, io::{AsyncReadExt, AsyncWriteExt}, net::{TcpStream, tcp}, process::{Child, Command}, sync::broadcast::{Sender, channel}
+    process::{Child, Command},
+    sync::broadcast::{Sender, channel},
 };
 
-use crate::{commands::build, toml_conf::Config, utils::relative};
+use crate::{
+    commands::build::{self, Builder}, dalbit::transpile::process_files, toml_conf::Config, utils::relative
+};
 
 async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender: Sender<Message>) {
     let local = local.clone();
     tokio::spawn(async move {
-        let (mut c, mut r) =
-            AsyncDebouncer::new_with_channel(Duration::from_millis(1), Some(Duration::from_millis(1)))
-                .await
-                .unwrap();
+        let (mut c, mut r) = AsyncDebouncer::new_with_channel(
+            Duration::from_millis(20),
+            Some(Duration::from_millis(20)),
+        )
+        .await
+        .unwrap();
 
         c.watcher()
             .watch(&local, async_watcher::notify::RecursiveMode::Recursive)
@@ -40,7 +46,22 @@ async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender:
             {
                 continue;
             }
-            sender.send(Message::BuildProject).unwrap();
+            sender
+                .send(Message::BuildProject(Some(
+                    data.iter()
+                        .map(|x| x.path.clone())
+                        .filter(|x| {
+                            if let Some(ext) = x.extension() {
+                                if ext == "luau" {
+                                    return true;
+                                }
+                            };
+                            false
+                        })
+                        .unique()
+                        .collect(),
+                )))
+                .unwrap();
         }
     });
 }
@@ -48,7 +69,7 @@ async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender:
 #[derive(Clone, PartialEq, Eq, Debug)]
 enum Message {
     CloseLove,
-    BuildProject,
+    BuildProject(Option<Vec<PathBuf>>),
     CloseDev,
 }
 
@@ -68,7 +89,7 @@ async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<Mess
                     *auto_save = !*auto_save;
                 }
                 console::Key::Char('L') | console::Key::Char('l') => {
-                    sender.send(Message::BuildProject).unwrap();
+                    sender.send(Message::BuildProject(None)).unwrap();
                 }
                 console::Key::Char('Q') | console::Key::Char('q') => {
                     sender.send(Message::CloseDev).unwrap();
@@ -85,8 +106,7 @@ async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<Mess
 }
 
 pub async fn watch(base_path: Option<PathBuf>) {
-    let connection_string = inquire::Text::new("Put the text written in your android device: ").prompt().unwrap();
-
+    let ip = inquire::Text::new("Put the connection string: ").prompt().unwrap();
     let local = relative(base_path.clone());
     println!("Watching...");
     println!("Press [L] if you want to build manually");
@@ -100,8 +120,11 @@ pub async fn watch(base_path: Option<PathBuf>) {
     }
 
     let configs = Config::from_toml_file(local.join("kaledis.toml")).unwrap();
-    let love_path = configs.project.love_path;
 
+    // let daemon = WatchDaemon::new(&local, love_path, base_path);
+    let mut builder = Builder::new(local.clone(), configs, build::Strategy::BuildDev, true)
+        .await
+        .unwrap();
 
     let watching = Arc::new(RwLock::new(false));
     let (sender, mut receiver) = channel::<Message>(2);
@@ -110,19 +133,25 @@ pub async fn watch(base_path: Option<PathBuf>) {
     spawn_file_reader(watching, &local, sender.clone()).await;
 
     let mut child: Option<Child> = None;
+    builder.clean_build_folder().await.unwrap();
     while let Ok(message) = receiver.recv().await {
+        if !builder.config.experimental_hmr {
+            if let Some(mut child) = child.take() {
+                if let Err(err) = child.kill().await {
+                    eprintln!("{}\n{}", err, "Failed to kill love2d process.".red());
+                } else if let Message::CloseLove = message {
+                    println!("{} Closed love.", "[+]".blue());
+                };
+            }
+        }
         if let Message::CloseDev = message {
             break;
         }
-        if let Message::BuildProject = message {
-            // child = daemon.build().await.and(daemon.run().await).ok();
-            build::build(Some(local.clone()), build::Strategy::BuildDev, true).await.unwrap();
-            let mut file_to_send = File::open(local.join(".build").join("main.lua")).await.unwrap();
-            let mut connection = TcpStream::connect(&connection_string).await.unwrap();
-            let mut buffer = vec![];
-            file_to_send.read_to_end(&mut buffer).await.unwrap();
-            connection.write(&buffer).await.unwrap();
-            connection.shutdown().await.unwrap();
+        // TODO: handle assets and make this use the file system on the android server
+        if let Message::BuildProject(_) = message {
+            builder.add_luau_files().await.unwrap();
+            // I am still doing the android dev command
+            
         }
     }
 }

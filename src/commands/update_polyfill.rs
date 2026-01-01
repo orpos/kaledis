@@ -1,7 +1,10 @@
 use std::process::ExitCode;
 
-use kaledis_dalbit::manifest::Manifest;
+use fs_err::remove_file;
 
+use crate::dalbit::manifest::Manifest;
+
+use crate::dalbit::transpile::clean_polyfill;
 use crate::toml_conf::Config;
 
 pub async fn update_polyfill() -> anyhow::Result<ExitCode> {
@@ -14,8 +17,9 @@ pub async fn update_polyfill() -> anyhow::Result<ExitCode> {
         println!("No polyfill configured in the manifest.");
         return Ok(ExitCode::SUCCESS);
     };
-    let polyfill_cache = polyfill.cache().await?;
+    let polyfill_cache = polyfill.cache()?;
     polyfill_cache.fetch()?;
+    clean_polyfill();
 
     println!("Fetched new polyfill");
 

@@ -23,6 +23,6 @@ end
 
 function love.draw()
 	-- Here we draw the character
-    love.graphics.print("now it's acceptable")
-    -- love.graphics.rectangle("fill", x, y, 50, 50)
+    -- love.graphics.print("now it's acceptable")
+    love.graphics.rectangle("fill", x, y, 55, 55)
 end

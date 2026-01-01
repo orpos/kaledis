@@ -1,5 +1,5 @@
 "$schema" = "./kaledis.schema.json"
-experimental_hmr = false
+experimental_hmr = true
 
 [project]
 name = "game_example"

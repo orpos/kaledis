@@ -3,7 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use tokio::{fs::File, io::AsyncReadExt};
+use tokio::{fs::File, io::{self, AsyncReadExt}};
+use walkdir::WalkDir;
 use zip::{result::ZipResult, write::SimpleFileOptions, ZipWriter};
 
 pub struct Zipper {
@@ -30,15 +31,14 @@ impl Zipper {
         Ok(())
     }
 
-    pub async fn add_zip_f_from_path(
+    pub fn add_zip_f_from_path(
         &mut self,
         name: &Path,
         prefix: &PathBuf,
     ) -> anyhow::Result<()> {
         self.copy_zip_f_from_path(name, name.strip_prefix(prefix)?.to_path_buf())
-            .await
     }
-    pub async fn copy_zip_f_from_path(
+    pub fn copy_zip_f_from_path(
         &mut self,
         name: &Path,
         output: PathBuf,
@@ -48,10 +48,37 @@ impl Zipper {
             output,
             SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored),
         )?;
-        let mut file = File::open(name).await?;
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer).await?;
-        zip.write(&buffer)?;
+        let mut file = std::fs::File::open(name)?;
+        std::io::copy(&mut file, zip)?;
+        Ok(())
+    }
+    pub fn put_folder_recursively(
+        &mut self,
+        root: PathBuf,
+        prefix: Option<PathBuf>
+    ) -> anyhow::Result<()> {
+        if !root.is_dir() {
+            anyhow::bail!("Not a directory");
+        };
+        for entry in WalkDir::new(&root).into_iter().filter_map(Result::ok) {
+            let path = entry.path();
+
+            let zip_path = path.strip_prefix(path).unwrap().join(
+                prefix.as_ref().unwrap_or(&PathBuf::new())
+            );
+
+            if zip_path.as_os_str().is_empty() {
+                continue; // root
+            }
+            let name = zip_path.to_string_lossy();
+            let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+            if path.is_dir() {
+                self.inner.add_directory(name.to_string(),options)?;
+            }
+            else {
+                self.add_zip_f_from_path(path, &root)?;
+            }
+        }
         Ok(())
     }
 }

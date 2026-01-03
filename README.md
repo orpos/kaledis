@@ -39,9 +39,6 @@ You can check the usage [here](USAGE.md)
 ### Why the name 'Kaledis'?
 The name came from the word 'Kalendis', in latin means "moons" or "more than 1 moon". By the fact that Luau and Love2D are "incompatible" and the package solves that problem, it was given this name.
 
-### Who I contact for source code related stuff?
+# Who I contact for source code related stuff?
 If you need anything regarding the code, you can contact lettuce-magician and he will forward the topic to ordep (that actually edits the code).
-
-### Why are the type definition files so ugly and are lacking some features?
-Luau LSP's typedefs file parsing is kinda weird, and sometimes it crashes or memory leaks. Leaving the only option to weird workarounds.
-Currently we're waiting for the [environments](https://github.com/JohnnyMorganz/luau-lsp/pull/84) feature to release so we can finally have proper type definitions for the Love2D environment.
+You can also discuss any issues, PRs and showcases in the official Discord server: https://discord.gg/MKCb3sUChS

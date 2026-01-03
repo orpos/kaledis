@@ -39,6 +39,6 @@ You can check the usage [here](USAGE.md)
 ### Why the name 'Kaledis'?
 The name came from the word 'Kalendis', in latin means "moons" or "more than 1 moon". By the fact that Luau and Love2D are "incompatible" and the package solves that problem, it was given this name.
 
-# Who I contact for source code related stuff?
-If you need anything regarding the code, you can contact lettuce-magician and he will forward the topic to ordep (that actually edits the code).
+### Who I contact for source code related stuff?
+If you need anything regarding the code, you can contact lettuce-magician and he will forward the topic to orpos (that actually edits the code).
 You can also discuss any issues, PRs and showcases in the official Discord server: https://discord.gg/MKCb3sUChS

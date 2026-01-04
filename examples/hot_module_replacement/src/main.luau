@@ -5,5 +5,5 @@ function love.update(dt)
 end
 
 function love.draw() 
-    love.graphics.print("this is normal text")
+    love.graphics.print("")
 end

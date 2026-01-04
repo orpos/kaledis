@@ -3,6 +3,8 @@ mod commands;
 mod toml_conf;
 mod utils;
 mod zip_utils;
+mod live_var_lsp;
+mod android;
 mod dalbit;
 
 use std::{process::ExitCode, thread};

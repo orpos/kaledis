@@ -84,16 +84,16 @@ pub async fn get_transpiler(
 }
 
 impl Paths {
-    pub fn from_root(root: PathBuf, value: Config) -> Self {
+    pub fn from_root(root: PathBuf, value: &Config) -> Self {
         Self {
             build: root.join(".build"),
-            src: root.join(PathBuf::from(value.project.src_path.unwrap_or(root.to_string_lossy().to_string()))),
+            src: root.join(PathBuf::from(value.project.src_path.clone().unwrap_or(root.to_string_lossy().to_string()))),
             polyfill_path: value
                 .polyfill
                 .as_ref()
                 .map(|x| x.location.as_ref().map(|x| root.join(&x)))
                 .flatten(),
-            assets: value.project.asset_path.map(|x|PathBuf::from_str(&x).unwrap()),
+            assets: value.project.asset_path.clone().map(|x|PathBuf::from_str(&x).unwrap()),
             dist: root.join("dist"),
             root,
         }

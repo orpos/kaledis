@@ -145,8 +145,8 @@ impl Builder {
             } else {
                 None
             },
-            config: Config::from_toml_file(root.join("kaledis.toml")).unwrap(),
-            paths: Paths::from_root(root, config),
+            paths: Paths::from_root(root, &config),
+            config: config,
             transpiler_manifest: get_transpiler(is_bundle, polyfill.as_ref()).await.unwrap(),
         })
     }

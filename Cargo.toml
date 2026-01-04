@@ -22,7 +22,6 @@ darklua = "0.17.3"
 dirs = "6.0.0"
 fs-err = "3.2.2"
 full_moon = { version = "2.0.0", features = ["lua53", "luau"] }
-futures = "0.3.31"
 futures-lite = "2.6.1"
 git2 = "0.20.3"
 glob = "0.3.3"
@@ -43,7 +42,9 @@ strfmt = "0.2.5"
 strum = { version = "0.27.2", features = ["strum_macros"] }
 strum_macros = "0.27.2"
 tokio = { version = "1.47.1", features = ["full"] }
+tokio-util = { version = "0.7.18", features = ["codec"] }
 toml = "0.9.5"
+tower-lsp-server = "0.23.0"
 url = { version = "2.5.3", features = ["serde"] }
 walkdir = "2.5.0"
 zip = "4.3.0"

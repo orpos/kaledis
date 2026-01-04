@@ -15,7 +15,10 @@ use tokio::{
 };
 
 use crate::{
-    commands::build::{self, Builder}, dalbit::transpile::process_files, toml_conf::Config, utils::relative
+    android::AndroidServer,
+    commands::build::{self, Builder},
+    toml_conf::Config,
+    utils::relative,
 };
 
 async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender: Sender<Message>) {
@@ -106,7 +109,13 @@ async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<Mess
 }
 
 pub async fn watch(base_path: Option<PathBuf>) {
-    let ip = inquire::Text::new("Put the connection string: ").prompt().unwrap();
+    let mut android_dev_server = AndroidServer::new(
+        inquire::Text::new("Put the address here: ")
+            .prompt()
+            .unwrap(),
+    )
+    .await
+    .unwrap();
     let local = relative(base_path.clone());
     println!("Watching...");
     println!("Press [L] if you want to build manually");
@@ -119,9 +128,10 @@ pub async fn watch(base_path: Option<PathBuf>) {
         return;
     }
 
-    let configs = Config::from_toml_file(local.join("kaledis.toml")).unwrap();
+    let mut configs = Config::from_toml_file(local.join("kaledis.toml")).unwrap();
 
-    // let daemon = WatchDaemon::new(&local, love_path, base_path);
+    // This is currently not available for android since we use a custom hmr implementation
+    configs.experimental_hmr = false;
     let mut builder = Builder::new(local.clone(), configs, build::Strategy::BuildDev, true)
         .await
         .unwrap();
@@ -149,9 +159,16 @@ pub async fn watch(base_path: Option<PathBuf>) {
         }
         // TODO: handle assets and make this use the file system on the android server
         if let Message::BuildProject(_) = message {
+            android_dev_server.report_loading().await.unwrap();
             builder.add_luau_files().await.unwrap();
+            let file_contents = tokio::fs::read_to_string(builder.paths.build.join("main.lua"))
+                .await
+                .unwrap();
+            android_dev_server
+                .send_code(file_contents.as_bytes().to_vec())
+                .await
+                .unwrap();
             // I am still doing the android dev command
-            
         }
     }
 }

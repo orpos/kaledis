@@ -6,6 +6,7 @@ use full_moon::{ast::Ast, visitors::VisitorMut};
 
 pub(crate) mod ast_util;
 mod convert_bit32;
+// mod report_variables;
 mod get_love_modules;
 mod love_resolution;
 mod optimize_table_initializers;

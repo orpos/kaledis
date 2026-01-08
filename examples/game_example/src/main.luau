@@ -4,8 +4,8 @@ local font = love.graphics.newFont("assets/Tiny5-Regular.ttf", 25)
 
 love.graphics.setFont(font)
 
-spawnRate = 100
-maxParticles = 1000
+spawnRate = 500
+maxParticles = 10000
 colorCycle = 1
 if not IMAIN then
     -- State variables
@@ -18,11 +18,12 @@ end
 lastHotreloadTime = 0
 
 foo = 0
+local speed_max = 800
 
 local function createParticle()
     local angle = love.math.random() * math.pi * 2
     local distance = love.math.random(50, 150)
-    local speed = love.math.random(20, 80)
+    local speed = love.math.random(20, speed_max)
     
     return {
         x = mouseX,
@@ -36,9 +37,18 @@ local function createParticle()
             b = 0.5 + 0.5 * math.sin(colorCycle + math.pi * 4/3),
             a = 1
         },
-        life = love.math.random(1, 15),
-        gravity = love.math.random(50, 300)
+        life = love.math.random(1, 2),
+        gravity = love.math.random(50, 100)
     }
+end
+
+function love.mousepressed(x, y, button)
+    speed_max = 800
+    spawnRate = 500
+end
+function love.mousereleased(x, y)
+    speed_max = 50
+    spawnRate = 1000
 end
 
 function love.update(dt)

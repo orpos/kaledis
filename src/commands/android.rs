@@ -162,7 +162,7 @@ pub async fn watch(base_path: Option<PathBuf>, ip: String) {
             .collect();
         let p = builder
             .progress_bar
-            .add(ProgressBar::new(ck.len() as u64).with_message("Sending assets..."));
+            .add(ProgressBar::new_spinner().with_message("Sending assets..."));
 
         for file in ck {
             p.set_message(file.to_string_lossy().to_string());
@@ -178,7 +178,7 @@ pub async fn watch(base_path: Option<PathBuf>, ip: String) {
                 .await
                 .unwrap();
         }
-        p.finish_with_message("Sent assets");
+        p.finish_with_message(format!("{} Sent assets", "[+]".green()));
     }
 
     while let Ok(message) = receiver.recv().await {

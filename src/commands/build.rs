@@ -258,7 +258,7 @@ end"#,
             let mut p = ProgressBar::new_spinner().with_message("Cleaning Build Folder...");
             p = self.progress_bar.add(p);
             remove_dir_all(&self.paths.build).await?;
-            p.finish_with_message("[+] Build Folder cleaned");
+            p.finish_with_message(format!("{} Build Folder cleaned", "[+]".green()));
         }
         create_dir(&self.paths.build).await?;
         Ok(())
@@ -320,7 +320,7 @@ end"#,
             p.inc(1);
             fs::hard_link(&path, final_).await.unwrap();
         }
-        p.finish_with_message("[+] Added assets");
+        p.finish_with_message(format!("{} Added assets", "[+]".green()));
     }
     pub async fn build_files(&mut self, paths: Vec<PathBuf>) {
         let mut file_map = HashMap::new();
@@ -353,8 +353,15 @@ end"#,
             .await;
         }
         // To maintain compatibility with lua better we are also putting the lua file
-        for lua_file in glob::glob(&self.paths.src.join("**/*.lua").to_string_lossy().to_string())?
-            .filter_map(Result::ok)
+        for lua_file in glob::glob(
+            &self
+                .paths
+                .src
+                .join("**/*.lua")
+                .to_string_lossy()
+                .to_string(),
+        )?
+        .filter_map(Result::ok)
         {
             // here we don't copy the file, we just create a link to it
             // it's like a pointer to the original data
@@ -419,7 +426,7 @@ end"#,
         file.write(get_polyfill_contents().unwrap().as_bytes())
             .await
             .unwrap();
-        p.finish_with_message("[+] Compiled luau files");
+        p.finish_with_message(format!("{} Compiled luau files", "[+]".green()));
         if let Some(modules) = &self.used_modules {
             let inside = modules.lock().unwrap();
             Ok(inside

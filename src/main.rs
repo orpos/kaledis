@@ -2,7 +2,6 @@ mod android;
 mod cli_utils;
 mod commands;
 mod dalbit;
-mod indicatif_log_bridge;
 mod live_var_lsp;
 mod toml_conf;
 mod utils;
@@ -15,8 +14,6 @@ use commands::{CLI, handle_commands};
 
 use clap::Parser;
 use tokio::runtime;
-
-use crate::indicatif_log_bridge::LogWrapper;
 
 const STACK_SIZE: usize = 4 * 1024 * 1024 * 1024;
 
@@ -45,8 +42,6 @@ fn print_banner() {
 }
 
 fn run() -> ExitCode {
-    env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
-
     print_banner();
     let args = CLI::parse();
     let rt = runtime::Builder::new_multi_thread()

@@ -1,16 +1,13 @@
-* dynamic generated types for file path
+* dynamic generated types for lua libraries
 * create documentation site (in progress)
-
 * Bindgen generator
-
 * Make the polyfill better
 
-
-* Hot module replacement (done but experimental)
-* tree shaking ( done but experimental, it's name is bundling and you can use when building through the flag -o)
-* Full android support ( partially done, missing features like assets handling)
-    * hmr ( done but experimental )
-    * assets handling
+* Hot module replacement (experimental)
+* tree shaking ( experimental, you put the flag -o when building)
+* Full android support
+    * hmr ( experimental )
+    * assets handling ( done )
 
 Optional:
 * be used in pesde like dalbit

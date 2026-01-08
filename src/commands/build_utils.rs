@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr};
 
 use crate::dalbit::manifest::Manifest;
 use serde_json::{Value, from_str};
@@ -9,11 +9,11 @@ use crate::toml_conf::{Config, CustomPolyfillConfig};
 #[derive(Clone)]
 pub struct Paths {
     pub root: PathBuf,
-    pub build : PathBuf,
-    pub dist : PathBuf,
+    pub build: PathBuf,
+    pub dist: PathBuf,
     pub src: PathBuf,
-    pub assets : Option<PathBuf>,
-    pub polyfill_path: Option<PathBuf>
+    pub assets: Option<PathBuf>,
+    pub polyfill_path: Option<PathBuf>,
 }
 
 pub fn normalize_lua_path(path: &PathBuf, root: &PathBuf, alternative: &PathBuf) -> PathBuf {
@@ -77,7 +77,6 @@ pub async fn get_transpiler(
     if let Some(polyfill) = manifest.polyfill.as_ref() {
         if polyfill_config.is_none() {
             polyfill.cache()?;
-            
         }
     }
     return Ok(manifest);
@@ -87,13 +86,23 @@ impl Paths {
     pub fn from_root(root: PathBuf, value: &Config) -> Self {
         Self {
             build: root.join(".build"),
-            src: root.join(PathBuf::from(value.project.src_path.clone().unwrap_or(root.to_string_lossy().to_string()))),
+            src: root.join(PathBuf::from(
+                value
+                    .project
+                    .src_path
+                    .clone()
+                    .unwrap_or(root.to_string_lossy().to_string()),
+            )),
             polyfill_path: value
                 .polyfill
                 .as_ref()
                 .map(|x| x.location.as_ref().map(|x| root.join(&x)))
                 .flatten(),
-            assets: value.project.asset_path.clone().map(|x|PathBuf::from_str(&x).unwrap()),
+            assets: value
+                .project
+                .asset_path
+                .clone()
+                .map(|x| root.join(PathBuf::from_str(&x).unwrap())),
             dist: root.join("dist"),
             root,
         }
@@ -110,11 +119,11 @@ pub fn uppercase_first(s: &str) -> String {
 pub async fn read_aliases(path: &PathBuf) -> anyhow::Result<Vec<(String, String)>> {
     let mut buffer = Vec::new();
     if !try_exists(path.join(".luaurc")).await? {
-        return Ok(vec![])
+        return Ok(vec![]);
     }
-    
+
     let contents = read_to_string(path.join(".luaurc")).await?;
-    let json : Value = from_str(&contents)?;
+    let json: Value = from_str(&contents)?;
     if let Some(Value::Object(aliases)) = json.get("aliases") {
         for (key, value) in aliases.iter() {
             if let Some(value_str) = value.as_str() {

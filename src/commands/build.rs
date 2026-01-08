@@ -243,7 +243,9 @@ end"#,
             modules
         );
         if let Strategy::BuildDev = self.strategy {
-            let mut result = fs::File::create(self.paths.build.join("conf.lua")).await.unwrap();
+            let mut result = fs::File::create(self.paths.build.join("conf.lua"))
+                .await
+                .unwrap();
             result.write(conf_file.as_bytes()).await.unwrap();
         }
     }
@@ -350,7 +352,20 @@ end"#,
             )
             .await;
         }
-        // self.progress_bar.set_message("Processing Luau files");
+        // To maintain compatibility with lua better we are also putting the lua file
+        for lua_file in glob::glob(&self.paths.src.join("**/*.lua").to_string_lossy().to_string())?
+            .filter_map(Result::ok)
+        {
+            // here we don't copy the file, we just create a link to it
+            // it's like a pointer to the original data
+            let _ = tokio::fs::hard_link(
+                lua_file.clone(),
+                self.paths
+                    .build
+                    .join(&lua_file.strip_prefix(&self.paths.src).unwrap()),
+            )
+            .await;
+        }
         let mut p = ProgressBar::new_spinner().with_message("Processing luau files");
         p = self.progress_bar.add(p);
         self.transpiler_manifest.hmr =
@@ -395,7 +410,6 @@ end"#,
                 luau_files.append(&mut filter_glob(glob::glob(
                     &abs.join("**/*.luau").to_string_lossy(),
                 )?));
-                dbg!(&luau_files);
             }
             self.build_files(luau_files).await;
         }

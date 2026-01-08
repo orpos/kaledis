@@ -1436,6 +1436,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9375e112e4b463ec1b1c6c011953545c65a30164fbab5b581df32b3abf0dcb88"
 dependencies = [
  "console",
+ "futures-core",
  "portable-atomic",
  "tokio",
  "unicode-width 0.2.2",
@@ -1616,6 +1617,7 @@ dependencies = [
  "console",
  "darklua",
  "dirs",
+ "env_logger",
  "fs-err",
  "full_moon",
  "futures-lite",
@@ -1627,6 +1629,7 @@ dependencies = [
  "indicatif",
  "inquire",
  "itertools 0.14.0",
+ "log",
  "paste",
  "rayon",
  "reqwest",
@@ -1784,6 +1787,9 @@ name = "log"
 version = "0.4.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
+dependencies = [
+ "serde_core",
+]
 
 [[package]]
 name = "lru-slab"

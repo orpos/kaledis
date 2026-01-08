@@ -4,11 +4,10 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Context;
 use async_watcher::AsyncDebouncer;
 use colored::Colorize;
 use console::Term;
-use itertools::Itertools;
+use indicatif::ProgressBar;
 use tokio::{
     process::{Child, Command},
     sync::broadcast::{Sender, channel},
@@ -21,8 +20,14 @@ use crate::{
     utils::relative,
 };
 
-async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender: Sender<Message>) {
-    let local = local.clone();
+async fn spawn_file_reader(
+    watching: Arc<RwLock<bool>>,
+    local: &PathBuf,
+    assets_path: Option<&PathBuf>,
+    sender: Sender<Message>,
+) {
+    let root = local.clone();
+    let assets_path = assets_path.cloned();
     tokio::spawn(async move {
         let (mut c, mut r) = AsyncDebouncer::new_with_channel(
             Duration::from_millis(20),
@@ -32,7 +37,7 @@ async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender:
         .unwrap();
 
         c.watcher()
-            .watch(&local, async_watcher::notify::RecursiveMode::Recursive)
+            .watch(&root, async_watcher::notify::RecursiveMode::Recursive)
             .unwrap();
         while let Some(Ok(data)) = r.recv().await {
             {
@@ -42,29 +47,30 @@ async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender:
             }
             if data
                 .iter()
-                .filter(|x| !x.path.starts_with(local.join(".build")))
+                .filter(|x| !x.path.starts_with(root.join(".build")))
                 .collect::<Vec<_>>()
                 .len()
                 < 1
             {
                 continue;
             }
-            sender
-                .send(Message::BuildProject(Some(
+            let assets: Vec<_> = {
+                if let Some(ast) = &assets_path {
                     data.iter()
                         .map(|x| x.path.clone())
-                        .filter(|x| {
-                            if let Some(ext) = x.extension() {
-                                if ext == "luau" {
-                                    return true;
-                                }
-                            };
-                            false
-                        })
-                        .unique()
-                        .collect(),
-                )))
-                .unwrap();
+                        .filter(|x| x.starts_with(&ast))
+                        .collect()
+                } else {
+                    vec![]
+                }
+            };
+            let len = assets.len();
+            if assets.len() > 0 {
+                sender.send(Message::SendAssets(assets)).unwrap();
+            }
+            if data.len() - len > 0 {
+                sender.send(Message::BuildProject).unwrap();
+            }
         }
     });
 }
@@ -72,7 +78,8 @@ async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender:
 #[derive(Clone, PartialEq, Eq, Debug)]
 enum Message {
     CloseLove,
-    BuildProject(Option<Vec<PathBuf>>),
+    BuildProject,
+    SendAssets(Vec<PathBuf>),
     CloseDev,
 }
 
@@ -92,7 +99,7 @@ async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<Mess
                     *auto_save = !*auto_save;
                 }
                 console::Key::Char('L') | console::Key::Char('l') => {
-                    sender.send(Message::BuildProject(None)).unwrap();
+                    sender.send(Message::BuildProject).unwrap();
                 }
                 console::Key::Char('Q') | console::Key::Char('q') => {
                     sender.send(Message::CloseDev).unwrap();
@@ -108,31 +115,26 @@ async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<Mess
     });
 }
 
-pub async fn watch(base_path: Option<PathBuf>) {
-    let mut android_dev_server = AndroidServer::new(
-        inquire::Text::new("Put the address here: ")
-            .prompt()
-            .unwrap(),
-    )
-    .await
-    .unwrap();
-    let local = relative(base_path.clone());
+pub async fn watch(base_path: Option<PathBuf>, ip: String) {
+    let con = ip + ":9532";
+    let mut android_dev_server = AndroidServer::new(con).await.unwrap();
+    let root = relative(base_path.clone());
     println!("Watching...");
     println!("Press [L] if you want to build manually");
     println!("Press [A] if you want to toggle between auto build and manual mode.");
     println!("Press [Q] if you want to close the dev server.");
     println!("Press [Esc] if you want to close Love.");
 
-    if !local.join("kaledis.toml").exists() {
+    if !root.join("kaledis.toml").exists() {
         eprintln!("{}", "No project found!".red());
         return;
     }
 
-    let mut configs = Config::from_toml_file(local.join("kaledis.toml")).unwrap();
+    let mut configs = Config::from_toml_file(root.join("kaledis.toml")).unwrap();
 
     // This is currently not available for android since we use a custom hmr implementation
     configs.experimental_hmr = false;
-    let mut builder = Builder::new(local.clone(), configs, build::Strategy::BuildDev, true)
+    let mut builder = Builder::new(root.clone(), configs, build::Strategy::BuildDev, true)
         .await
         .unwrap();
 
@@ -140,10 +142,45 @@ pub async fn watch(base_path: Option<PathBuf>) {
     let (sender, mut receiver) = channel::<Message>(2);
 
     spawn_keyboard_handler(Arc::clone(&watching), sender.clone()).await;
-    spawn_file_reader(watching, &local, sender.clone()).await;
+    spawn_file_reader(
+        watching,
+        &root,
+        builder.paths.assets.as_ref(),
+        sender.clone(),
+    )
+    .await;
 
     let mut child: Option<Child> = None;
     builder.clean_build_folder().await.unwrap();
+
+    android_dev_server.clean_assets().await.unwrap();
+
+    if let Some(assets) = &builder.paths.assets {
+        let ck: Vec<_> = glob::glob(assets.join("**/*").to_str().unwrap())
+            .unwrap()
+            .filter_map(Result::ok)
+            .collect();
+        let p = builder
+            .progress_bar
+            .add(ProgressBar::new(ck.len() as u64).with_message("Sending assets..."));
+
+        for file in ck {
+            p.set_message(file.to_string_lossy().to_string());
+            let contents = tokio::fs::read(&file).await.unwrap();
+            android_dev_server
+                .send_asset(
+                    &file
+                        .strip_prefix(&builder.paths.root)
+                        .unwrap()
+                        .to_path_buf(),
+                    contents,
+                )
+                .await
+                .unwrap();
+        }
+        p.finish_with_message("Sent assets");
+    }
+
     while let Ok(message) = receiver.recv().await {
         if !builder.config.experimental_hmr {
             if let Some(mut child) = child.take() {
@@ -157,8 +194,7 @@ pub async fn watch(base_path: Option<PathBuf>) {
         if let Message::CloseDev = message {
             break;
         }
-        // TODO: handle assets and make this use the file system on the android server
-        if let Message::BuildProject(_) = message {
+        if let Message::BuildProject = message {
             android_dev_server.report_loading().await.unwrap();
             builder.add_luau_files().await.unwrap();
             let file_contents = tokio::fs::read_to_string(builder.paths.build.join("main.lua"))
@@ -168,7 +204,22 @@ pub async fn watch(base_path: Option<PathBuf>) {
                 .send_code(file_contents.as_bytes().to_vec())
                 .await
                 .unwrap();
-            // I am still doing the android dev command
+        }
+        if let Message::SendAssets(assets) = message {
+            for path in assets {
+                let contents = tokio::fs::read(&path).await.unwrap();
+                println!("{:?}", path);
+                android_dev_server
+                    .send_asset(
+                        &path
+                            .strip_prefix(&builder.paths.root)
+                            .unwrap()
+                            .to_path_buf(),
+                        contents,
+                    )
+                    .await
+                    .unwrap();
+            }
         }
     }
 }

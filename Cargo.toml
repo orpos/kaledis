@@ -20,6 +20,7 @@ colored = "3.0.0"
 console = { version = "0.16.0", features = ["windows-console-colors"] }
 darklua = "0.17.3"
 dirs = "6.0.0"
+env_logger = "0.11.8"
 fs-err = "3.2.2"
 full_moon = { version = "2.0.0", features = ["lua53", "luau"] }
 futures-lite = "2.6.1"
@@ -28,9 +29,10 @@ glob = "0.3.3"
 hex = "0.4.3"
 ignore = "0.4.23"
 indexmap = "2.10.0"
-indicatif = { version = "0.18.3", features = ["tokio"] }
+indicatif = { version = "0.18.3", features = ["futures", "tokio"] }
 inquire = "0.7.5"
 itertools = "0.14.0"
+log = { version = "0.4.29", features = ["serde", "std"] }
 paste = "1.0.15"
 rayon = "1.11.0"
 reqwest = { version = "0.12.23", features = ["json", "rustls-tls"] }

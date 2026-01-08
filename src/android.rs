@@ -1,9 +1,9 @@
-use std::time::Duration;
+use std::{path::PathBuf, time::Duration};
 
 use async_compression::tokio::write::{GzipDecoder, GzipEncoder};
 use futures_lite::StreamExt;
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader, ReadBuf},
+    io::AsyncWriteExt,
     net::{TcpStream, tcp::OwnedWriteHalf},
     time::sleep,
 };
@@ -12,7 +12,10 @@ pub struct AndroidServer {
     pub writer: OwnedWriteHalf,
 }
 
-use tokio_util::{bytes::Buf, codec::{Decoder, FramedRead}};
+use tokio_util::{
+    bytes::Buf,
+    codec::{Decoder, FramedRead},
+};
 
 struct MessageCodec;
 
@@ -66,9 +69,7 @@ impl AndroidServer {
                 if key == "error" {
                     eprintln!("{}", String::from_utf8_lossy(&buffer));
                 }
-
             }
-            
         });
 
         Ok(Self { writer })
@@ -90,6 +91,22 @@ impl AndroidServer {
     // You have to asure to send the buffer afterwards
     pub async fn report_loading(&mut self) -> anyhow::Result<()> {
         self.dispatch("receiving", vec![]).await?;
+        Ok(())
+    }
+
+    pub async fn clean_assets(&mut self) -> anyhow::Result<()>{
+        self.dispatch("clean_assets", vec![]).await?;
+        Ok(())
+    }
+
+    pub async fn send_asset(&mut self, path: &PathBuf, contents: Vec<u8>) -> anyhow::Result<()> {
+        let mut buffer: Vec<u8> = vec![];
+
+        buffer.write(path.to_string_lossy().replace("\\", "/").as_bytes()).await?;
+        buffer.write(&[b'\n']).await?;
+        buffer.write(&contents).await?;
+
+        self.dispatch("asset_upload", buffer).await?;
         Ok(())
     }
     pub async fn send_code(&mut self, code: Vec<u8>) -> anyhow::Result<()> {

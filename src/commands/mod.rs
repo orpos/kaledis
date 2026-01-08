@@ -5,10 +5,10 @@ pub mod update_polyfill;
 // mod update;
 pub mod android;
 pub mod build;
-pub mod watch;
 pub mod build_utils;
+pub mod watch;
 
-use std::{path::PathBuf, process::Termination};
+use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use tokio::fs;
@@ -17,9 +17,7 @@ use tokio::fs;
 pub enum Commands {
     #[clap(about = "Initializes a new Love2D project.")]
     Init { path: Option<PathBuf> },
-    #[clap(
-        about = "Transpiles everything, and builds a '.love' file inside a '.build' directory."
-    )]
+    #[clap(about = "Transpiles everything, and builds a '.love' file inside a '.build' directory.")]
     Build {
         path: Option<PathBuf>,
         #[arg(short, long, help = "A config that joins all files in a single one.")]
@@ -39,7 +37,10 @@ pub enum Commands {
     #[clap(
         about = "Watches for changes in the project and builds and executes love automatically."
     )]
-    AndroidDev { path: Option<PathBuf> },
+    AndroidDev {
+        ip: String,
+        path: Option<PathBuf>,
+    },
 
     #[clap(about = "Updates the polyfill used")]
     UpdatePolyfill,
@@ -74,8 +75,8 @@ pub async fn handle_commands(command: Commands) {
     }
 
     match command {
-        Commands::AndroidDev { path } => {
-            android::watch(path).await;
+        Commands::AndroidDev { path, ip } => {
+            android::watch(path, ip).await;
         }
         Commands::Init { path } => {
             init::init(path);

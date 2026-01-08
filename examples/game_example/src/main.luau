@@ -1,7 +1,11 @@
 -- This game example can be run using kaledis android-dev
 
+local font = love.graphics.newFont("assets/Tiny5-Regular.ttf", 25)
+
+love.graphics.setFont(font)
+
 spawnRate = 100
-maxParticles = 5000
+maxParticles = 1000
 colorCycle = 1
 if not IMAIN then
     -- State variables
@@ -108,12 +112,11 @@ function love.draw()
     -- Draw information text
     love.graphics.setColor(1, 1, 1, 0.7)
     love.graphics.print("An Particle System - " .. #particles .. " particles", 10, 10)
-    love.graphics.print("Move your mouse to control the particles", 10, 30)
+    love.graphics.print("Move your mouse to control the particles. This updates ", 10, 30)
     -- Format and display the time since last hotreload
     local seconds = math.floor(lastHotreloadTime % 60)
     local minutes = math.floor(lastHotreloadTime / 60) % 60
     local hours = math.floor(lastHotreloadTime / 3600)
     local timeString = string.format("Time since last hotreload: %02d:%02d:%02d", hours, minutes, seconds)
     love.graphics.print(timeString, 10, 50)
-    
 end

@@ -17,7 +17,7 @@ use url::Url;
 use super::utils;
 use crate::dalbit::TargetVersion;
 
-pub const DEFAULT_REPO_URL: &str = "https://github.com/CavefulGames/dalbit-polyfill";
+pub const DEFAULT_REPO_URL: &str = "https://github.com/orpos/love2d-dalbit-polyfill";
 pub const DEFAULT_INJECTION_PATH: &str = "__polyfill__";
 
 /// Cleans cache from polyfill repository url.

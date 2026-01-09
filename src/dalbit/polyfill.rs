@@ -11,7 +11,6 @@ use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::PathBuf;
 use std::str::FromStr;
-use tokio::fs;
 use url::Url;
 
 use super::utils;

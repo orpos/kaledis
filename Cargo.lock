@@ -887,6 +887,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf68cef89750956493a66a10f512b9e58d9db21f2a573c079c0bdf1207a54a7"
 dependencies = [
  "autocfg",
+ "tokio",
 ]
 
 [[package]]
@@ -1604,7 +1605,7 @@ dependencies = [
 
 [[package]]
 name = "kaledis"
-version = "3.0.1"
+version = "3.0.2"
 dependencies = [
  "anyhow",
  "async-compression",

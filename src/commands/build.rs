@@ -480,10 +480,12 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
             if let Some(assets_path) = &builder.paths.assets {
                 zip.put_folder_recursively(assets_path.clone(), Some(PathBuf::from("assets")))?;
             }
-            builder.clean_build_folder().await?;
             let game_data = zip.finish();
 
-            remove_dir_all(builder.paths.dist.clone()).await.unwrap();
+            if builder.paths.dist.exists() {
+                remove_dir_all(builder.paths.dist.clone()).await.unwrap();
+            }
+            tokio::fs::create_dir_all(&builder.paths.dist).await.unwrap();
             let new_exe = builder
                 .paths
                 .dist
@@ -533,7 +535,6 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
             if let Some(assets_path) = &builder.paths.assets {
                 zip.put_folder_recursively(assets_path.clone(), Some(PathBuf::from("assets")))?;
             }
-            builder.clean_build_folder().await?;
             let game_data = zip.finish();
 
             let mut file = File::create(builder.paths.build.join("final.love")).await?;

@@ -7,7 +7,6 @@ use full_moon::{
     LuaVersion,
 };
 use std::fs;
-// use tokio::fs;
 
 pub enum ParseTarget {
     FullMoonAst(Ast),

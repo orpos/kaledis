@@ -1,5 +1,4 @@
 mod android;
-mod cli_utils;
 mod commands;
 mod dalbit;
 mod live_var_lsp;

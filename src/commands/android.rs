@@ -9,7 +9,7 @@ use colored::Colorize;
 use console::Term;
 use indicatif::ProgressBar;
 use tokio::{
-    process::{Child, Command},
+    process::Child,
     sync::broadcast::{Sender, channel},
 };
 

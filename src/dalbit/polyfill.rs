@@ -20,20 +20,6 @@ use crate::dalbit::TargetVersion;
 pub const DEFAULT_REPO_URL: &str = "https://github.com/orpos/love2d-dalbit-polyfill";
 pub const DEFAULT_INJECTION_PATH: &str = "__polyfill__";
 
-/// Cleans cache from polyfill repository url.
-pub async fn clean_cache(url: &Url) -> Result<()> {
-    let index_path = index_path(url)?;
-    fs::remove_dir_all(index_path).await?;
-    Ok(())
-}
-
-/// Cleans every caches of polyfill.
-pub async fn clean_cache_all() -> Result<()> {
-    let path = cache_dir()?;
-    fs::remove_dir_all(path).await?;
-    Ok(())
-}
-
 /// Gets cache directory path of polyfills.
 pub fn cache_dir() -> Result<PathBuf> {
     Ok(dirs::cache_dir()
@@ -80,29 +66,6 @@ impl Polyfill {
     pub fn cache(&self) -> Result<PolyfillCache> {
         PolyfillCache::new(&self.repository)
     }
-    pub fn cache_sync(&self) -> Result<PolyfillCache> {
-        PolyfillCache::new_sync(&self.repository)
-    }
-
-    #[inline]
-    pub fn repository(&self) -> &Url {
-        &self.repository
-    }
-
-    #[inline]
-    pub fn globals(&self) -> &HashMap<String, bool> {
-        &self.globals
-    }
-
-    #[inline]
-    pub fn config(&self) -> &HashMap<String, bool> {
-        &self.config
-    }
-
-    #[inline]
-    pub fn injection_path(&self) -> &PathBuf {
-        &self.injection_path
-    }
 }
 
 /// Polyfill's manifest (`/polyfill.toml` in a polyfill repository)
@@ -112,23 +75,6 @@ pub struct PolyfillManifest {
     removes: Option<Vec<String>>,
     config: HashMap<String, bool>,
     lua_version: TargetVersion,
-}
-
-impl PolyfillManifest {
-    /// Load polyfill manifest from file.
-    pub async fn from_file(path: impl Into<PathBuf>) -> Result<Self> {
-        let path = path.into();
-        let manifest = fs::read_to_string(&path).await?;
-        let manifest: Self = toml::from_str(&manifest)
-            .with_context(|| format!("Could not parse polyfill manifest file: {:?}", path))?;
-        Ok(manifest)
-    }
-
-    /// Write polyfill manifest to file.
-    pub async fn write(&self, path: impl Into<PathBuf>) -> Result<()> {
-        fs::write(path.into(), toml::to_string(self)?).await?;
-        Ok(())
-    }
 }
 
 /// Polyfill's globals.
@@ -145,24 +91,6 @@ pub struct PolyfillCache {
     globals: Globals,
     removes: Option<Vec<String>>,
     config: HashMap<String, bool>,
-}
-
-pub struct PolyfillCacheInfo {
-    pub path: PathBuf,
-    pub globals: Globals,
-    pub removes: Option<Vec<String>>,
-    pub config: HashMap<String, bool>,
-}
-
-impl Into<PolyfillCacheInfo> for PolyfillCache {
-    fn into(self) -> PolyfillCacheInfo {
-        PolyfillCacheInfo {
-            config : self.config,
-            globals: self.globals,
-            path: self.path,
-            removes: self.removes,
-        }
-    }
 }
 
 fn index_path(url: &Url) -> anyhow::Result<PathBuf> {
@@ -182,54 +110,6 @@ fn index_path(url: &Url) -> anyhow::Result<PathBuf> {
 }
 
 impl PolyfillCache {
-    pub fn new_sync(url: &Url) -> Result<Self> {
-        let path = if url.scheme() == "file" {
-            url.to_file_path().unwrap()
-        } else {
-            index_path(url)?
-        };
-        let repository = if url.scheme() == "file" {
-            None
-        } else {
-            Some(match Repository::open(path.as_path()) {
-                Ok(repo) => repo,
-                Err(_) => {
-                    if let Err(err) = fs_err::remove_dir_all(path.as_path()) {
-                        if err.kind() != io::ErrorKind::NotFound {
-                            return Err(err.into());
-                        }
-                    }
-
-                    fs_err::create_dir_all(path.as_path())?;
-                    let auth = GitAuthenticator::new();
-                    auth.clone_repo(url, &path.as_path())?
-                }
-            })
-        };
-
-        //let manifest = Manifest::from_file(path.join("polyfill.toml")).await?;
-        let manifest_content = std::fs::read_to_string(path.join("polyfill.toml"))?;
-        let manifest: PolyfillManifest = toml::from_str(&manifest_content)?;
-
-        let globals_path = path.join(&manifest.globals);
-        let globals_ast = utils::parse_file(&globals_path, true)?;
-        let exports = utils::get_exports_from_last_stmt(&utils::ParseTarget::FullMoonAst(globals_ast))?
-            .ok_or_else(|| anyhow!("Invalid polyfill structure. Polyfills' globals must return at least one global in a table."))?;
-
-        let globals = Globals {
-            path: globals_path,
-            exports,
-        };
-
-        Ok(Self {
-            path,
-            repository,
-            globals: globals,
-            removes: manifest.removes,
-            config: manifest.config,
-        })
-    }
-
     /// Creates a new polyfill from git repository.
     pub fn new(url: &Url) -> Result<Self> {
         let path = if url.scheme() == "file" {
@@ -255,8 +135,6 @@ impl PolyfillCache {
                 }
             })
         };
-
-        //let manifest = Manifest::from_file(path.join("polyfill.toml")).await?;
         let manifest_content = std::fs::read_to_string(path.join("polyfill.toml"))?;
         let manifest: PolyfillManifest = toml::from_str(&manifest_content)?;
 

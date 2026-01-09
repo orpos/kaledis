@@ -12,6 +12,3 @@ detect_modules=true
 title = "Untitled"
 
 [audio]
-
-[polyfill]
-location = "./polyfill"

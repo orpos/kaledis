@@ -5,12 +5,10 @@ use std::{
     str::FromStr,
     sync::{Arc, Mutex},
 };
-
-use super::modifiers::VisitorMutWrapper;
 use anyhow::anyhow;
 use darklua_core::{
     BundleConfiguration, Configuration, GeneratorParameters, Options, Resources,
-    rules::{self, Rule, bundle::BundleRequireMode},
+    rules::{self, bundle::BundleRequireMode},
 };
 use fs_err::remove_file;
 use full_moon::{
@@ -20,8 +18,7 @@ use full_moon::{
 use indexmap::{IndexMap, IndexSet};
 use rayon::{
     ThreadPoolBuilder,
-    iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator},
-    vec,
+    iter::{IntoParallelIterator, ParallelIterator},
 };
 use walkdir::WalkDir;
 
@@ -30,7 +27,7 @@ use crate::{
     dalbit::{
         manifest::Manifest,
         modifiers::{GetLoveModules, Modifier, ModifyPathModifier},
-        polyfill::{Polyfill, PolyfillCache, PolyfillCacheInfo},
+        polyfill::{Polyfill, PolyfillCache},
         utils,
     },
 };

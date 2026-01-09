@@ -21,7 +21,6 @@ pub use optimize_table_initializers::*;
 pub use remove_generalized_iteration::*;
 pub use remove_number_literals::*;
 pub use remove_redeclared_keys::*;
-pub use runtime_identifier::*;
 
 pub trait VisitorMutWrapper {
     fn visit_ast_boxed(&mut self, ast: Ast) -> Ast;

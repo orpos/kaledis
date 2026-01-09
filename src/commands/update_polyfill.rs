@@ -1,9 +1,5 @@
 use std::process::ExitCode;
-
-use fs_err::remove_file;
-
 use crate::dalbit::manifest::Manifest;
-
 use crate::dalbit::transpile::clean_polyfill;
 use crate::toml_conf::Config;
 

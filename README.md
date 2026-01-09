@@ -29,9 +29,6 @@ Go to the Releases page and download the zip corresponding to your system.
 ### From Source
 Clone the repo, then use `cargo build` to build the project from scratch *Probably all platforms.*
 
-## Usage
-You can check the usage [here](USAGE.md)
-
 ## Credits
 - [Dalbit](https://github.com/CavefulGames/dalbit) for the awesome transpiling system.
 

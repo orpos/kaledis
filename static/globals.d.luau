@@ -87,7 +87,251 @@ declare class Object
 	--- @return b True if the object is of the specified type, false otherwise.
 	function typeOf(self, name: string) : (boolean)
 end
-	--- Superclass for all things that can be drawn on screen. This is an abstract type that can't be created directly.
+--- Attach multiple bodies together to interact in unique ways.
+declare class Joint extends Object
+	--- ______________________________
+	--- Explicitly destroys the Joint. An error will occur if you attempt to use the object after calling this function.
+	--- In 0.7.2, when you don't have time to wait for garbage collection, this function
+	--- may be used to free the object immediately.
+	function destroy(self) : ()
+	--- ______________________________
+	--- Get the anchor points of the joint.
+	--- @return x1 The x-component of the anchor on Body 1.
+	--- @return y1 The y-component of the anchor on Body 1.
+	--- @return x2 The x-component of the anchor on Body 2.
+	--- @return y2 The y-component of the anchor on Body 2.
+	function getAnchors(self) : (number, number, number, number)
+	--- ______________________________
+	--- Gets the bodies that the Joint is attached to.
+	--- @return bodyA The first Body.
+	--- @return bodyB The second Body.
+	function getBodies(self) : (Body, Body)
+	--- ______________________________
+	--- Gets whether the connected Bodies collide.
+	--- @return c True if they collide, false otherwise.
+	function getCollideConnected(self) : (boolean)
+	--- ______________________________
+	--- Returns the reaction force in newtons on the second body
+	--- @param x How long the force applies. Usually the inverse time step or 1/dt.
+	--- @return x The x-component of the force.
+	--- @return y The y-component of the force.
+	function getReactionForce(self, x: number) : (number, number)
+	--- ______________________________
+	--- Returns the reaction torque on the second body.
+	--- @param invdt How long the force applies. Usually the inverse time step or 1/dt.
+	--- @return torque The reaction torque on the second body.
+	function getReactionTorque(self, invdt: number) : (number)
+	--- ______________________________
+	--- Gets a string representing the type.
+	--- @return type A string with the name of the Joint type.
+	function getType(self) : (JointType)
+	--- ______________________________
+	--- Returns the Lua value associated with this Joint.
+	--- @return value The Lua value associated with the Joint.
+	function getUserData(self) : (any)
+	--- ______________________________
+	--- Gets whether the Joint is destroyed. Destroyed joints cannot be used.
+	--- @return destroyed Whether the Joint is destroyed.
+	function isDestroyed(self) : (boolean)
+	--- ______________________________
+	--- Associates a Lua value with the Joint.
+	--- To delete the reference, explicitly pass nil.
+	--- @param value The Lua value to associate with the Joint.
+	function setUserData(self, value: any) : ()
+end
+--- Shapes are solid 2d geometrical objects which handle the mass and collision of a Body in love.physics.
+--- Shapes are attached to a Body via a Fixture. The Shape object is copied when this happens.
+--- The Shape's position is relative to the position of the Body it has been attached to.
+declare class Shape extends Object
+	--- ______________________________
+	--- Returns the points of the bounding box for the transformed shape.
+	--- @param tx The translation of the shape on the x-axis.
+	--- @param ty The translation of the shape on the y-axis.
+	--- @param tr The shape rotation.
+	--- @param childIndex The index of the child to compute the bounding box of.
+	--- @return topLeftX The x position of the top-left point.
+	--- @return topLeftY The y position of the top-left point.
+	--- @return bottomRightX The x position of the bottom-right point.
+	--- @return bottomRightY The y position of the bottom-right point.
+	function computeAABB(self, tx: number, ty: number, tr: number, childIndex: number?) : (number, number, number, number)
+	--- ______________________________
+	--- Computes the mass properties for the shape with the specified density.
+	--- @param density The shape density.
+	--- @return x The x postition of the center of mass.
+	--- @return y The y postition of the center of mass.
+	--- @return mass The mass of the shape.
+	--- @return inertia The rotational inertia.
+	function computeMass(self, density: number) : (number, number, number, number)
+	--- ______________________________
+	--- Returns the number of children the shape has.
+	--- @return count The number of children.
+	function getChildCount(self) : (number)
+	--- ______________________________
+	--- Gets the radius of the shape.
+	--- @return radius The radius of the shape.
+	function getRadius(self) : (number)
+	--- ______________________________
+	--- Gets a string representing the Shape.
+	--- This function can be useful for conditional debug drawing.
+	--- @return type The type of the Shape.
+	function getType(self) : (ShapeType)
+	--- ______________________________
+	--- Casts a ray against the shape and returns the surface normal vector and the line position where the ray hit. If the ray missed the shape, nil will be returned. The Shape can be transformed to get it into the desired position.
+	--- The ray starts on the first point of the input line and goes towards the second point of the line. The fourth argument is the maximum distance the ray is going to travel as a scale factor of the input line length.
+	--- The childIndex parameter is used to specify which child of a parent shape, such as a ChainShape, will be ray casted. For ChainShapes, the index of 1 is the first edge on the chain. Ray casting a parent shape will only test the child specified so if you want to test every shape of the parent, you must loop through all of its children.
+	--- The world position of the impact can be calculated by multiplying the line vector with the third return value and adding it to the line starting point.
+	--- hitx, hity = x1 + (x2 - x1) * fraction, y1 + (y2 - y1) * fraction
+	--- @param x1 The x position of the input line starting point.
+	--- @param y1 The y position of the input line starting point.
+	--- @param x2 The x position of the input line end point.
+	--- @param y2 The y position of the input line end point.
+	--- @param maxFraction Ray length parameter.
+	--- @param tx The translation of the shape on the x-axis.
+	--- @param ty The translation of the shape on the y-axis.
+	--- @param tr The shape rotation.
+	--- @param childIndex The index of the child the ray gets cast against.
+	--- @return xn The x component of the normal vector of the edge where the ray hit the shape.
+	--- @return yn The y component of the normal vector of the edge where the ray hit the shape.
+	--- @return fraction The position on the input line where the intersection happened as a factor of the line length.
+	function rayCast(self, x1: number, y1: number, x2: number, y2: number, maxFraction: number, tx: number, ty: number, tr: number, childIndex: number?) : (number, number, number)
+	--- ______________________________
+	--- This is particularly useful for mouse interaction with the shapes. By looping through all shapes and testing the mouse position with this function, we can find which shapes the mouse touches.
+	--- @param tx Translates the shape along the x-axis.
+	--- @param ty Translates the shape along the y-axis.
+	--- @param tr Rotates the shape.
+	--- @param x The x-component of the point.
+	--- @param y The y-component of the point.
+	--- @return hit True if inside, false if outside
+	function testPoint(self, tx: number, ty: number, tr: number, x: number, y: number) : (boolean)
+end
+--- Represents a file on the filesystem. A function that takes a file path can also take a File.
+declare class File extends Object
+	--- ______________________________
+	--- Closes a File.
+	--- @return success Whether closing was successful.
+	function close(self) : (boolean)
+	--- ______________________________
+	--- Flushes any buffered written data in the file to the disk.
+	--- @return success Whether the file successfully flushed any buffered data to the disk.
+	--- @return err The error string, if an error occurred and the file could not be flushed.
+	function flush(self) : (boolean, string)
+	--- ______________________________
+	--- Gets the buffer mode of a file.
+	--- @return mode The current buffer mode of the file.
+	--- @return size The maximum size in bytes of the file's buffer.
+	function getBuffer(self) : (BufferMode, number)
+	--- ______________________________
+	--- Gets the filename that the File object was created with. If the file object originated from the love.filedropped callback, the filename will be the full platform-dependent file path.
+	--- @return filename The filename of the File.
+	function getFilename(self) : (string)
+	--- ______________________________
+	--- Gets the FileMode the file has been opened with.
+	--- @return mode The mode this file has been opened with.
+	function getMode(self) : (FileMode)
+	--- ______________________________
+	--- Returns the file size.
+	--- @return size The file size in bytes.
+	function getSize(self) : (number)
+	--- ______________________________
+	--- Gets whether end-of-file has been reached.
+	--- @return eof Whether EOF has been reached.
+	function isEOF(self) : (boolean)
+	--- ______________________________
+	--- Gets whether the file is open.
+	--- @return open True if the file is currently open, false otherwise.
+	function isOpen(self) : (boolean)
+	--- ______________________________
+	--- Iterate over all the lines in a file.
+	--- @return iterator The iterator (can be used in for loops).
+	function lines(self) : ( (() -> (string)))
+	--- ______________________________
+	--- Open the file for write, read or append.
+	--- If you are getting the error message 'Could not set write directory', try setting the save directory. This is done either with love.filesystem.setIdentity or by setting the identity field in love.conf (only available with love 0.7 or higher).
+	--- @param mode The mode to open the file in.
+	--- @return ok True on success, false otherwise.
+	--- @return err The error string if an error occurred.
+	function open(self, mode: FileMode) : (boolean, string)
+	--- ______________________________
+	--- Read a number of bytes from a file.
+	--- @param bytes The number of bytes to read.
+	--- @return contents The contents of the read bytes.
+	--- @return size How many bytes have been read.
+	function read(self, bytes: number?) : (string, number)
+	--- ______________________________
+	--- Read a number of bytes from a file.
+	--- Reads the contents of a file into either a string or a FileData object.
+	--- @param container What type to return the file's contents as.
+	--- @param bytes The number of bytes to read.
+	--- @return contents FileData or string containing the read bytes.
+	--- @return size How many bytes have been read.
+	function read(self, container: ContainerType, bytes: number?) : ((FileData|string), number)
+	--- ______________________________
+	--- Seek to a position in a file
+	--- @param pos The position to seek to
+	--- @return success Whether the operation was successful
+	function seek(self, pos: number) : (boolean)
+	--- ______________________________
+	--- Sets the buffer mode for a file opened for writing or appending. Files with buffering enabled will not write data to the disk until the buffer size limit is reached, depending on the buffer mode.
+	--- File:flush will force any buffered data to be written to the disk.
+	--- @param mode The buffer mode to use.
+	--- @param size The maximum size in bytes of the file's buffer.
+	--- @return success Whether the buffer mode was successfully set.
+	--- @return errorstr The error string, if the buffer mode could not be set and an error occurred.
+	function setBuffer(self, mode: BufferMode, size: number?) : (boolean, string)
+	--- ______________________________
+	--- Returns the position in the file.
+	--- @return pos The current position.
+	function tell(self) : (number)
+	--- ______________________________
+	--- Write data to a file.
+	--- @param data The string data to write.
+	--- @param size How many bytes to write.
+	--- @return success Whether the operation was successful.
+	--- @return err The error string if an error occurred.
+	function write(self, data: string, size: number?) : (boolean, string)
+	--- ______________________________
+	--- Write data to a file.
+	--- '''Writing to multiple lines''': In Windows, some text editors (e.g. Notepad before Windows 10 1809) only treat CRLF ('\r\n') as a new line.
+	--- --example
+	--- ```luau
+	--- f = love.filesystem.newFile('note.txt')
+	--- f:open('w')
+	--- for i = 1, 10 do
+	---     f:write('This is line '..i..'!\r\n')
+	--- end
+	--- f:close()
+	--- ```
+	--- @param data The Data object to write.
+	--- @param size How many bytes to write.
+	--- @return success Whether the operation was successful.
+	--- @return errorstr The error string if an error occurred.
+	function write(self, data: Data, size: number?) : (boolean, string)
+end
+--- The superclass of all data.
+declare class Data extends Object
+	--- ______________________________
+	--- Creates a new copy of the Data object.
+	--- @return clone The new copy.
+	function clone(self) : (Data)
+	--- ______________________________
+	--- Gets an FFI pointer to the Data.
+	--- This function should be preferred instead of Data:getPointer because the latter uses light userdata which can't store more all possible memory addresses on some new ARM64 architectures, when LuaJIT is used.
+	--- @return pointer A raw void* pointer to the Data, or nil if FFI is unavailable.
+	function getFFIPointer(self) : (unknown)
+	--- ______________________________
+	--- Gets a pointer to the Data. Can be used with libraries such as LuaJIT's FFI.
+	--- @return pointer A raw pointer to the Data.
+	function getPointer(self) : (any)
+	--- ______________________________
+	--- Gets the Data's size in bytes.
+	--- @return size The size of the Data in bytes.
+	function getSize(self) : (number)
+	--- ______________________________
+	--- Gets the full Data as a string.
+	--- @return data The raw data.
+	function getString(self) : (string)
+end
+--- Superclass for all things that can be drawn on screen. This is an abstract type that can't be created directly.
 declare class Drawable extends Object
 end
 --- Superclass for drawable objects which represent a texture. All Textures can be drawn with Quads. This is an abstract type that can't be created directly.
@@ -273,150 +517,8 @@ declare class Video extends Drawable
 	--- Gets the current playback position of the Video.
 	--- @return seconds The time in seconds since the beginning of the Video.
 	function tell(self) : (number)
-end
---- The superclass of all data.
-declare class Data extends Object
-	--- ______________________________
-	--- Creates a new copy of the Data object.
-	--- @return clone The new copy.
-	function clone(self) : (Data)
-	--- ______________________________
-	--- Gets an FFI pointer to the Data.
-	--- This function should be preferred instead of Data:getPointer because the latter uses light userdata which can't store more all possible memory addresses on some new ARM64 architectures, when LuaJIT is used.
-	--- @return pointer A raw void* pointer to the Data, or nil if FFI is unavailable.
-	function getFFIPointer(self) : (unknown)
-	--- ______________________________
-	--- Gets a pointer to the Data. Can be used with libraries such as LuaJIT's FFI.
-	--- @return pointer A raw pointer to the Data.
-	function getPointer(self) : (any)
-	--- ______________________________
-	--- Gets the Data's size in bytes.
-	--- @return size The size of the Data in bytes.
-	function getSize(self) : (number)
-	--- ______________________________
-	--- Gets the full Data as a string.
-	--- @return data The raw data.
-	function getString(self) : (string)
-end
-	
-	--- Attach multiple bodies together to interact in unique ways.
-declare class Joint extends Object
-	--- ______________________________
-	--- Explicitly destroys the Joint. An error will occur if you attempt to use the object after calling this function.
-	--- In 0.7.2, when you don't have time to wait for garbage collection, this function
-	--- may be used to free the object immediately.
-	function destroy(self) : ()
-	--- ______________________________
-	--- Get the anchor points of the joint.
-	--- @return x1 The x-component of the anchor on Body 1.
-	--- @return y1 The y-component of the anchor on Body 1.
-	--- @return x2 The x-component of the anchor on Body 2.
-	--- @return y2 The y-component of the anchor on Body 2.
-	function getAnchors(self) : (number, number, number, number)
-	--- ______________________________
-	--- Gets the bodies that the Joint is attached to.
-	--- @return bodyA The first Body.
-	--- @return bodyB The second Body.
-	function getBodies(self) : (Body, Body)
-	--- ______________________________
-	--- Gets whether the connected Bodies collide.
-	--- @return c True if they collide, false otherwise.
-	function getCollideConnected(self) : (boolean)
-	--- ______________________________
-	--- Returns the reaction force in newtons on the second body
-	--- @param x How long the force applies. Usually the inverse time step or 1/dt.
-	--- @return x The x-component of the force.
-	--- @return y The y-component of the force.
-	function getReactionForce(self, x: number) : (number, number)
-	--- ______________________________
-	--- Returns the reaction torque on the second body.
-	--- @param invdt How long the force applies. Usually the inverse time step or 1/dt.
-	--- @return torque The reaction torque on the second body.
-	function getReactionTorque(self, invdt: number) : (number)
-	--- ______________________________
-	--- Gets a string representing the type.
-	--- @return type A string with the name of the Joint type.
-	function getType(self) : (JointType)
-	--- ______________________________
-	--- Returns the Lua value associated with this Joint.
-	--- @return value The Lua value associated with the Joint.
-	function getUserData(self) : (any)
-	--- ______________________________
-	--- Gets whether the Joint is destroyed. Destroyed joints cannot be used.
-	--- @return destroyed Whether the Joint is destroyed.
-	function isDestroyed(self) : (boolean)
-	--- ______________________________
-	--- Associates a Lua value with the Joint.
-	--- To delete the reference, explicitly pass nil.
-	--- @param value The Lua value to associate with the Joint.
-	function setUserData(self, value: any) : ()
-end
-	--- Shapes are solid 2d geometrical objects which handle the mass and collision of a Body in love.physics.
-	--- Shapes are attached to a Body via a Fixture. The Shape object is copied when this happens.
-	--- The Shape's position is relative to the position of the Body it has been attached to.
-declare class Shape extends Object
-	--- ______________________________
-	--- Returns the points of the bounding box for the transformed shape.
-	--- @param tx The translation of the shape on the x-axis.
-	--- @param ty The translation of the shape on the y-axis.
-	--- @param tr The shape rotation.
-	--- @param childIndex The index of the child to compute the bounding box of.
-	--- @return topLeftX The x position of the top-left point.
-	--- @return topLeftY The y position of the top-left point.
-	--- @return bottomRightX The x position of the bottom-right point.
-	--- @return bottomRightY The y position of the bottom-right point.
-	function computeAABB(self, tx: number, ty: number, tr: number, childIndex: number?) : (number, number, number, number)
-	--- ______________________________
-	--- Computes the mass properties for the shape with the specified density.
-	--- @param density The shape density.
-	--- @return x The x postition of the center of mass.
-	--- @return y The y postition of the center of mass.
-	--- @return mass The mass of the shape.
-	--- @return inertia The rotational inertia.
-	function computeMass(self, density: number) : (number, number, number, number)
-	--- ______________________________
-	--- Returns the number of children the shape has.
-	--- @return count The number of children.
-	function getChildCount(self) : (number)
-	--- ______________________________
-	--- Gets the radius of the shape.
-	--- @return radius The radius of the shape.
-	function getRadius(self) : (number)
-	--- ______________________________
-	--- Gets a string representing the Shape.
-	--- This function can be useful for conditional debug drawing.
-	--- @return type The type of the Shape.
-	function getType(self) : (ShapeType)
-	--- ______________________________
-	--- Casts a ray against the shape and returns the surface normal vector and the line position where the ray hit. If the ray missed the shape, nil will be returned. The Shape can be transformed to get it into the desired position.
-	--- The ray starts on the first point of the input line and goes towards the second point of the line. The fourth argument is the maximum distance the ray is going to travel as a scale factor of the input line length.
-	--- The childIndex parameter is used to specify which child of a parent shape, such as a ChainShape, will be ray casted. For ChainShapes, the index of 1 is the first edge on the chain. Ray casting a parent shape will only test the child specified so if you want to test every shape of the parent, you must loop through all of its children.
-	--- The world position of the impact can be calculated by multiplying the line vector with the third return value and adding it to the line starting point.
-	--- hitx, hity = x1 + (x2 - x1) * fraction, y1 + (y2 - y1) * fraction
-	--- @param x1 The x position of the input line starting point.
-	--- @param y1 The y position of the input line starting point.
-	--- @param x2 The x position of the input line end point.
-	--- @param y2 The y position of the input line end point.
-	--- @param maxFraction Ray length parameter.
-	--- @param tx The translation of the shape on the x-axis.
-	--- @param ty The translation of the shape on the y-axis.
-	--- @param tr The shape rotation.
-	--- @param childIndex The index of the child the ray gets cast against.
-	--- @return xn The x component of the normal vector of the edge where the ray hit the shape.
-	--- @return yn The y component of the normal vector of the edge where the ray hit the shape.
-	--- @return fraction The position on the input line where the intersection happened as a factor of the line length.
-	function rayCast(self, x1: number, y1: number, x2: number, y2: number, maxFraction: number, tx: number, ty: number, tr: number, childIndex: number?) : (number, number, number)
-	--- ______________________________
-	--- This is particularly useful for mouse interaction with the shapes. By looping through all shapes and testing the mouse position with this function, we can find which shapes the mouse touches.
-	--- @param tx Translates the shape along the x-axis.
-	--- @param ty Translates the shape along the y-axis.
-	--- @param tr Rotates the shape.
-	--- @param x The x-component of the point.
-	--- @param y The y-component of the point.
-	--- @return hit True if inside, false if outside
-	function testPoint(self, tx: number, ty: number, tr: number, x: number, y: number) : (boolean)
-end
-	--- Represents an audio input device capable of recording sounds.
+end	
+--- Represents an audio input device capable of recording sounds.
 declare class RecordingDevice extends Object
 	--- ______________________________
 	--- Gets the number of bits per sample in the data currently being recorded.
@@ -712,110 +814,7 @@ end
 	--- Note that the DroppedFile type can only be obtained from love.filedropped callback, and can't be constructed manually by the user.
 declare class DroppedFile extends File
 end
-	--- Represents a file on the filesystem. A function that takes a file path can also take a File.
-declare class File extends Object
-	--- ______________________________
-	--- Closes a File.
-	--- @return success Whether closing was successful.
-	function close(self) : (boolean)
-	--- ______________________________
-	--- Flushes any buffered written data in the file to the disk.
-	--- @return success Whether the file successfully flushed any buffered data to the disk.
-	--- @return err The error string, if an error occurred and the file could not be flushed.
-	function flush(self) : (boolean, string)
-	--- ______________________________
-	--- Gets the buffer mode of a file.
-	--- @return mode The current buffer mode of the file.
-	--- @return size The maximum size in bytes of the file's buffer.
-	function getBuffer(self) : (BufferMode, number)
-	--- ______________________________
-	--- Gets the filename that the File object was created with. If the file object originated from the love.filedropped callback, the filename will be the full platform-dependent file path.
-	--- @return filename The filename of the File.
-	function getFilename(self) : (string)
-	--- ______________________________
-	--- Gets the FileMode the file has been opened with.
-	--- @return mode The mode this file has been opened with.
-	function getMode(self) : (FileMode)
-	--- ______________________________
-	--- Returns the file size.
-	--- @return size The file size in bytes.
-	function getSize(self) : (number)
-	--- ______________________________
-	--- Gets whether end-of-file has been reached.
-	--- @return eof Whether EOF has been reached.
-	function isEOF(self) : (boolean)
-	--- ______________________________
-	--- Gets whether the file is open.
-	--- @return open True if the file is currently open, false otherwise.
-	function isOpen(self) : (boolean)
-	--- ______________________________
-	--- Iterate over all the lines in a file.
-	--- @return iterator The iterator (can be used in for loops).
-	function lines(self) : ( (() -> (string)))
-	--- ______________________________
-	--- Open the file for write, read or append.
-	--- If you are getting the error message 'Could not set write directory', try setting the save directory. This is done either with love.filesystem.setIdentity or by setting the identity field in love.conf (only available with love 0.7 or higher).
-	--- @param mode The mode to open the file in.
-	--- @return ok True on success, false otherwise.
-	--- @return err The error string if an error occurred.
-	function open(self, mode: FileMode) : (boolean, string)
-	--- ______________________________
-	--- Read a number of bytes from a file.
-	--- @param bytes The number of bytes to read.
-	--- @return contents The contents of the read bytes.
-	--- @return size How many bytes have been read.
-	function read(self, bytes: number?) : (string, number)
-	--- ______________________________
-	--- Read a number of bytes from a file.
-	--- Reads the contents of a file into either a string or a FileData object.
-	--- @param container What type to return the file's contents as.
-	--- @param bytes The number of bytes to read.
-	--- @return contents FileData or string containing the read bytes.
-	--- @return size How many bytes have been read.
-	function read(self, container: ContainerType, bytes: number?) : ((FileData|string), number)
-	--- ______________________________
-	--- Seek to a position in a file
-	--- @param pos The position to seek to
-	--- @return success Whether the operation was successful
-	function seek(self, pos: number) : (boolean)
-	--- ______________________________
-	--- Sets the buffer mode for a file opened for writing or appending. Files with buffering enabled will not write data to the disk until the buffer size limit is reached, depending on the buffer mode.
-	--- File:flush will force any buffered data to be written to the disk.
-	--- @param mode The buffer mode to use.
-	--- @param size The maximum size in bytes of the file's buffer.
-	--- @return success Whether the buffer mode was successfully set.
-	--- @return errorstr The error string, if the buffer mode could not be set and an error occurred.
-	function setBuffer(self, mode: BufferMode, size: number?) : (boolean, string)
-	--- ______________________________
-	--- Returns the position in the file.
-	--- @return pos The current position.
-	function tell(self) : (number)
-	--- ______________________________
-	--- Write data to a file.
-	--- @param data The string data to write.
-	--- @param size How many bytes to write.
-	--- @return success Whether the operation was successful.
-	--- @return err The error string if an error occurred.
-	function write(self, data: string, size: number?) : (boolean, string)
-	--- ______________________________
-	--- Write data to a file.
-	--- '''Writing to multiple lines''': In Windows, some text editors (e.g. Notepad before Windows 10 1809) only treat CRLF ('\r\n') as a new line.
-	--- --example
-	--- ```luau
-	--- f = love.filesystem.newFile('note.txt')
-	--- f:open('w')
-	--- for i = 1, 10 do
-	---     f:write('This is line '..i..'!\r\n')
-	--- end
-	--- f:close()
-	--- ```
-	--- @param data The Data object to write.
-	--- @param size How many bytes to write.
-	--- @return success Whether the operation was successful.
-	--- @return errorstr The error string if an error occurred.
-	function write(self, data: Data, size: number?) : (boolean, string)
-end
-	--- Data representing the contents of a file.
+--- Data representing the contents of a file.
 declare class FileData extends Data
 	--- ______________________________
 	--- Gets the extension of the FileData.

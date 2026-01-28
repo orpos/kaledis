@@ -318,7 +318,7 @@ end"#,
                 fs::create_dir_all(final_.parent().unwrap()).await.unwrap();
             }
             p.inc(1);
-            fs::hard_link(&path, final_).await.unwrap();
+            let _ = fs::hard_link(&path, final_).await;
         }
         p.finish_with_message(format!("{} Added assets", "[+]".green()));
     }
@@ -485,7 +485,9 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, one_file: bool) -> anyh
             if builder.paths.dist.exists() {
                 remove_dir_all(builder.paths.dist.clone()).await.unwrap();
             }
-            tokio::fs::create_dir_all(&builder.paths.dist).await.unwrap();
+            tokio::fs::create_dir_all(&builder.paths.dist)
+                .await
+                .unwrap();
             let new_exe = builder
                 .paths
                 .dist

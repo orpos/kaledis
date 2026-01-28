@@ -1,0 +1,6 @@
+{
+	"aliases": {
+		"packages": "luau_packages",
+		"assets": "assets"
+	}
+}

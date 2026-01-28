@@ -23,6 +23,10 @@ It has many resources to make your life much easier when using Love2D:
 cargo install kaledis
 ```
 
+### Docs
+
+https://orpos.github.io/kaledis_docs/
+
 ### From Releases
 Go to the Releases page and download the zip corresponding to your system.
 

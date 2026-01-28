@@ -1,0 +1,459 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Config",
+  "type": "object",
+  "properties": {
+    "audio": {
+      "$ref": "#/$defs/Audio"
+    },
+    "exclude_modules": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Modules"
+      }
+    },
+    "experimental_hmr": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": false
+    },
+    "modules": {
+      "type": "array",
+      "default": [
+        "Audio",
+        "Data",
+        "Event",
+        "Font",
+        "Graphics",
+        "Image",
+        "Joystick",
+        "Keyboard",
+        "Math",
+        "Mouse",
+        "Physics",
+        "Sound",
+        "System",
+        "Thread",
+        "Timer",
+        "Touch",
+        "Video",
+        "Window"
+      ],
+      "items": {
+        "$ref": "#/$defs/Modules"
+      }
+    },
+    "polyfill": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CustomPolyfillConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "project": {
+      "$ref": "#/$defs/Project"
+    },
+    "window": {
+      "$ref": "#/$defs/Window"
+    }
+  },
+  "required": [
+    "project",
+    "window",
+    "audio"
+  ],
+  "$defs": {
+    "Audio": {
+      "type": "object",
+      "properties": {
+        "mic": {
+          "description": "Request and use microphone capabilities in Android",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
+        },
+        "mix_with_system": {
+          "description": "Keep background music playing when opening LOVE (boolean, iOS and Android only)",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "CustomPolyfillConfig": {
+      "type": "object",
+      "properties": {
+        "configs": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "location": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "FullscreenType": {
+      "type": "string",
+      "enum": [
+        "Desktop",
+        "Exclusive"
+      ]
+    },
+    "Modules": {
+      "oneOf": [
+        {
+          "description": "Enable the audio module",
+          "type": "string",
+          "const": "Audio"
+        },
+        {
+          "description": "Enable the data module",
+          "type": "string",
+          "const": "Data"
+        },
+        {
+          "description": "Enable the event module",
+          "type": "string",
+          "const": "Event"
+        },
+        {
+          "description": "Enable the font module",
+          "type": "string",
+          "const": "Font"
+        },
+        {
+          "description": "Enable the graphics module",
+          "type": "string",
+          "const": "Graphics"
+        },
+        {
+          "description": "Enable the image module",
+          "type": "string",
+          "const": "Image"
+        },
+        {
+          "description": "Enable the joystick module",
+          "type": "string",
+          "const": "Joystick"
+        },
+        {
+          "description": "Enable the keyboard module",
+          "type": "string",
+          "const": "Keyboard"
+        },
+        {
+          "description": "Enable the math module",
+          "type": "string",
+          "const": "Math"
+        },
+        {
+          "description": "Enable the mouse module",
+          "type": "string",
+          "const": "Mouse"
+        },
+        {
+          "description": "Enable the physics module",
+          "type": "string",
+          "const": "Physics"
+        },
+        {
+          "description": "Enable the sound module",
+          "type": "string",
+          "const": "Sound"
+        },
+        {
+          "description": "Enable the system module",
+          "type": "string",
+          "const": "System"
+        },
+        {
+          "description": "Enable the thread module",
+          "type": "string",
+          "const": "Thread"
+        },
+        {
+          "description": "Enable the timer module, Disabling it will result 0 delta time in love.update",
+          "type": "string",
+          "const": "Timer"
+        },
+        {
+          "description": "Enable the touch module",
+          "type": "string",
+          "const": "Touch"
+        },
+        {
+          "description": "Enable the video module",
+          "type": "string",
+          "const": "Video"
+        },
+        {
+          "description": "Enable the window module",
+          "type": "string",
+          "const": "Window"
+        }
+      ]
+    },
+    "Project": {
+      "type": "object",
+      "properties": {
+        "accelerometer_joystick": {
+          "description": "Enable the accelerometer on iOS and Android by exposing it as a Joystick (boolean)",
+          "type": "boolean",
+          "default": true
+        },
+        "asset_path": {
+          "description": "Define what path the project uses for assets (this will be auto generated as a type)",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "console": {
+          "description": "Whenever to attach a console (Windows only)",
+          "type": "boolean",
+          "default": true
+        },
+        "custom_conf": {
+          "description": "Allows a custom configuration file to be used, that will later be merged with the TOML whenever building the project",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "detect_modules": {
+          "description": "Enable detection algorithm.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "external_storage": {
+          "description": "If it's true, allows saving files (and read from the save directory) in external storage on Android",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
+        },
+        "gamma_correct": {
+          "description": "Enable gamma-correct rendering, when supported by the system (boolean)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
+        },
+        "identity": {
+          "description": "Save location.\"",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "love_path": {
+          "description": "Where the Love2D executable is located",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name of the project\"",
+          "type": "string"
+        },
+        "src_path": {
+          "description": "Define what path the project uses for src",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "using_custom_globals": {
+          "description": "Disables automatic override of globals.d.luau.\"",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "version": {
+          "description": "What version of Love2D to use\nWhat version of Love2D to use\"",
+          "type": "string",
+          "default": "11.5"
+        }
+      },
+      "required": [
+        "name",
+        "love_path"
+      ]
+    },
+    "Window": {
+      "type": "object",
+      "properties": {
+        "borderless": {
+          "description": "Remove all border visuals from the window",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
+        },
+        "depth": {
+          "description": "The number of bits per sample in the depth buffer",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "display": {
+          "description": "Index of the monitor to show the window in",
+          "type": "integer",
+          "format": "uint8",
+          "default": 1,
+          "maximum": 255,
+          "minimum": 0
+        },
+        "fullscreen": {
+          "description": "Enable fullscreen",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
+        },
+        "fullscreentype": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FullscreenType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Desktop"
+        },
+        "height": {
+          "description": "The window height",
+          "type": "integer",
+          "format": "uint32",
+          "default": 600,
+          "minimum": 0
+        },
+        "highdpi": {
+          "description": "Enable high-dpi mode for the window on a Retina display (boolean)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
+        },
+        "icon": {
+          "description": "Filepath to an image to use as the window's icon",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "minheight": {
+          "description": "Minimum window height if the window is resizable",
+          "type": "integer",
+          "format": "uint32",
+          "default": 1,
+          "minimum": 0
+        },
+        "minwidth": {
+          "description": "Minimum window width if the window is resizable",
+          "type": "integer",
+          "format": "uint32",
+          "default": 1,
+          "minimum": 0
+        },
+        "msaa": {
+          "description": "The number of samples to use with multi-sampled antialiasing",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "default": 0,
+          "minimum": 0
+        },
+        "resizable": {
+          "description": "Let the window be user-resizable (boolean)",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": false
+        },
+        "stencil": {
+          "description": "The number of bits per sample in the stencil buffer",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "title": {
+          "description": "The window title",
+          "type": "string",
+          "default": "Untitled"
+        },
+        "usedpiscale": {
+          "description": "Enable automatic DPI scaling when highdpi is set to true as well (boolean)",
+          "type": "boolean",
+          "default": true
+        },
+        "vsync": {
+          "description": "Vertical sync mode",
+          "type": "integer",
+          "format": "uint32",
+          "default": 1,
+          "minimum": 0
+        },
+        "width": {
+          "description": "The window width",
+          "type": "integer",
+          "format": "uint32",
+          "default": 800,
+          "minimum": 0
+        },
+        "x": {
+          "description": "The x-coordinate of the window's position in the specified display",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "y": {
+          "description": "The y-coordinate of the window's position in the specified display",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

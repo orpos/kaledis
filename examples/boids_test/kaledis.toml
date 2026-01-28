@@ -1,0 +1,15 @@
+"$schema" = "./kaledis.schema.json"
+
+experimental_hmr = true
+
+[project]
+name = "boids"
+love_path = "C:/Program Files/LOVE"
+src_path="src"
+detect_modules=true
+asset_path = "./assets"
+
+[window]
+title = "Untitled"
+
+[audio]

@@ -1,0 +1,32 @@
+
+"$schema" = "https://raw.githubusercontent.com/orpos/kaledis/refs/heads/main/static/love.schema.json"
+
+# if you want to use a custom luau conf, just remove this file and put an conf.luau in the root folder
+
+modules = [
+    "Audio",
+    "Data",
+    "Event",
+    "Font",
+    "Graphics",
+    "Image",
+    "Math",
+    "Mouse",
+    "Physics",
+    "Sound",
+    "System",
+    "Thread",
+    "Timer",
+    "Touch",
+    "Video",
+    "Window",
+]
+
+[audio]
+
+[project]
+name = "gamejam2"
+
+[window]
+resizable = true
+display = 1

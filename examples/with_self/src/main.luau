@@ -4,11 +4,10 @@ local values = require("./a_package")
 print(require("./a_package/c"))
 print(values.test)
 print(values.test2)
-
+print(values.test2)
 function love.load()
     -- This will run once when the game loads
 end
-
 function love.update(dt)
     -- This will run every frame
 end

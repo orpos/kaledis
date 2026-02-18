@@ -1,0 +1,9 @@
+"$schema"="https://raw.githubusercontent.com/orpos/kaledis/refs/heads/main/static/love.schema.json"
+
+[project]
+name="Test"
+
+[window]
+
+[audio]
+

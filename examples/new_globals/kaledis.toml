@@ -1,4 +1,6 @@
 "$schema" = "./kaledis.schema.json"
+experimental_hmr = true
+
 [project]
 name = "test"
 love_path = "C:/Program Files/LOVE"

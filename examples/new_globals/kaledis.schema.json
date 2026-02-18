@@ -16,6 +16,13 @@
         "$ref": "#/$defs/Modules"
       }
     },
+    "experimental_hmr": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": false
+    },
     "modules": {
       "type": "array",
       "default": [

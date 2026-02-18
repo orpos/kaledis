@@ -1,5 +1,7 @@
 function love.load()
     -- This will run once when the game loads
+    print("hello!")
+
 end
 
 function love.update(dt)
@@ -8,4 +10,5 @@ end
 
 function love.draw()
     -- This will run every time a new frame will be drawn
+    love.graphics.print("abc")
 end

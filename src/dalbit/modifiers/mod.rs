@@ -6,8 +6,6 @@ use full_moon::{ast::Ast, visitors::VisitorMut};
 
 pub(crate) mod ast_util;
 mod convert_bit32;
-// mod report_variables;
-mod get_love_modules;
 mod love_resolution;
 mod optimize_table_initializers;
 mod remove_generalized_iteration;
@@ -15,7 +13,6 @@ mod remove_number_literals;
 mod remove_redeclared_keys;
 mod runtime_identifier;
 pub use convert_bit32::*;
-pub use get_love_modules::*;
 pub use love_resolution::*;
 pub use optimize_table_initializers::*;
 pub use remove_generalized_iteration::*;

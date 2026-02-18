@@ -12,6 +12,7 @@ description = "A new way to LÖVE. Kaledis is a tool for allowing Luau to be use
 anyhow = "1.0.99"
 async-compression = { version = "0.4.27", features = ["gzip", "tokio"] }
 async-watcher = "0.3.0"
+async_zip = { version = "0.0.18", features = ["tokio"] }
 auth-git2 = "0.5.8"
 blake3 = "1.8.2"
 clap = { version = "4.5.45", features = ["derive"] }
@@ -20,20 +21,25 @@ colored = "3.0.0"
 console = { version = "0.16.0", features = ["windows-console-colors"] }
 darklua = "0.17.3"
 dirs = "6.0.0"
+flate2 = "1.1.9"
 fs-err = { version = "3.2.2", features = ["tokio"] }
 full_moon = { version = "2.0.0", features = ["lua53", "luau"] }
 futures-lite = "2.6.1"
 git2 = "0.20.3"
 glob = "0.3.3"
 hex = "0.4.3"
+icns = "0.4.0"
 ignore = "0.4.23"
 indexmap = "2.10.0"
 indicatif = { version = "0.18.3", features = ["futures", "tokio"] }
 inquire = "0.7.5"
 itertools = "0.14.0"
+mlua = { version = "0.11.6", features = ["luau", "vendored"] }
 paste = "1.0.15"
 rayon = "1.11.0"
+regex = "1.12.3"
 reqwest = { version = "0.12.23", features = ["json", "rustls-tls"] }
+rust-embed = { version = "8.11.0", features = ["tokio"] }
 schemars = { version = "1.1.0", features = ["derive"] }
 semver = "1.0.23"
 serde = { version = "1.0.219", features = ["derive"] }
@@ -41,10 +47,13 @@ serde_json = "1.0.142"
 strfmt = "0.2.5"
 strum = { version = "0.27.2", features = ["strum_macros"] }
 strum_macros = "0.27.2"
+tar = "0.4.44"
 tokio = { version = "1.47.1", features = ["full"] }
 tokio-util = { version = "0.7.18", features = ["codec"] }
 toml = "0.9.5"
 tower-lsp-server = "0.23.0"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.22"
 url = { version = "2.5.3", features = ["serde"] }
 walkdir = "2.5.0"
-zip = "4.3.0"
+zip = "7.4.0"

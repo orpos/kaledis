@@ -3,12 +3,15 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use tokio::{fs::File, io::{self, AsyncReadExt}};
+use tokio::{
+    fs::File,
+    io::{self, AsyncReadExt},
+};
 use walkdir::WalkDir;
-use zip::{result::ZipResult, write::SimpleFileOptions, ZipWriter};
+use zip::{ZipWriter, result::ZipResult, write::SimpleFileOptions};
 
 pub struct Zipper {
-    inner: ZipWriter<Cursor<Vec<u8>>>,
+    pub inner: ZipWriter<Cursor<Vec<u8>>>,
 }
 
 impl Zipper {
@@ -21,28 +24,21 @@ impl Zipper {
         let data = self.inner.finish().unwrap();
         data.into_inner()
     }
-    pub async fn add_zip_f_from_buf(&mut self, name: &str, buffer: &[u8]) -> ZipResult<()> {
+    pub async fn add_buffer(&mut self, name: &str, buffer: &[u8]) -> ZipResult<()> {
         let zip = &mut self.inner;
         zip.start_file(
             name,
             SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored),
         )?;
-        zip.write(buffer)?;
+        let _ = zip.write(buffer)?;
         Ok(())
     }
 
-    pub fn add_zip_f_from_path(
-        &mut self,
-        name: &Path,
-        prefix: &PathBuf,
-    ) -> anyhow::Result<()> {
-        self.copy_zip_f_from_path(name, name.strip_prefix(prefix)?.to_path_buf())
+    // Copies an file into a zip stripping it's root
+    pub fn add_rootless(&mut self, name: &Path, root: &PathBuf) -> anyhow::Result<()> {
+        self.copy_from_path(name, name.strip_prefix(root)?.to_path_buf())
     }
-    pub fn copy_zip_f_from_path(
-        &mut self,
-        name: &Path,
-        output: PathBuf,
-    ) -> anyhow::Result<()> {
+    pub fn copy_from_path(&mut self, name: &Path, output: PathBuf) -> anyhow::Result<()> {
         let zip = &mut self.inner;
         zip.start_file_from_path(
             output,
@@ -52,31 +48,27 @@ impl Zipper {
         std::io::copy(&mut file, zip)?;
         Ok(())
     }
-    pub fn put_folder_recursively(
-        &mut self,
-        root: PathBuf,
-        prefix: Option<PathBuf>
-    ) -> anyhow::Result<()> {
-        if !root.is_dir() {
+    pub fn put_folder_recursively(&mut self, folder: &PathBuf) -> anyhow::Result<()> {
+        if !folder.is_dir() {
             anyhow::bail!("Not a directory");
         };
-        for entry in WalkDir::new(&root).into_iter().filter_map(Result::ok) {
+        for entry in WalkDir::new(&folder).into_iter().filter_map(Result::ok) {
             let path = entry.path();
 
-            let zip_path = path.strip_prefix(path).unwrap().join(
-                prefix.as_ref().unwrap_or(&PathBuf::new())
-            );
+            let zip_path = path.strip_prefix(&folder).unwrap();
+            // .join(root.as_ref().unwrap_or(&PathBuf::new()));
 
             if zip_path.as_os_str().is_empty() {
                 continue; // root
             }
+
             let name = zip_path.to_string_lossy();
-            let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+            let options =
+                SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
             if path.is_dir() {
-                self.inner.add_directory(name.to_string(),options)?;
-            }
-            else {
-                self.add_zip_f_from_path(path, &root)?;
+                self.inner.add_directory(name.to_string(), options)?;
+            } else {
+                self.add_rootless(path, &folder)?;
             }
         }
         Ok(())

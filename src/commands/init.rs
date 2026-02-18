@@ -5,7 +5,7 @@ use inquire::{Confirm, MultiSelect, Select, Text};
 use strum::IntoEnumIterator;
 
 use crate::{
-    toml_conf::{Config, Modules},
+    toml_conf::{KaledisConfig, Modules},
     utils::relative,
 };
 
@@ -43,41 +43,16 @@ pub fn init(path: Option<PathBuf>) {
         .prompt()
         .unwrap();
 
-    // TODO: give user the option to auto install
-    let mut path_ = env::var_os("PATH")
-        .map(|path_| {
-            for path in env::split_paths(&path_) {
-                if path.join("love.exe").exists() {
-                    return Some(path);
-                }
-            }
-            return None;
-        })
-        .flatten();
-    path_ = path_.map(|x| Some(x)).unwrap_or_else(|| {
-        if cfg!(windows) {
-            if let Ok(dir) = env::var("ProgramFiles") {
-                let love_path = PathBuf::from(dir).join("LOVE");
-                if love_path.exists() {
-                    return Some(love_path);
-                }
-            }
-        }
-        return None;
-    });
-
-    let location = path_.unwrap_or_else(|| {
-        println!("{} {}", "[!]".red(), "Love not found.");
-        Text::new("Where is the Love2D executable located?")
-            .with_placeholder(r"C:\Program Files\LOVE")
-            .prompt()
-            .unwrap()
-            .into()
-    });
+    let love = Select::new(
+        "Select which version of love you want:",
+        vec!["11.5", "11.4", "11.3", "11.2", "11.1", "11.0"],
+    )
+    .prompt()
+    .unwrap();
 
     let type_of_modules = Select::new(
         "Select which type of module detection you want:",
-        vec!["manual", "automatic"],
+        vec!["automatic", "manual"],
     )
     .prompt()
     .unwrap();
@@ -109,30 +84,46 @@ pub fn init(path: Option<PathBuf>) {
         .unwrap();
 
     let conf = format!(
-        r#""$schema" = "./kaledis.schema.json"
+        r#""$schema" = "https://raw.githubusercontent.com/orpos/kaledis/refs/heads/main/static/kaledis.schema.json"
 
-[project]
-name = "{}"
-love_path = "{}"
-{}{}
-[window]
-title = "{}"
-
-[audio]
+# Used for macos and android apps
+game_id = "com.game.{}"
+project_name = "{}"
+love = "{}"
+{}{}{}{}
 "#,
         &project_name,
-        &location.to_string_lossy().replace("\\", "/"),
-        if use_src_folder {
-            "src_path=\"src\"\n"
+        &project_name,
+        &love,
+        if type_of_modules == "manual" {
+            format!(
+                "modules=[{}]\n",
+                modules
+                    .iter()
+                    .map(|x| format!("\"{}\"", &x))
+                    .collect::<Vec<String>>()
+                    .join(",")
+            )
+        } else {
+            "detect_modules = true\n".to_string()
+        },
+        if use_src_folder || use_assets_folder {
+            "\n[layout]\n"
         } else {
             ""
         },
-        if type_of_modules == "manual" { 
-            format!("modules=[{}]\n", modules.iter().map(|x|format!("\"{}\"", &x)).collect::<Vec<String>>().join(","))
+        if use_src_folder {
+            "code = \"src\"\n"
         } else {
-            "detect_modules=true\n".to_string()
+            ""
         },
-        "Untitled"
+        if use_assets_folder {
+            r#"bundle = ["assets/bundle/*"]
+external = ["assets/external/*"]
+"#
+        } else {
+            ""
+        }
     );
 
     if !local.exists() {
@@ -162,11 +153,13 @@ title = "{}"
             }
         };
     }
-    let schema = schemars::schema_for!(Config);
+    // let schema = schemars::schema_for!(Config);
     create!(dir ".vscode");
-    create!(file "kaledis.schema.json", serde_json::to_string_pretty(&schema).unwrap().as_bytes());
+    // create!(file "kaledis.schema.json", serde_json::to_string_pretty(&schema).unwrap().as_bytes());
     if use_assets_folder {
         create!(dir "assets");
+        create!(dir "assets/external");
+        create!(dir "assets/bundle");
     }
     if use_pesde {
         create!(dir "luau_packages");
@@ -179,13 +172,29 @@ title = "{}"
         create!(file "pesde.toml", pesde_package.as_slice());
         create!(file ".luaurc", include_bytes!("../../static/.luaurc"));
     }
+
     if use_src_folder {
         create!(dir "src");
         create!(file "src/main.luau", include_bytes!("../../static/main.luau"));
     } else {
         create!(file "main.luau", include_bytes!("../../static/main.luau"));
     }
+
+    create!(file "assets/external/readme.txt", b"This folder be included outside of the .love bundle");
+    create!(file "assets/bundle/readme.txt", b"This folder be included inside the .love bundle");
     create!(file "kaledis.toml", conf.as_bytes());
+    create!(file "conf.toml", r#"
+"$schema" = "https://raw.githubusercontent.com/orpos/kaledis/refs/heads/main/static/love.schema.json"
+
+# if you want to use a custom luau conf, just remove this file and put an conf.luau in the root folder
+
+[audio]
+
+[project]
+name = "Test"
+
+[window]
+"#.as_bytes());
     if let None = std::env::home_dir() {
         create!(file "globals.d.luau", include_bytes!("../../static/globals.d.luau"));
         create!(file_absolute local.join(".vscode").join("settings.json"), include_bytes!("../../static/vscode_settings_local.json"));

@@ -1,24 +1,19 @@
-// pub mod build;
 pub mod init;
 pub mod update_polyfill;
-// pub mod watch;
-// mod update;
 pub mod android;
 pub mod build;
-pub mod build_utils;
 pub mod watch;
 
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use colored::Colorize;
 use tokio::fs;
 
-use crate::{commands::init::replace_bytes, toml_conf::Config};
+use crate::{commands::init::replace_bytes, home_manager::Platform, toml_conf::KaledisConfig};
 
+// Assets is now more dynamic
 #[derive(ValueEnum, Clone, Debug)]
 pub enum Features {
-    Assets,
     Pesde,
     Zed,
 }
@@ -91,7 +86,7 @@ pub async fn handle_commands(command: Commands) {
             init::init(path);
         }
         Commands::Setup { feature } => {
-            let config = Config::from_toml_file("kaledis.toml").expect("Project not found!");
+            let config = KaledisConfig::from_toml_file("kaledis.toml").expect("Project not found!");
             macro_rules! create {
                 (dir $nome:expr) => {
                     if !fs_err::tokio::try_exists($nome).await.unwrap_or(false) {
@@ -107,28 +102,13 @@ pub async fn handle_commands(command: Commands) {
                 };
             }
             match &feature {
-                Features::Assets => {
-                    if config.project.asset_path.is_some() {
-                        println!(
-                            "{} Assets are already configured, try changing your kaledis.toml to your new assets folder",
-                            "[~]".yellow()
-                        );
-                        return;
-                    }
-                    create!(dir "assets");
-                    let contents = fs_err::tokio::read_to_string("kaledis.toml").await.unwrap();
-                    let new_contents =
-                        contents.replace("[project]", "[project]\nasset_path=\"assets\"");
-                    create!(file "kaledis.toml", new_contents);
-                    println!("Setup successful");
-                }
                 Features::Pesde => {
                     create!(dir "luau_packages");
                     let mut pesde_package = include_bytes!("../../static/pesde.toml").to_vec();
                     replace_bytes(
                         &mut pesde_package,
                         b"__package_name",
-                        &config.project.name.as_bytes(),
+                        &config.project_name.as_bytes(),
                     );
                     create!(file "pesde.toml", pesde_package.as_slice());
                     create!(file ".luaurc", include_bytes!("../../static/.luaurc"));
@@ -153,9 +133,17 @@ pub async fn handle_commands(command: Commands) {
             watch::watch(path).await;
         }
         Commands::Compile { path, one_file } => {
-            build::build(path, build::Strategy::BuildAndCompile, one_file)
-                .await
-                .unwrap();
+            build::build(
+                path,
+                build::Strategy::BuildAndCompile(vec![
+                    Platform::Windows,
+                    Platform::Macos,
+                    Platform::Android,
+                ]),
+                one_file,
+            )
+            .await
+            .unwrap();
         }
         Commands::UpdatePolyfill => {
             update_polyfill::update_polyfill().await.unwrap();

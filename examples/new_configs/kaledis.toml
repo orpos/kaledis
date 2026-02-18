@@ -3,7 +3,7 @@
 # Used for macos and android apps
 project_name = "gamejam"
 love = "11.5"
-detect_modules = false
+detect_modules = true
 experimental_hmr = true
 
 

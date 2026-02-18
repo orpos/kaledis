@@ -5,13 +5,20 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::dalbit::polyfill::{DEFAULT_INJECTION_PATH, Polyfill};
 use clap_serde_derive::serde::Serialize;
-use crate::dalbit::polyfill::{Polyfill, DEFAULT_INJECTION_PATH};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
+use strum::IntoEnumIterator;
 use strum_macros::{EnumIter, EnumString};
 use url::Url;
+
+#[derive(EnumString, EnumIter, Debug, Deserialize, Serialize, Clone, PartialEq, Eq, JsonSchema)]
+pub enum Orientation {
+    Portrait,
+    Landscape,
+}
 
 macro_rules! default_create {
     ($type: expr, $value: expr) => {
@@ -32,6 +39,7 @@ mod defaults {
     use strum::IntoEnumIterator;
 
     use crate::toml_conf::Modules;
+    use crate::toml_conf::Orientation;
 
     default_create!(bool, true);
     default_create!(bool, false);
@@ -42,6 +50,9 @@ mod defaults {
     default_create!(u32, 600, u32_600);
     default_create!(String, "Untitled".to_string(), untitled);
     default_create!(String, "11.5".to_string(), love_version);
+    pub fn default_orientation() -> Orientation {
+        Orientation::Landscape
+    }
     pub fn modules() -> Vec<Modules> {
         Modules::iter().collect()
     }
@@ -169,7 +180,9 @@ pub struct Window {
     pub y: Option<u32>,
 }
 
-#[derive(EnumString, EnumIter, Debug, Deserialize, Serialize, Clone, PartialEq, Eq, JsonSchema)]
+#[derive(
+    EnumString, EnumIter, Debug, Deserialize, Serialize, Clone, PartialEq, Eq, JsonSchema, Hash,
+)]
 pub enum Modules {
     /// Enable the audio module
     Audio,
@@ -217,23 +230,12 @@ impl Display for Modules {
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug)]
 pub struct Project {
-    /// Enable detection algorithm.
-    pub detect_modules: Option<bool>,
     /// Disables automatic override of globals.d.luau."
     pub using_custom_globals: Option<bool>,
     /// Save location."
     pub identity: Option<PathBuf>,
     /// Name of the project"
     pub name: String,
-    /// Where the Love2D executable is located
-    pub love_path: PathBuf,
-    /// What version of Love2D to use
-    #[serde(default = "defaults::love_version")]
-    /// What version of Love2D to use"
-    pub version: String,
-
-    /// Allows a custom configuration file to be used, that will later be merged with the TOML whenever building the project
-    pub custom_conf: Option<PathBuf>,
 
     /// Whenever to attach a console (Windows only)
     #[serde(default = "defaults::fn_true")]
@@ -252,33 +254,271 @@ pub struct Project {
     #[serde(default = "defaults::fn_false")]
     #[schemars(with = "Option<bool>")]
     pub gamma_correct: bool,
-
-    /// Define what path the project uses for src
-    pub src_path: Option<String>,
-
-    /// Define what path the project uses for assets (this will be auto generated as a type)
-    pub asset_path: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
-pub struct Config {
+pub struct LayoutConfig {
+    #[serde(default)]
+    pub bundle: Vec<String>,
+    #[serde(default)]
+    pub external: Vec<String>,
+    #[serde(default)]
+    pub code: String,
+}
+
+//
+//  conf.toml config files
+//
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct LoveConfig {
     pub project: Project,
     pub window: Window,
     pub audio: Audio,
-    pub polyfill: Option<CustomPolyfillConfig>,
     #[serde(default = "defaults::modules")]
     pub modules: Vec<Modules>,
-    #[serde(default = "defaults::empty_modules")]
-    #[schemars(with = "Option<Vec<Modules>>")]
-    pub exclude_modules: Vec<Modules>,
-    #[serde(default = "defaults::fn_false")]
-    #[schemars(with = "Option<bool>")]
-    pub experimental_hmr: bool,
 }
 
-impl Config {
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+
+pub struct MacosConfig {
+    pub id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct AndroidConfig {
+    pub version_code: u32,
+    pub game_id: String,
+    // If not provided we will use the version
+    pub version_name: Option<String>,
+    // If not provided we will use the project_name
+    pub game_name: Option<String>,
+    #[serde(default = "defaults::default_orientation")]
+    pub orientation: Orientation,
+    #[serde(default)]
+    pub uses_microphone: bool,
+    #[serde(default)]
+    pub touchscreen: bool,
+    #[serde(default)]
+    pub bluetooth: bool,
+    #[serde(default)]
+    pub gamepad: bool,
+    #[serde(default)]
+    pub usb_host: bool,
+    #[serde(default)]
+    pub external_mouse_input: bool,
+    #[serde(default)]
+    pub audio_pro: bool,
+    #[serde(default)]
+    pub audio_low_latency: bool,
+}
+
+impl AndroidConfig {
+    pub fn to_string(&self, project_name: &str) -> String {
+        format!(
+            r#"<?xml version="1.0" encoding="utf-8"?>
+<manifest package="{}"
+        android:versionCode="{}"
+        android:versionName="{}"
+        android:installLocation="auto"
+		xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="18" />
+    {}
+
+    <!-- OpenGL ES 2.0 -->
+    <uses-feature android:glEsVersion="0x00020000" />
+    <!-- Touchscreen support -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="{}" />
+    <!-- Game controller support -->
+    <uses-feature android:name="android.hardware.bluetooth" android:required="{}" />
+    <uses-feature android:name="android.hardware.gamepad" android:required="{}" />
+    <uses-feature android:name="android.hardware.usb.host" android:required="{}" />
+    <!-- External mouse input events -->
+    <uses-feature android:name="android.hardware.type.pc" android:required="{}" />
+    <!-- Low latency audio -->
+    <uses-feature android:name="android.hardware.audio.low_latency" android:required="{}" />
+    <uses-feature android:name="android.hardware.audio.pro" android:required="{}" />
+
+    <application
+            android:allowBackup="true"
+            android:icon="@drawable/love"
+            android:label="{}"
+            android:usesCleartextTraffic="true" >
+        <activity
+                android:name="org.love2d.android.GameActivity"
+                android:exported="true"
+                android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
+                android:label="{}"
+                android:launchMode="singleInstance"
+                android:screenOrientation="{}"
+                android:resizeableActivity="false"
+                android:theme="@android:style/Theme.NoTitleBar.Fullscreen" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="tv.ouya.intent.category.GAME" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+        "#,
+            self.game_id,
+            &self.version_code,
+            self.version_name
+                .as_ref()
+                .unwrap_or(&self.version_code.to_string()),
+            if self.uses_microphone {
+                "<uses-permission android:name=\"android.permission.RECORD_AUDIO\" />"
+            } else {
+                ""
+            },
+            self.touchscreen,
+            self.bluetooth,
+            self.gamepad,
+            self.usb_host,
+            self.external_mouse_input,
+            self.audio_low_latency,
+            self.audio_pro,
+            self.game_name.as_ref().unwrap_or(&project_name.to_owned()),
+            self.game_name.as_ref().unwrap_or(&project_name.to_owned()),
+            if let Orientation::Landscape = self.orientation {
+                "landscape"
+            } else {
+                "portrait"
+            }
+        )
+    }
+}
+
+//
+//  kaledis.toml config files
+//
+#[derive(Serialize, Deserialize, Debug, JsonSchema)]
+pub struct KaledisConfig {
+    pub project_name: String,
+    // If not provided we will use the project_name
+    pub android: Option<AndroidConfig>,
+    pub mac: Option<MacosConfig>,
+    pub custom_android_manifest: Option<String>,
+    pub icon: Option<String>,
+    pub polyfill: Option<CustomPolyfillConfig>,
+    pub layout: LayoutConfig,
+    #[serde(default = "defaults::fn_false")]
+    #[schemars(with = "Option<bool>")]
+    pub detect_modules: bool,
+    #[serde(default = "defaults::fn_true")]
+    #[schemars(with = "Option<bool>")]
+    pub hmr: bool,
+    // for custom ports you have to provide a folder for each platform
+    pub love: String,
+}
+
+impl KaledisConfig {
     pub fn from_toml_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
         let data = read_to_string(path)?;
         Ok(toml::from_str(&data)?)
+    }
+}
+
+fn generate_module_string(imported_modules: Vec<Modules>) -> String {
+    let mut output = String::new();
+    for module in Modules::iter() {
+        output += &format!(
+            "t.modules.{}={}\n\t",
+            &module.to_string().to_lowercase(),
+            imported_modules.contains(&module)
+        );
+    }
+    output
+}
+fn format_option<T: ToString>(value: Option<T>) -> String {
+    value.map(|x| x.to_string()).unwrap_or("nil".to_string())
+}
+impl LoveConfig {
+    pub fn from_toml_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+        let data = read_to_string(path)?;
+        Ok(toml::from_str(&data)?)
+    }
+    pub fn to_string(&self, used_modules: Vec<Modules>) -> String {
+        format!(
+            r#"function love.conf(t)
+    t.identity = {}
+    t.appendidentity = {}
+    t.console = {}
+    t.accelerometerjoystick = {}
+    t.externalstorage = {}
+    t.gammacorrect = {}
+
+    t.audio.mic = {}
+    t.audio.mixwithsystem = {}
+
+    t.window.title = {:?}
+    t.window.icon = {}
+    t.window.width = {}
+    t.window.height = {}
+    t.window.borderless = {}
+    t.window.resizable = {}
+    t.window.minwidth = {}
+    t.window.minheight = {}
+    t.window.fullscreen = {}
+    t.window.fullscreentype = {}
+    t.window.vsync = {}
+    t.window.msaa = {}
+    t.window.depth = {}
+    t.window.stencil = {}
+    t.window.display = {}
+    t.window.highdpi = {}
+    t.window.usedpiscale = {}
+    t.window.x = {}
+    t.window.y = {}
+    {}
+end"#,
+            format_option(
+                self.project
+                    .identity
+                    .as_ref()
+                    .map(|x| x.to_string_lossy().to_string())
+            ),
+            "false",
+            self.project.console,
+            self.project.accelerometer_joystick,
+            self.project.external_storage,
+            self.project.gamma_correct,
+            self.audio.mic,
+            self.audio.mix_with_system,
+            self.window.title,
+            format_option(
+                self.window
+                    .icon
+                    .as_ref()
+                    .map(|x| x.to_string_lossy().to_string())
+            ),
+            self.window.width,
+            self.window.height,
+            self.window.borderless,
+            self.window.resizable,
+            self.window.minwidth,
+            self.window.minheight,
+            self.window.fullscreen,
+            match self.window.fullscreentype {
+                crate::toml_conf::FullscreenType::Desktop => "\"desktop\"",
+                crate::toml_conf::FullscreenType::Exclusive => "\"exclusive\"",
+            },
+            self.window.vsync,
+            self.window.msaa,
+            format_option(self.window.depth),
+            format_option(self.window.stencil),
+            self.window.display,
+            self.window.highdpi,
+            self.window.usedpiscale,
+            format_option(self.window.x),
+            format_option(self.window.y),
+            generate_module_string(used_modules)
+        )
     }
 }

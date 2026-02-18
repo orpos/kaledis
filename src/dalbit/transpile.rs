@@ -1,10 +1,3 @@
-use std::{
-    collections::{HashMap, HashSet},
-    ffi::OsStr,
-    path::PathBuf,
-    str::FromStr,
-    sync::{Arc, Mutex},
-};
 use anyhow::anyhow;
 use darklua_core::{
     BundleConfiguration, Configuration, GeneratorParameters, Options, Resources,
@@ -20,16 +13,26 @@ use rayon::{
     ThreadPoolBuilder,
     iter::{IntoParallelIterator, ParallelIterator},
 };
+use std::{
+    collections::{HashMap, HashSet},
+    env::temp_dir,
+    ffi::OsStr,
+    io::Write,
+    path::PathBuf,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 use walkdir::WalkDir;
 
 use crate::{
-    commands::build_utils::{Paths, normalize_lua_path},
+    commands::build::build_utils::{Paths, normalize_lua_path},
     dalbit::{
         manifest::Manifest,
-        modifiers::{GetLoveModules, Modifier, ModifyPathModifier},
+        modifiers::{Modifier, ModifyPathModifier},
         polyfill::{Polyfill, PolyfillCache},
         utils,
     },
+    toml_conf::Modules,
 };
 
 pub const DALBIT_GLOBAL_IDENTIFIER_PREFIX: &str = "DALBIT_";
@@ -183,11 +186,16 @@ fn private_process(
     bundle: bool,
     paths: Option<&Paths>,
     aliases: &[(String, String)],
-    used_modules: Option<Arc<Mutex<IndexSet<String>>>>,
+    used_modules: Option<Arc<Mutex<IndexSet<Modules>>>>,
     additional_modifiers: Option<Vec<Modifier>>,
     polyfill: Option<InjectPolyfill>,
 ) -> anyhow::Result<Vec<PathBuf>> {
     let resources = Resources::from_file_system();
+    let tpm = if output.is_dir() {
+        &temp_dir().join("result")
+    } else {
+        &output
+    };
 
     let mut modifiers = Vec::new();
     if let Some(mut new_modifiers) = additional_modifiers {
@@ -200,12 +208,6 @@ fn private_process(
             paths: aliases.to_vec(),
             project_root: paths.root.clone(),
             project_root_src: paths.src.clone(),
-        })));
-    }
-
-    if let Some(modules) = &used_modules {
-        modifiers.push(Modifier::DarkluaRule(Box::new(GetLoveModules {
-            modules: Arc::clone(modules),
         })));
     }
 
@@ -256,7 +258,8 @@ fn private_process(
             .into_iter()
             .fold(config, |config, rule| config.with_rule(rule))
     });
-    options = options.with_output(&output);
+
+    options = options.with_output(tpm);
     let result = darklua_core::process(&resources, options).map_err(|e| anyhow!(e))?;
 
     let success_count = result.success_count();
@@ -277,9 +280,9 @@ fn private_process(
         return Err(anyhow!("darklua process was not successful"));
     }
 
-    let mut created_files: Vec<PathBuf> = if output.is_dir() {
+    let mut created_files: Vec<PathBuf> = if tpm.is_dir() {
         let mut created_files = Vec::new();
-        for entry in WalkDir::new(output).into_iter().filter_map(Result::ok) {
+        for entry in WalkDir::new(tpm).into_iter().filter_map(Result::ok) {
             let path = entry.path();
             if !matches!(
                 path.extension().and_then(OsStr::to_str),
@@ -293,9 +296,29 @@ fn private_process(
     } else {
         vec![output.clone()]
     };
+
+    if let Some(paths) = paths {
+        if manifest.hmr && !paths.build.join("kaleck.lua").exists() {
+            let mut leck_file = fs_err::File::create(paths.build.join("kaleck.lua"))
+                .expect("Failed to open kaleck file");
+            leck_file
+                .write_all(include_bytes!("../../static/kaleck.lua"))
+                .expect("Failed to write polyfill");
+        }
+        if !paths.build.join("__polyfill__.lua").exists() {
+            let mut polyfill_file = fs_err::File::create(paths.build.join("__polyfill__.lua"))
+                .expect("Failed to open polyfill file");
+            polyfill_file
+                .write_all(
+                    get_polyfill_contents()
+                        .expect("Failed to read polyfill contents")
+                        .as_bytes(),
+                )
+                .expect("Failed to write polyfill");
+        }
+    }
     for path in &mut created_files {
         let mut ast = utils::parse_file(path, false)?;
-
         for visitor in &mut fullmoon_visitors {
             ast = visitor.visit_ast_boxed(ast);
         }
@@ -303,8 +326,8 @@ fn private_process(
         let ast_text = ast.to_string();
         let mut start_lines = vec![];
 
-        if manifest.hmr {
-            start_lines.push("local lick=require(\"lick\")".to_string());
+        if manifest.hmr && path.ends_with("main.luau") {
+            start_lines.push("require(\"kaleck\")".to_string());
         }
 
         // Here we inject the libraries that are polyfilled
@@ -381,6 +404,56 @@ local Socket={socket=___SOCKET,"#
 
         let new_content = start_lines.join("\n") + &ast_text;
 
+        // I really don't think this is the 100% right way but it is a faster one
+        if let Some(modules) = &used_modules {
+            let mut modules = modules.lock().expect("Failed to lock modules");
+            macro_rules! rule {
+                ($variable:expr, $( $( $trigger:expr ),+ => $( $target:expr ),+ );* $(;)?) => {
+                    $(
+                        if $( $variable.contains(&$trigger.to_string()) )||+ {
+                            $( modules.insert($target); )+
+                        }
+                    )*
+                };
+            }
+            // without the event system the window will crash saying that is not responding
+            modules.insert(Modules::Event);
+            // without the system it may crash randomly
+            modules.insert(Modules::System);
+            rule!(
+                new_content,
+                // Graphics
+                "love.graphics" => Modules::Graphics, Modules::Window;
+                "love.graphics.print","love.graphics.newText","love.graphics.newFont" => Modules::Font;
+                "love.graphics.newImage","love.graphics.newImageData" => Modules::Image;
+                "love.graphics.newVideo" => Modules::Video;
+                "love.graphics.newParticleSystem" => Modules::Graphics;
+
+                // Audio
+                "love.audio" => Modules::Audio, Modules::Sound;
+                "love.audio.newSource" => Modules::Sound;
+
+                // Physics
+                "love.physics" => Modules::Physics, Modules::Math;
+                "love.math" => Modules::Math;
+
+                // --- INPUT & EVENT LOOP ---
+                // Input modules don't update without the Event pump
+                "love.keyboard", "love.keypressed", "love.keyreleased" => Modules::Keyboard, Modules::Event;
+                "love.mouse", "love.mousepressed", "love.mousereleased" => Modules::Mouse, Modules::Event;
+                "love.touch", "love.touchpressed" => Modules::Touch, Modules::Event;
+                "love.joystick", "love.gamepadpressed" => Modules::Joystick, Modules::Event;
+
+                // General event handling
+                "love.event", "love.quit" => Modules::Event;
+
+                // --- UTILITY ---
+                "love.timer", "love.update" => Modules::Timer; // "update" callback implies timer usage for dt
+                "love.thread", "love.thread.newThread" => Modules::Thread;
+                "love.data", "love.data.compress", "love.data.decompress" => Modules::Data;
+            );
+        }
+
         let old_path = path.clone();
         path.set_extension("lua");
         let new_path = path.to_owned();
@@ -388,10 +461,47 @@ local Socket={socket=___SOCKET,"#
             std::fs::remove_file(old_path)?;
         }
 
-        std::fs::write(path, new_content)?;
+        if path.starts_with(temp_dir()) && output.is_dir() {
+            std::fs::write(output.join(path.strip_prefix(&tpm).unwrap()), new_content).unwrap();
+        } else {
+            std::fs::write(path, new_content).unwrap();
+        }
     }
 
     Ok(created_files)
+}
+
+pub fn process_files_v2(
+    manifest: &Manifest,
+    input_folder: &PathBuf,
+    output_folder: &PathBuf,
+    paths: Paths,
+    collect_modules: bool,
+    aliases: &[(String, String)],
+) -> anyhow::Result<Vec<Modules>> {
+    let used_modules = collect_modules.then(|| Arc::new(Mutex::new(IndexSet::new())));
+    let cache = manifest
+        .polyfill
+        .as_ref()
+        .map(|polyfill| process_polyfill(polyfill).unwrap());
+
+    private_process(
+        manifest,
+        &input_folder,
+        &output_folder,
+        false,
+        Some(&paths),
+        aliases,
+        used_modules.clone(),
+        None,
+        cache.clone(),
+    )
+    .unwrap();
+    if let Some(used_modules) = used_modules {
+        let value: Vec<Modules> = used_modules.lock().unwrap().iter().cloned().collect();
+        return Ok(value);
+    }
+    return Ok(vec![]);
 }
 
 pub fn process_files(
@@ -399,7 +509,7 @@ pub fn process_files(
     files: HashMap<PathBuf, PathBuf>,
     paths: Paths,
     aliases: &[(String, String)],
-) -> anyhow::Result<Vec<String>> {
+) -> anyhow::Result<Vec<Modules>> {
     let used_modules = Arc::new(Mutex::new(IndexSet::new()));
     let cache = manifest
         .polyfill
@@ -426,6 +536,6 @@ pub fn process_files(
             .unwrap();
         });
     });
-    let value: Vec<String> = used_modules.lock().unwrap().iter().cloned().collect();
+    let value: Vec<Modules> = used_modules.lock().unwrap().iter().cloned().collect();
     Ok(value)
 }

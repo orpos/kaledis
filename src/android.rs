@@ -8,7 +8,7 @@ use tokio::{
     time::sleep,
 };
 
-pub struct AndroidServer {
+pub struct DevServer {
     pub writer: OwnedWriteHalf,
 }
 
@@ -50,12 +50,11 @@ impl Decoder for MessageCodec {
     }
 }
 
-impl AndroidServer {
+impl DevServer {
     pub async fn new(addr: String) -> anyhow::Result<Self> {
         let (read, writer) = TcpStream::connect(addr).await?.into_split();
 
         tokio::spawn(async move {
-            // let bf = BufReader::new(read);
             let mut buffer = Vec::new();
             let mut framed_reader = FramedRead::new(read, MessageCodec);
 
@@ -94,7 +93,7 @@ impl AndroidServer {
         Ok(())
     }
 
-    pub async fn clean_assets(&mut self) -> anyhow::Result<()>{
+    pub async fn clean_assets(&mut self) -> anyhow::Result<()> {
         self.dispatch("clean_assets", vec![]).await?;
         Ok(())
     }
@@ -102,7 +101,9 @@ impl AndroidServer {
     pub async fn send_asset(&mut self, path: &PathBuf, contents: Vec<u8>) -> anyhow::Result<()> {
         let mut buffer: Vec<u8> = vec![];
 
-        buffer.write(path.to_string_lossy().replace("\\", "/").as_bytes()).await?;
+        buffer
+            .write(path.to_string_lossy().replace("\\", "/").as_bytes())
+            .await?;
         buffer.write(&[b'\n']).await?;
         buffer.write(&contents).await?;
 

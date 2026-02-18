@@ -1,5 +1,6 @@
 use std::{
     path::PathBuf,
+    process::exit,
     sync::{Arc, RwLock},
     time::Duration,
 };
@@ -11,12 +12,14 @@ use console::Term;
 use itertools::Itertools;
 use tokio::{
     process::{Child, Command},
+    signal,
     sync::broadcast::{Sender, channel},
 };
 
 use crate::{
-    commands::build::{self, Builder},
-    toml_conf::Config,
+    android::DevServer,
+    commands::build::{Builder, Strategy},
+    home_manager::CURRENT_PLATFORM,
     utils::relative,
 };
 
@@ -24,8 +27,8 @@ async fn spawn_file_reader(watching: Arc<RwLock<bool>>, local: &PathBuf, sender:
     let local = local.clone();
     tokio::spawn(async move {
         let (mut c, mut r) = AsyncDebouncer::new_with_channel(
-            Duration::from_millis(20),
-            Some(Duration::from_millis(20)),
+            Duration::from_millis(1),
+            Some(Duration::from_millis(1)),
         )
         .await
         .unwrap();
@@ -120,12 +123,10 @@ pub async fn watch(base_path: Option<PathBuf>) {
         return;
     }
 
-    let configs = Config::from_toml_file(local.join("kaledis.toml")).unwrap();
+    // let configs = KConfig::from_toml_file(local.join("kaledis.toml")).unwrap();
 
     // let daemon = WatchDaemon::new(&local, love_path, base_path);
-    let mut builder = Builder::new(local.clone(), configs, build::Strategy::BuildDev, false)
-        .await
-        .unwrap();
+    let builder = Builder::new(local.clone(), Strategy::BuildDev, false).await;
 
     let watching = Arc::new(RwLock::new(false));
     let (sender, mut receiver) = channel::<Message>(2);
@@ -135,8 +136,30 @@ pub async fn watch(base_path: Option<PathBuf>) {
 
     let mut child: Option<Child> = None;
     builder.clean_build_folder().await.unwrap();
+    builder.transpile().await;
+    let mut path = builder
+        .home
+        .get_path(&builder.config.love, CURRENT_PLATFORM.clone())
+        .await;
+
+    #[cfg(windows)]
+    path.push("love.exe");
+
+    #[cfg(target_os = "linux")]
+    path.push("love2d.AppImage");
+
+    let mut server = None;
+
+    tokio::spawn(async move {
+        signal::ctrl_c()
+            .await
+            .expect("failed to listen to control+c");
+        println!("\n\n{} Ctrl+C detected. Closing...\n\n", "[!]".red());
+        sender.send(Message::CloseDev).unwrap();
+    });
+
     while let Ok(message) = receiver.recv().await {
-        if !builder.config.experimental_hmr {
+        if !builder.config.hmr {
             if let Some(mut child) = child.take() {
                 if let Err(err) = child.kill().await {
                     eprintln!("{}\n{}", err, "Failed to kill love2d process.".red());
@@ -146,28 +169,31 @@ pub async fn watch(base_path: Option<PathBuf>) {
             }
         }
         if let Message::CloseDev = message {
-            break;
+            exit(0);
         }
         if let Message::BuildProject(change) = message {
-            if builder.config.experimental_hmr
-                && let Some(files) = change
+            if builder.config.hmr
+                && let Some(files) = &change
             {
-                builder.add_assets().await;
-                builder.build_files(files).await;
+                builder.add_assets(None).await;
+                for file in files {
+                    builder._transpile_files(&file, &builder.paths.build).await;
+                }
             } else {
                 builder.clean_build_folder().await.unwrap();
-                let modules = builder.add_luau_files().await.unwrap();
-                builder.add_assets().await;
-                builder.make_conf_file(modules).await;
+                let modules = builder.transpile().await;
+                builder.add_assets(None).await;
+                builder.handle_conf_file(modules).await;
             }
 
-            if !builder.config.experimental_hmr {
+            if !builder.config.hmr {
                 if let Some(mut child) = child.take() {
                     child.kill().await.unwrap();
                 }
+
                 child = Some(
-                    Command::new(&builder.config.project.love_path.join("love.exe"))
-                        .current_dir(&builder.config.project.love_path)
+                    Command::new(&path)
+                        .current_dir(&path.parent().unwrap())
                         .arg(&builder.paths.build)
                         .spawn()
                         .context("Spawning the process")
@@ -175,13 +201,56 @@ pub async fn watch(base_path: Option<PathBuf>) {
                 );
             } else if let None = child {
                 child = Some(
-                    Command::new(&builder.config.project.love_path.join("love.exe"))
-                        .current_dir(&builder.config.project.love_path)
+                    Command::new(&path)
+                        .current_dir(&path.parent().unwrap())
                         .arg(&builder.paths.build)
                         .spawn()
                         .context("Spawning the process")
                         .unwrap(),
                 );
+                // In here we already assumed that there is a child and there is hmr
+            } else if let Some(files) = &change {
+                if server.is_none() {
+                    server = Some(
+                        DevServer::new("127.0.0.1:9532".to_owned())
+                            .await
+                            .expect("Failed to start dev server"),
+                    );
+                }
+                if let Some(server) = &mut server {
+                    server
+                        .dispatch(
+                            "update",
+                            files
+                                .iter()
+                                .map(|x| {
+                                    x.strip_prefix(&builder.paths.src)
+                                        .expect("Invalid prefix path, report this error on github.")
+                                        .with_extension("lua")
+                                        .to_string_lossy()
+                                        .to_string()
+                                })
+                                .join(",")
+                                .as_bytes()
+                                .to_vec(),
+                        )
+                        .await
+                        .expect("Failed to dispatch update");
+                }
+            } else {
+                if server.is_none() {
+                    server = Some(
+                        DevServer::new("127.0.0.1:9532".to_owned())
+                            .await
+                            .expect("Failed to start dev server"),
+                    );
+                }
+                if let Some(server) = &mut server {
+                    server
+                        .dispatch("update", b"main.lua".to_vec())
+                        .await
+                        .expect("Failed to dispatch update");
+                }
             }
         }
     }

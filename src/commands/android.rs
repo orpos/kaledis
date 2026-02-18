@@ -7,27 +7,24 @@ use std::{
 use async_watcher::AsyncDebouncer;
 use colored::Colorize;
 use console::Term;
-use indicatif::ProgressBar;
 use tokio::{
     process::Child,
     sync::broadcast::{Sender, channel},
 };
 
 use crate::{
-    android::AndroidServer,
-    commands::build::{self, Builder},
-    toml_conf::Config,
+    android::DevServer,
+    commands::build::{Builder, Strategy},
     utils::relative,
 };
 
 async fn spawn_file_reader(
     watching: Arc<RwLock<bool>>,
     local: &PathBuf,
-    assets_path: Option<&PathBuf>,
+    assets_paths: Vec<PathBuf>,
     sender: Sender<Message>,
 ) {
     let root = local.clone();
-    let assets_path = assets_path.cloned();
     tokio::spawn(async move {
         let (mut c, mut r) = AsyncDebouncer::new_with_channel(
             Duration::from_millis(20),
@@ -55,14 +52,10 @@ async fn spawn_file_reader(
                 continue;
             }
             let assets: Vec<_> = {
-                if let Some(ast) = &assets_path {
-                    data.iter()
-                        .map(|x| x.path.clone())
-                        .filter(|x| x.starts_with(&ast))
-                        .collect()
-                } else {
-                    vec![]
-                }
+                data.iter()
+                    .map(|x| x.path.clone())
+                    .filter(|x| assets_paths.iter().any(|y| x.starts_with(y)))
+                    .collect()
             };
             let len = assets.len();
             if assets.len() > 0 {
@@ -117,7 +110,7 @@ async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<Mess
 
 pub async fn watch(base_path: Option<PathBuf>, ip: String) {
     let con = ip + ":9532";
-    let mut android_dev_server = AndroidServer::new(con).await.unwrap();
+    let mut android_dev_server = DevServer::new(con).await.unwrap();
     let root = relative(base_path.clone());
     println!("Watching...");
     println!("Press [L] if you want to build manually");
@@ -130,13 +123,10 @@ pub async fn watch(base_path: Option<PathBuf>, ip: String) {
         return;
     }
 
-    let mut configs = Config::from_toml_file(root.join("kaledis.toml")).unwrap();
-
     // This is currently not available for android since we use a custom hmr implementation
-    configs.experimental_hmr = false;
-    let mut builder = Builder::new(root.clone(), configs, build::Strategy::BuildDev, true)
-        .await
-        .unwrap();
+    let mut builder = Builder::new(root.clone(), Strategy::BuildDev, true).await;
+    builder.config.hmr = false;
+
 
     let watching = Arc::new(RwLock::new(false));
     let (sender, mut receiver) = channel::<Message>(2);
@@ -145,7 +135,14 @@ pub async fn watch(base_path: Option<PathBuf>, ip: String) {
     spawn_file_reader(
         watching,
         &root,
-        builder.paths.assets.as_ref(),
+        builder
+            .config
+            .layout
+            .bundle
+            .iter()
+            .chain(builder.config.layout.external.iter())
+            .map(|x| PathBuf::from(x))
+            .collect(),
         sender.clone(),
     )
     .await;
@@ -155,34 +152,8 @@ pub async fn watch(base_path: Option<PathBuf>, ip: String) {
 
     android_dev_server.clean_assets().await.unwrap();
 
-    if let Some(assets) = &builder.paths.assets {
-        let ck: Vec<_> = glob::glob(assets.join("**/*").to_str().unwrap())
-            .unwrap()
-            .filter_map(Result::ok)
-            .collect();
-        let p = builder
-            .progress_bar
-            .add(ProgressBar::new_spinner().with_message("Sending assets..."));
-
-        for file in ck {
-            p.set_message(file.to_string_lossy().to_string());
-            let contents = tokio::fs::read(&file).await.unwrap();
-            android_dev_server
-                .send_asset(
-                    &file
-                        .strip_prefix(&builder.paths.root)
-                        .unwrap()
-                        .to_path_buf(),
-                    contents,
-                )
-                .await
-                .unwrap();
-        }
-        p.finish_with_message(format!("{} Sent assets", "[+]".green()));
-    }
-
     while let Ok(message) = receiver.recv().await {
-        if !builder.config.experimental_hmr {
+        if !builder.config.hmr {
             if let Some(mut child) = child.take() {
                 if let Err(err) = child.kill().await {
                     eprintln!("{}\n{}", err, "Failed to kill love2d process.".red());
@@ -196,7 +167,7 @@ pub async fn watch(base_path: Option<PathBuf>, ip: String) {
         }
         if let Message::BuildProject = message {
             android_dev_server.report_loading().await.unwrap();
-            builder.add_luau_files().await.unwrap();
+            builder.transpile().await;
             let file_contents = tokio::fs::read_to_string(builder.paths.build.join("main.lua"))
                 .await
                 .unwrap();

@@ -1,10 +1,10 @@
 use std::{collections::HashSet, path::PathBuf};
 
-use anyhow::{anyhow, Result};
+use color_eyre::{Result, eyre::eyre};
 use full_moon::{
+    LuaVersion,
     ast::{Ast, Expression, Field, LastStmt},
     tokenizer::TokenKind,
-    LuaVersion,
 };
 use std::fs;
 
@@ -24,7 +24,7 @@ pub(crate) fn parse_file(path: &PathBuf, is_luau: bool) -> Result<Ast> {
         },
     )
     .into_result()
-    .map_err(|errors| anyhow!("full_moon parsing error: {:?}", errors))?;
+    .map_err(|errors| eyre!("full_moon parsing error: {:?}", errors))?;
 
     Ok(ast)
 }

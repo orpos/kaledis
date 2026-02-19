@@ -2,11 +2,6 @@ use std::{
     io::{Cursor, Write},
     path::{Path, PathBuf},
 };
-
-use tokio::{
-    fs::File,
-    io::{self, AsyncReadExt},
-};
 use walkdir::WalkDir;
 use zip::{ZipWriter, result::ZipResult, write::SimpleFileOptions};
 
@@ -24,21 +19,21 @@ impl Zipper {
         let data = self.inner.finish().unwrap();
         data.into_inner()
     }
-    pub async fn add_buffer(&mut self, name: &str, buffer: &[u8]) -> ZipResult<()> {
-        let zip = &mut self.inner;
-        zip.start_file(
-            name,
-            SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored),
-        )?;
-        let _ = zip.write(buffer)?;
-        Ok(())
-    }
+    // pub async fn add_buffer(&mut self, name: &str, buffer: &[u8]) -> ZipResult<()> {
+    //     let zip = &mut self.inner;
+    //     zip.start_file(
+    //         name,
+    //         SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored),
+    //     )?;
+    //     let _ = zip.write(buffer)?;
+    //     Ok(())
+    // }
 
     // Copies an file into a zip stripping it's root
-    pub fn add_rootless(&mut self, name: &Path, root: &PathBuf) -> anyhow::Result<()> {
+    pub fn add_rootless(&mut self, name: &Path, root: &PathBuf) -> color_eyre::Result<()> {
         self.copy_from_path(name, name.strip_prefix(root)?.to_path_buf())
     }
-    pub fn copy_from_path(&mut self, name: &Path, output: PathBuf) -> anyhow::Result<()> {
+    pub fn copy_from_path(&mut self, name: &Path, output: PathBuf) -> color_eyre::Result<()> {
         let zip = &mut self.inner;
         zip.start_file_from_path(
             output,
@@ -48,9 +43,9 @@ impl Zipper {
         std::io::copy(&mut file, zip)?;
         Ok(())
     }
-    pub fn put_folder_recursively(&mut self, folder: &PathBuf) -> anyhow::Result<()> {
+    pub fn put_folder_recursively(&mut self, folder: &PathBuf) -> color_eyre::Result<()> {
         if !folder.is_dir() {
-            anyhow::bail!("Not a directory");
+            return Err(color_eyre::eyre::eyre!("Not a directory"));
         };
         for entry in WalkDir::new(&folder).into_iter().filter_map(Result::ok) {
             let path = entry.path();

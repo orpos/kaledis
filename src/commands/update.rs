@@ -1,7 +1,7 @@
 // use std::env::temp_dir;
 // use std::io::Write;
 
-// use anyhow::Context;
+// use color_eyre::Context;
 // use futures::StreamExt;
 // use reqwest::header::ACCEPT;
 // use semver::Version;
@@ -34,7 +34,7 @@
 //     Version::parse(env!("CARGO_PKG_VERSION").trim_start_matches("v")).unwrap()
 // }
 
-// pub async fn get_latest_remote_version(reqwest: &reqwest::Client) -> anyhow::Result<Version> {
+// pub async fn get_latest_remote_version(reqwest: &reqwest::Client) -> color_eyre::Result<Version> {
 //     let (owner, repo) = get_repo();
 //     let releases = reqwest
 //         .get(format!(
@@ -56,7 +56,7 @@
 //         .context("Failed to find first version.")
 // }
 
-// pub async fn get_update(reqwest: &reqwest::Client, allow_breaking: bool) -> anyhow::Result<bool> {
+// pub async fn get_update(reqwest: &reqwest::Client, allow_breaking: bool) -> color_eyre::Result<bool> {
 //     let latest = get_latest_remote_version(reqwest).await?;
 //     if latest > get_version() {
 //         if latest.major > get_version().major && !allow_breaking {

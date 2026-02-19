@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use darklua_core::{
     nodes::{Arguments, Block, Expression, Prefix, TableExpression},
     process::{DefaultVisitor, NodeProcessor, NodeVisitor},
@@ -45,14 +45,14 @@ impl OptimizableTableMethod {
 }
 
 impl FromStr for OptimizableTableMethod {
-    type Err = anyhow::Error;
+    type Err = color_eyre::Report;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let optimizer = match s {
             "create" => OptimizableTableMethod::Create,
             "freeze" => OptimizableTableMethod::Freeze,
             _ => {
-                return Err(anyhow!("Invalid OptimizableTableMethod `{}`", s));
+                return Err(eyre!("Invalid OptimizableTableMethod `{}`", s));
             }
         };
 
@@ -76,7 +76,10 @@ impl NodeProcessor for Processor {
                 Prefix::Index(index) => {
                     if let Expression::String(string) = index.get_index() {
                         if let Prefix::Identifier(identifier) = index.get_prefix() {
-                            Some((identifier.get_name(), &String::from_utf8_lossy(string.get_value()).to_string()))
+                            Some((
+                                identifier.get_name(),
+                                &String::from_utf8_lossy(string.get_value()).to_string(),
+                            ))
                         } else {
                             None
                         }

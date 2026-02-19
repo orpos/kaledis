@@ -1,4 +1,4 @@
-use std::{path::PathBuf, str::FromStr};
+use std::path::PathBuf;
 
 use crate::{
     dalbit::manifest::Manifest,
@@ -48,7 +48,7 @@ pub fn normalize_lua_path(path: &PathBuf, root: &PathBuf, alternative: &PathBuf)
 pub async fn get_transpiler(
     one_file: bool,
     polyfill_config: Option<&CustomPolyfillConfig>,
-) -> anyhow::Result<Manifest> {
+) -> color_eyre::Result<Manifest> {
     let mut manifest = Manifest {
         minify: true,
         bundle: one_file,
@@ -111,7 +111,7 @@ pub fn uppercase_first(s: &str) -> String {
     }
 }
 
-pub async fn read_aliases(path: &PathBuf) -> anyhow::Result<Vec<(String, String)>> {
+pub async fn read_aliases(path: &PathBuf) -> color_eyre::Result<Vec<(String, String)>> {
     let mut buffer = Vec::new();
     if !try_exists(path.join(".luaurc")).await? {
         return Ok(vec![]);

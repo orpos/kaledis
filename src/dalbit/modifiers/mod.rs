@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use anyhow::{anyhow, Result};
+use color_eyre::{Result, eyre::eyre};
 use darklua_core::rules::Rule;
 use full_moon::{ast::Ast, visitors::VisitorMut};
 
@@ -35,7 +35,7 @@ pub enum Modifier {
 }
 
 impl FromStr for Modifier {
-    type Err = anyhow::Error;
+    type Err = color_eyre::Report;
 
     fn from_str(s: &str) -> Result<Self> {
         let modifier = match s {
@@ -55,7 +55,7 @@ impl FromStr for Modifier {
             REMOVE_REDECLARED_KEYS_RULE_NAME => {
                 Modifier::DarkluaRule(Box::<RemoveRedeclaredKeys>::default())
             }
-            _ => Modifier::DarkluaRule(s.parse::<Box<dyn Rule>>().map_err(|err| anyhow!(err))?),
+            _ => Modifier::DarkluaRule(s.parse::<Box<dyn Rule>>().map_err(|err| eyre!(err))?),
         };
 
         Ok(modifier)

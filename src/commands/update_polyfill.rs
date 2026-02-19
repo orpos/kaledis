@@ -3,7 +3,7 @@ use crate::dalbit::manifest::Manifest;
 use crate::dalbit::transpile::clean_polyfill;
 use crate::toml_conf::KaledisConfig;
 
-pub async fn update_polyfill() -> anyhow::Result<ExitCode> {
+pub async fn update_polyfill() -> color_eyre::Result<ExitCode> {
     let cfg = KaledisConfig::from_toml_file("kaledis.toml")?;
     let mut manifest = Manifest::default();
     if let Some(polyfill) = cfg.polyfill {

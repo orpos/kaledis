@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use color_eyre::eyre::eyre;
 use darklua_core::{
     BundleConfiguration, Configuration, GeneratorParameters, Options, Resources,
     rules::{self, bundle::BundleRequireMode},
@@ -105,7 +105,7 @@ pub fn clean_polyfill() {
 }
 
 // We separated this from the main process to make it more performant and to generate the polyfills only once
-pub fn process_polyfill(polyfill: &Polyfill) -> anyhow::Result<InjectPolyfill> {
+pub fn process_polyfill(polyfill: &Polyfill) -> color_eyre::Result<InjectPolyfill> {
     let polyfill_cache = polyfill.cache()?;
     let config = polyfill_cache.config();
 
@@ -189,7 +189,7 @@ fn private_process(
     used_modules: Option<Arc<Mutex<IndexSet<Modules>>>>,
     additional_modifiers: Option<Vec<Modifier>>,
     polyfill: Option<InjectPolyfill>,
-) -> anyhow::Result<Vec<PathBuf>> {
+) -> color_eyre::Result<Vec<PathBuf>> {
     let resources = Resources::from_file_system();
     let tpm = if output.is_dir() {
         &temp_dir().join("result")
@@ -260,7 +260,7 @@ fn private_process(
     });
 
     options = options.with_output(tpm);
-    let result = darklua_core::process(&resources, options).map_err(|e| anyhow!(e))?;
+    let result = darklua_core::process(&resources, options).map_err(|e| eyre!(e))?;
 
     let success_count = result.success_count();
     let errors = result.collect_errors();
@@ -277,7 +277,7 @@ fn private_process(
             .into_iter()
             .for_each(|error| eprintln!("-> {}", error));
 
-        return Err(anyhow!("darklua process was not successful"));
+        return Err(eyre!("darklua process was not successful"));
     }
 
     let mut created_files: Vec<PathBuf> = if tpm.is_dir() {
@@ -318,7 +318,15 @@ fn private_process(
         }
     }
     for path in &mut created_files {
-        let mut ast = utils::parse_file(path, false)?;
+        if !path.is_file() {
+            continue;
+        }
+        if !path.exists() {
+            eprintln!("Invalid files found in build output.... Continuing");
+            continue;
+        }
+
+        let mut ast = utils::parse_file(path, false).expect("Failed to parse file");
         for visitor in &mut fullmoon_visitors {
             ast = visitor.visit_ast_boxed(ast);
         }
@@ -458,27 +466,34 @@ local Socket={socket=___SOCKET,"#
         path.set_extension("lua");
         let new_path = path.to_owned();
         if new_path != old_path && old_path.exists() {
-            std::fs::remove_file(old_path)?;
+            fs_err::remove_file(old_path).expect("Failed to remove old file");
         }
 
         if path.starts_with(temp_dir()) && output.is_dir() {
-            std::fs::write(output.join(path.strip_prefix(&tpm).unwrap()), new_content).unwrap();
+            let out = output.join(path.strip_prefix(&tpm).unwrap());
+            let pth = out.parent().unwrap();
+            fs_err::create_dir_all(&pth).expect("Failed to create dirs");
+            fs_err::write(out, new_content).unwrap();
         } else {
-            std::fs::write(path, new_content).unwrap();
+            fs_err::create_dir_all(&path.parent().expect("Failed to get parent"))
+                .expect("Failed to create dirs");
+            fs_err::write(path, new_content).unwrap();
         }
     }
 
     Ok(created_files)
 }
 
-pub fn process_files_v2(
+pub fn process_files(
     manifest: &Manifest,
     input_folder: &PathBuf,
     output_folder: &PathBuf,
     paths: Paths,
     collect_modules: bool,
     aliases: &[(String, String)],
-) -> anyhow::Result<Vec<Modules>> {
+
+    bundle: bool,
+) -> color_eyre::Result<Vec<Modules>> {
     let used_modules = collect_modules.then(|| Arc::new(Mutex::new(IndexSet::new())));
     let cache = manifest
         .polyfill
@@ -489,7 +504,7 @@ pub fn process_files_v2(
         manifest,
         &input_folder,
         &output_folder,
-        false,
+        bundle,
         Some(&paths),
         aliases,
         used_modules.clone(),
@@ -502,40 +517,4 @@ pub fn process_files_v2(
         return Ok(value);
     }
     return Ok(vec![]);
-}
-
-pub fn process_files(
-    manifest: &Manifest,
-    files: HashMap<PathBuf, PathBuf>,
-    paths: Paths,
-    aliases: &[(String, String)],
-) -> anyhow::Result<Vec<Modules>> {
-    let used_modules = Arc::new(Mutex::new(IndexSet::new()));
-    let cache = manifest
-        .polyfill
-        .as_ref()
-        .map(|polyfill| process_polyfill(polyfill).unwrap());
-
-    let pool = ThreadPoolBuilder::new()
-        .stack_size(4 * 1024 * 1024 * 1024)
-        .build()
-        .expect("Failed to build pool");
-    pool.install(|| {
-        files.into_par_iter().for_each(|(input, output)| {
-            private_process(
-                manifest,
-                &input,
-                &normalize_lua_path(&output, &paths.build, &paths.src),
-                false,
-                Some(&paths),
-                aliases,
-                Some(Arc::clone(&used_modules)),
-                None,
-                cache.clone(),
-            )
-            .unwrap();
-        });
-    });
-    let value: Vec<Modules> = used_modules.lock().unwrap().iter().cloned().collect();
-    Ok(value)
 }

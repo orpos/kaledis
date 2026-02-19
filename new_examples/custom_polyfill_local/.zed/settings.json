@@ -1,0 +1,18 @@
+{
+    "lsp": {
+        "luau-lsp": {
+            "settings": {
+                "luau-lsp": {
+                    "types": {
+                        "definitionFiles": [
+                            "globals.d.luau"
+                        ]
+                    }
+                },
+                "definitions": [
+                    "globals.d.luau"
+                ]
+            }
+        }
+    }
+}

@@ -9,14 +9,13 @@ license-file = "LICENSE.md"
 description = "A new way to LÖVE. Kaledis is a tool for allowing Luau to be used with Love2D via transpiling, alongside providing easier & simpler management of Love2D projects."
 
 [dependencies]
-anyhow = "1.0.99"
 async-compression = { version = "0.4.27", features = ["gzip", "tokio"] }
 async-watcher = "0.3.0"
-async_zip = { version = "0.0.18", features = ["tokio"] }
 auth-git2 = "0.5.8"
 blake3 = "1.8.2"
 clap = { version = "4.5.45", features = ["derive"] }
 clap-serde-derive = "0.2.1"
+color-eyre = "0.6.5"
 colored = "3.0.0"
 console = { version = "0.16.0", features = ["windows-console-colors"] }
 darklua = "0.17.3"
@@ -53,7 +52,10 @@ tokio-util = { version = "0.7.18", features = ["codec"] }
 toml = "0.9.5"
 tower-lsp-server = "0.23.0"
 tracing = "0.1.44"
-tracing-subscriber = "0.3.22"
+tracing-error = "0.2.1"
+tracing-indicatif = "0.3.14"
+tracing-log = "0.2.0"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter", "fmt"] }
 url = { version = "2.5.3", features = ["serde"] }
 walkdir = "2.5.0"
 zip = "7.4.0"

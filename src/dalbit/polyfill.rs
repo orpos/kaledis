@@ -1,7 +1,7 @@
-use anyhow::Result;
-use anyhow::{anyhow, Context};
 use auth_git2::GitAuthenticator;
 use blake3;
+use color_eyre::Result;
+use color_eyre::eyre::{Context, eyre};
 use dirs;
 use fs_err;
 use git2::Repository;
@@ -22,7 +22,7 @@ pub const DEFAULT_INJECTION_PATH: &str = "__polyfill__";
 /// Gets cache directory path of polyfills.
 pub fn cache_dir() -> Result<PathBuf> {
     Ok(dirs::cache_dir()
-        .ok_or_else(|| anyhow!("could not find cache directory"))?
+        .ok_or_else(|| eyre!("could not find cache directory"))?
         .join("dalbit")
         .join("polyfills"))
 }
@@ -92,7 +92,7 @@ pub struct PolyfillCache {
     config: HashMap<String, bool>,
 }
 
-fn index_path(url: &Url) -> anyhow::Result<PathBuf> {
+fn index_path(url: &Url) -> color_eyre::Result<PathBuf> {
     let name = match (url.domain(), url.scheme()) {
         (Some(domain), _) => domain,
         (None, "file") => "local",
@@ -140,7 +140,7 @@ impl PolyfillCache {
         let globals_path = path.join(&manifest.globals);
         let globals_ast = utils::parse_file(&globals_path, true)?;
         let exports = utils::get_exports_from_last_stmt(&utils::ParseTarget::FullMoonAst(globals_ast))?
-            .ok_or_else(|| anyhow!("Invalid polyfill structure. Polyfills' globals must return at least one global in a table."))?;
+            .ok_or_else(|| eyre!("Invalid polyfill structure. Polyfills' globals must return at least one global in a table."))?;
 
         let globals = Globals {
             path: globals_path,
@@ -167,7 +167,7 @@ impl PolyfillCache {
         let mut remote = repo.find_remote("origin")?;
         let auth = GitAuthenticator::new();
         auth.fetch(&repo, &mut remote, &["main"], None)
-            .with_context(|| format!("Could not fetch git repository"))?;
+            .context(format!("Could not fetch git repository"))?;
 
         let mut options = git2::build::CheckoutBuilder::new();
         options.force();
@@ -178,14 +178,9 @@ impl PolyfillCache {
             git2::ResetType::Hard,
             Some(&mut options),
         )
-        .with_context(|| format!("Could not reset git repo to fetch_head"))?;
+        .context(format!("Could not reset git repo to fetch_head"))?;
 
         Ok(())
-    }
-
-    #[inline]
-    pub fn path(&self) -> &PathBuf {
-        &self.path
     }
 
     #[inline]

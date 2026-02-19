@@ -1,0 +1,27 @@
+"$schema" = "https://raw.githubusercontent.com/orpos/kaledis/refs/heads/main/static/kaledis.schema.json"
+game_id = "com.game.test"
+project_name = "test"
+love = "11.5"
+detect_modules = true
+
+[polyfill]
+location = "https://github.com/CavefulGames/dalbit-polyfill"
+
+[polyfill.configs]
+# this setting allows type checking (usually for tables. because userdata mimics using tables)
+# if you really sure userdata is not used as table, you can disable it for extra optimization.
+# while still not recommended to disable it, you can turn this off if you don't use any newproxy().
+runtime_type_checking = false
+hash_iterator = true  # not recommended to disable it since it's an important luau's feature.
+allow_debug_library_usage = false  # if you allow, the polyfill will use like debug.getmetatable thing.
+test = false  # enable it if you want to test polyfill.
+emulate_frozen_table = false  # emulates frozen tables
+emulate_newproxy = false  # emulates userdata's behavior
+emulate_type_error = false  # emulates luau's type error and messages too
+emulate_next = true
+luau_hash_table = true
+buffer_out_of_bounds = false  # if you want to enable checking out of bounds error for buffer
+# Used for macos and android apps
+
+[layout]
+code = "src"

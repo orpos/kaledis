@@ -1,10 +1,11 @@
-use anyhow::Context;
+use color_eyre::{Section, eyre::Context};
 use colored::Colorize;
-use fs_err::tokio::{File, create_dir_all, read_to_string};
+use fs_err::tokio::{File, create_dir_all, hard_link};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::{commands::build::Builder, home_manager::Platform, toml_conf::KaledisConfig};
+use crate::{commands::build::Builder, toml_conf::KaledisConfig};
 
+#[tracing::instrument(skip(builder, data))]
 pub async fn build_macos(builder: &Builder, data: &[u8]) {
     println!(
         "{}", "WARNING: only unsigned builds are available for now. i don't have an mac. If you want to publish it officially i recommend using https://github.com/love2d/love/actions/".yellow()
@@ -23,6 +24,26 @@ pub async fn build_macos(builder: &Builder, data: &[u8]) {
             let mut f = File::create($name).await.expect("Failed to create file");
             f.write_all(&$value).await.expect("Failed to write files");
         }};
+    }
+
+    for pattern in &builder.config.layout.external {
+        for path in glob::glob(&builder.paths.root.join(pattern).to_string_lossy())
+            .context("Building for macos")
+            .expect("Failed to parse glob")
+            .filter_map(Result::ok)
+        {
+            hard_link(
+                &path,
+                resources.join(
+                    path.strip_prefix(&builder.paths.root)
+                        .context("Building for macos")
+                        .suggestion("Don't use assets outside the root of your project")
+                        .expect("Failed to strip root"),
+                ),
+            )
+            .await
+            .expect("Failed to link file");
+        }
     }
 
     create!(
@@ -46,7 +67,7 @@ pub async fn build_macos(builder: &Builder, data: &[u8]) {
 // Credit: https://github.com/camchenry/boon
 
 /// Rewrites the macOS application files to contain the project's info
-async fn rewrite_app_files(config: &KaledisConfig, file: &mut File) -> anyhow::Result<String> {
+async fn rewrite_app_files(config: &KaledisConfig, file: &mut File) -> color_eyre::Result<String> {
     let mac = config
         .mac
         .as_ref()
@@ -54,7 +75,7 @@ async fn rewrite_app_files(config: &KaledisConfig, file: &mut File) -> anyhow::R
     let mut buffer = String::new();
     file.read_to_string(&mut buffer).await?;
     let re = regex::Regex::new("(CFBundleIdentifier.*\n\t<string>)(.*)(</string>)")
-        .context("Could not create regex")?;
+        .context("Failed to create regex")?;
     buffer = re
         .replace(buffer.as_str(), |caps: &regex::Captures| {
             [

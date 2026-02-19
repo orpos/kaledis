@@ -1,13 +1,10 @@
-use std::{env, fs, io::Write, path::PathBuf};
+use std::{fs, io::Write, path::PathBuf};
 
 use colored::Colorize;
 use inquire::{Confirm, MultiSelect, Select, Text};
 use strum::IntoEnumIterator;
 
-use crate::{
-    toml_conf::{KaledisConfig, Modules},
-    utils::relative,
-};
+use crate::{toml_conf::Modules, utils::relative};
 
 pub fn replace_bytes<T>(source: &mut Vec<T>, from: &[T], to: &[T])
 where
@@ -160,6 +157,8 @@ external = ["assets/external/*"]
         create!(dir "assets");
         create!(dir "assets/external");
         create!(dir "assets/bundle");
+        create!(file "assets/external/readme.txt", b"This folder be included outside of the .love bundle");
+        create!(file "assets/bundle/readme.txt", b"This folder be included inside the .love bundle");
     }
     if use_pesde {
         create!(dir "luau_packages");
@@ -180,8 +179,6 @@ external = ["assets/external/*"]
         create!(file "main.luau", include_bytes!("../../static/main.luau"));
     }
 
-    create!(file "assets/external/readme.txt", b"This folder be included outside of the .love bundle");
-    create!(file "assets/bundle/readme.txt", b"This folder be included inside the .love bundle");
     create!(file "kaledis.toml", conf.as_bytes());
     create!(file "conf.toml", r#"
 "$schema" = "https://raw.githubusercontent.com/orpos/kaledis/refs/heads/main/static/love.schema.json"

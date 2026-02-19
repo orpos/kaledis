@@ -1,3 +1,4 @@
+use color_eyre::eyre::Context;
 use dirs::home_dir;
 use fs_err::tokio::{self as fs, File};
 use reqwest::Client;
@@ -33,7 +34,7 @@ pub enum Platform {
 }
 
 impl HomeManager {
-    pub async fn new() -> Self {
+    pub async fn new() -> color_eyre::Result<Self> {
         let kaledis_dir = home_dir()
             .unwrap_or(
                 dirs::preference_dir().expect("Failed to find a path to put versions and cache"),
@@ -42,13 +43,13 @@ impl HomeManager {
         if !fs::try_exists(&kaledis_dir).await.unwrap_or(false) {
             fs::create_dir(&kaledis_dir)
                 .await
-                .expect("Failed to create .kaledis folder");
+                .context("Creating .kaledis folder")?;
             fs::create_dir(&kaledis_dir.join("versions"))
                 .await
-                .expect("Failed to create versions folder");
+                .context("Creating version folder")?;
         }
 
-        if let Err(e) = fs::write(
+        if let Err(_) = fs::write(
             kaledis_dir.join("globals.d.luau"),
             include_bytes!("../static/globals.d.luau"),
         )
@@ -58,10 +59,10 @@ impl HomeManager {
             // todo: log error with debug flag
         };
 
-        Self {
+        Ok(Self {
             path: kaledis_dir,
             client: Client::new(),
-        }
+        })
     }
 
     pub async fn get_path(&self, version: &str, platform: Platform) -> PathBuf {
@@ -84,28 +85,27 @@ impl HomeManager {
         self.path.join("java").join("tool.java")
     }
 
-    pub async fn ensure_apktool(&self) {
-        let url =
-            "https://github.com/iBotPeaches/Apktool/releases/download/v2.12.1/apktool_2.12.1.jar";
-
+    pub async fn ensure_apktool(&self) -> color_eyre::Result<()> {
         let jv = self.path.join("java").join("tool.java");
         if jv.exists() {
-            return;
+            return Ok(());
         }
 
-        let response = self.client.get(url).send().await.unwrap();
+        let response = self.client.get(APKTOOL_LOCATION).send().await.unwrap();
         let bytes = response.bytes().await.unwrap();
 
         let mut file = File::create(jv)
             .await
-            .expect("Failed to create apktool java file");
+            .context("Creating apktool java file")?;
         file.write_all(&bytes)
             .await
-            .expect("Failed to write apktool java file");
+            .context("Writing apktool java file")?;
+
+        Ok(())
     }
 
     // jdk-11.0.30+7-jre
-    pub async fn ensure_java(&self) {
+    pub async fn ensure_java(&self) -> color_eyre::Result<()> {
         #[cfg(windows)]
         let url = "https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.30%2B7/OpenJDK11U-jre_x64_windows_hotspot_11.0.30_7.zip";
         #[cfg(target_os = "linux")]
@@ -115,7 +115,7 @@ impl HomeManager {
 
         let jv = self.path.join("java");
         if jv.exists() {
-            return;
+            return Ok(());
         }
 
         let response = self.client.get(url).send().await.unwrap();
@@ -123,18 +123,20 @@ impl HomeManager {
         let bytes = response.bytes().await.unwrap();
         #[cfg(windows)]
         {
+            use color_eyre::{Section, eyre::Context};
             use fs_err::tokio::create_dir_all;
 
             let jv = self.path.join("java");
             create_dir_all(&jv)
                 .await
-                .expect("Failed to create java folder");
+                .context("Creating java dir")
+                .suggestion("Try removing ~/.kaledis/java folder")?;
 
             tokio::task::spawn_blocking(move || {
                 extract_zip(Cursor::new(bytes), jv);
             })
             .await
-            .expect("failed to extract zip");
+            .context("Extracting the zip")?;
         }
         #[cfg(not(windows))]
         {
@@ -143,17 +145,16 @@ impl HomeManager {
 
             let jv = self.path.join("java");
             if !jv.exists() {
-                create_dir_all(&jv)
-                    .await
-                    .expect("Failed to create java folder");
+                create_dir_all(&jv).await?.context("Extracting the zip")?;
 
                 println!("A");
 
                 let decoder = GzDecoder::new(Cursor::new(bytes));
                 let mut archive = tar::Archive::new(decoder);
-                archive.unpack(jv).expect("Failed to extract java");
+                archive.unpack(jv).context("Extracting java folder")?;
             }
         }
+        Ok(())
     }
 
     // Has to be like 11.5 | 11.3 etc

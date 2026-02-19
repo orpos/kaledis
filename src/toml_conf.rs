@@ -49,16 +49,16 @@ mod defaults {
     default_create!(u32, 800, u32_800);
     default_create!(u32, 600, u32_600);
     default_create!(String, "Untitled".to_string(), untitled);
-    default_create!(String, "11.5".to_string(), love_version);
+    // default_create!(String, "11.5".to_string(), love_version);
     pub fn default_orientation() -> Orientation {
         Orientation::Landscape
     }
     pub fn modules() -> Vec<Modules> {
         Modules::iter().collect()
     }
-    pub fn empty_modules() -> Vec<Modules> {
-        vec![]
-    }
+    // pub fn empty_modules() -> Vec<Modules> {
+    //     vec![]
+    // }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
@@ -69,14 +69,14 @@ pub struct CustomPolyfillConfig {
 }
 
 impl CustomPolyfillConfig {
-    pub async fn polyfill(&self) -> anyhow::Result<Polyfill> {
+    pub async fn polyfill(&self) -> color_eyre::Result<Polyfill> {
         let mut pol = self.get_polyfill().await?;
         if let Some(configs) = &self.configs {
             pol.config = configs.clone();
         }
         Ok(pol)
     }
-    async fn get_polyfill(&self) -> anyhow::Result<Polyfill> {
+    async fn get_polyfill(&self) -> color_eyre::Result<Polyfill> {
         if let Some(path) = &self.location {
             // Relative path
             if path.starts_with(".") {
@@ -419,7 +419,7 @@ pub struct KaledisConfig {
 }
 
 impl KaledisConfig {
-    pub fn from_toml_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+    pub fn from_toml_file<P: AsRef<Path>>(path: P) -> color_eyre::Result<Self> {
         let data = read_to_string(path)?;
         Ok(toml::from_str(&data)?)
     }
@@ -440,7 +440,7 @@ fn format_option<T: ToString>(value: Option<T>) -> String {
     value.map(|x| x.to_string()).unwrap_or("nil".to_string())
 }
 impl LoveConfig {
-    pub fn from_toml_file<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
+    pub fn from_toml_file<P: AsRef<Path>>(path: P) -> color_eyre::Result<Self> {
         let data = read_to_string(path)?;
         Ok(toml::from_str(&data)?)
     }

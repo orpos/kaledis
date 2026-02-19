@@ -5,22 +5,21 @@ pub mod windows;
 
 use std::{path::PathBuf, str::FromStr};
 
-use anyhow::Context;
+use color_eyre::Section;
 use colored::Colorize;
 use fs_err::tokio::{
-    File, canonicalize, copy, create_dir, create_dir_all, hard_link, remove_dir_all, remove_file,
-    rename,
+    File, canonicalize, copy, create_dir, create_dir_all, hard_link, remove_dir_all, rename,
 };
 use indicatif::{MultiProgress, ProgressBar};
 use strum::IntoEnumIterator;
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+use tokio::io::{self, AsyncWriteExt};
 use walkdir::WalkDir;
 
 use crate::{
     commands::build::{android::build_android, macos::build_macos, windows::build_windows},
     dalbit::{
         manifest::Manifest,
-        transpile::{clean_polyfill, process_files_v2},
+        transpile::{clean_polyfill, process_files},
     },
     home_manager::{HomeManager, Platform},
     toml_conf::{KaledisConfig, LoveConfig, Modules},
@@ -94,7 +93,7 @@ impl Builder {
             aliases: read_aliases(&root).await.expect("Failed to read aliases"),
             paths: Paths::from_root(root, &config),
             config: config,
-            home: HomeManager::new().await,
+            home: HomeManager::new().await.unwrap(),
             progress_bar: MultiProgress::new(),
             strategy,
             bundle,
@@ -102,7 +101,7 @@ impl Builder {
     }
 
     /// Build steps
-    pub async fn clean_build_folder(&self) -> anyhow::Result<()> {
+    pub async fn clean_build_folder(&self) -> color_eyre::Result<()> {
         if self.paths.build.exists() {
             // This clean function only happens when a new build is requested
             // and in dev i considered it unnecessary to persist
@@ -119,25 +118,41 @@ impl Builder {
     pub async fn add_assets(&self, zipper: Option<&mut Zipper>) {
         let mut to_link = self.config.layout.external.clone();
 
+        let mut p = ProgressBar::new_spinner().with_message("Adding assets...");
+        p = self.progress_bar.add(p);
+
         if self.strategy == Strategy::BuildDev {
             to_link.extend_from_slice(&self.config.layout.bundle);
             for glb in &to_link {
-                for path in glob::glob(glb).unwrap().filter_map(Result::ok) {
-                    create_dir_all(&self.paths.build.join(&path).parent().expect("Invalid path"))
+                for path in glob::glob(&self.paths.root.join(glb).to_string_lossy())
+                    .unwrap()
+                    .filter_map(Result::ok)
+                {
+                    let pth_b = &self.paths.build.join(
+                        &path
+                            .strip_prefix(&self.paths.root)
+                            .suggestion("Don't use assets outside the root of your project")
+                            .expect("Failed to remove root"),
+                    );
+                    create_dir_all(&pth_b.parent().expect("Invalid path"))
                         .await
                         .expect("Failed to create file structure");
-                    hard_link(&path, &self.paths.build.join(&path))
+                    hard_link(&path, &pth_b)
                         .await
                         .expect("Failed to link the file");
                 }
             }
         } else if let Some(zipper) = zipper {
             for glb in &self.config.layout.bundle {
-                for path in glob::glob(glb).unwrap().filter_map(Result::ok) {
+                for path in glob::glob(&self.paths.root.join(glb).to_string_lossy())
+                    .unwrap()
+                    .filter_map(Result::ok)
+                {
                     zipper.add_rootless(&path, &self.paths.root).unwrap();
                 }
             }
         }
+        p.finish_with_message(format!("{} Assets Added", "[+]".green()));
     }
 
     pub async fn handle_conf_file(&self, used_modules: Vec<Modules>) {
@@ -165,16 +180,19 @@ impl Builder {
     }
 
     pub async fn _transpile_files(&self, input: &PathBuf, output: &PathBuf) -> Vec<Modules> {
+        let mut p = ProgressBar::new_spinner().with_message("Building...");
+        p = self.progress_bar.add(p);
         let mut new_manifest = self.manifest.clone();
         new_manifest.hmr = self.strategy == Strategy::BuildDev && self.config.hmr;
 
-        let mut used_modules = process_files_v2(
+        let mut used_modules = process_files(
             &new_manifest,
             input,
             output,
             self.paths.clone(),
             self.config.detect_modules,
             &self.aliases,
+            self.bundle.clone(),
         )
         .expect("Failed to process luau files");
 
@@ -184,6 +202,7 @@ impl Builder {
             used_modules.extend_from_slice(&cfg.modules);
         }
 
+        p.finish_with_message(format!("{} Built", "[+]".green()));
         used_modules
     }
 
@@ -262,7 +281,7 @@ impl Builder {
     }
 }
 
-pub async fn build(path: Option<PathBuf>, run: Strategy, bundle: bool) -> anyhow::Result<()> {
+pub async fn build(path: Option<PathBuf>, run: Strategy, bundle: bool) -> color_eyre::Result<()> {
     let root = relative(path);
     if !root.join("kaledis.toml").exists() {
         panic!("Not a valid kaledis project");
@@ -318,7 +337,9 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, bundle: bool) -> anyhow
 
                 match platform {
                     Platform::Android => {
-                        build_android(&builder, &data).await.expect("Failed to start android server");
+                        build_android(&builder, &data)
+                            .await
+                            .expect("Failed to start android server");
                     }
                     Platform::LinuxAppImage => {
                         #[cfg(not(target_os = "linux"))]
@@ -342,7 +363,7 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, bundle: bool) -> anyhow
     Ok(())
 }
 
-pub async fn recursive_copy(input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
+pub async fn recursive_copy(input: &PathBuf, output: &PathBuf) -> color_eyre::Result<()> {
     for entry in WalkDir::new(&input).into_iter().filter_map(Result::ok) {
         let from = entry.path();
         let to = output.join(from.strip_prefix(&input)?);

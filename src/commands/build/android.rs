@@ -1,5 +1,6 @@
 use fs_err::tokio::{File, create_dir_all, remove_dir_all};
 use tokio::{io::AsyncWriteExt, process::Command};
+use tracing::info;
 
 use crate::{commands::build::Builder, home_manager::Platform};
 
@@ -19,10 +20,11 @@ macro_rules! create {
             .expect("Failed to create folder");
     }};
 }
-//
-pub async fn build_android(builder: &Builder, data: &[u8]) -> anyhow::Result<()> {
+#[tracing::instrument(skip(builder, data))]
+pub async fn build_android(builder: &Builder, data: &[u8]) -> color_eyre::Result<()> {
     let Some(config) = &builder.config.android else {
         eprintln!("No valid android config, skipping android build...");
+        tracing::warn!("No valid android config, skipping android build...");
         return Ok(());
     };
 
@@ -31,8 +33,8 @@ pub async fn build_android(builder: &Builder, data: &[u8]) -> anyhow::Result<()>
     let love_version = &builder.config.love;
     let home = &builder.home;
 
-    home.ensure_java().await;
-    home.ensure_apktool().await;
+    home.ensure_java().await?;
+    home.ensure_apktool().await?;
 
     let apk = home
         .get_path(love_version, Platform::Android)
@@ -79,7 +81,7 @@ pub async fn build_android(builder: &Builder, data: &[u8]) -> anyhow::Result<()>
     create!(ensure_path => &bundle);
     create!(&bundle, &data);
 
-    println!("Bundling apk...");
+    info!("Building apk...");
 
     apktool(&[
         "b",
@@ -89,7 +91,7 @@ pub async fn build_android(builder: &Builder, data: &[u8]) -> anyhow::Result<()>
     ])
     .await;
 
-    println!("Cleaning build folder...");
+    info!("Cleaning build folder...");
 
     create!(remove => &build_folder);
 

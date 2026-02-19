@@ -1,6 +1,6 @@
 use tower_lsp_server::jsonrpc::Result;
 use tower_lsp_server::ls_types::*;
-use tower_lsp_server::{Client, LanguageServer, LspService, Server};
+use tower_lsp_server::{Client, LanguageServer};
 
 // This will be implemented together with a custom extension to live variable viewing 
 
@@ -21,7 +21,7 @@ impl LanguageServer for Backend {
     }
     async fn inlay_hint(
         &self,
-        params: InlayHintParams,
+        _: InlayHintParams,
     ) -> Result<Option<Vec<InlayHint>>> {
         Ok(None)
     }

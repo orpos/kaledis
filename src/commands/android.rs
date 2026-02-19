@@ -11,6 +11,7 @@ use tokio::{
     process::Child,
     sync::broadcast::{Sender, channel},
 };
+use tracing::info;
 
 use crate::{
     android::DevServer,
@@ -85,9 +86,9 @@ async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<Mess
                 console::Key::Char('a') | console::Key::Char('A') => {
                     let mut auto_save = watching.write().unwrap();
                     if !*auto_save {
-                        println!("{} {}", "[+]".blue(), "Auto Save enabled");
+                        info!("Auto Save enabled");
                     } else {
-                        println!("{} {}", "[-]".blue(), "Auto Save disabled");
+                        info!("Auto Save disabled");
                     }
                     *auto_save = !*auto_save;
                 }
@@ -99,7 +100,7 @@ async fn spawn_keyboard_handler(watching: Arc<RwLock<bool>>, sender: Sender<Mess
                     break;
                 }
                 console::Key::Escape => {
-                    print!("[-] Closing...\r");
+                    info!("Closing...");
                     sender.send(Message::CloseLove).unwrap();
                 }
                 _ => {}
@@ -126,7 +127,6 @@ pub async fn watch(base_path: Option<PathBuf>, ip: String) {
     // This is currently not available for android since we use a custom hmr implementation
     let mut builder = Builder::new(root.clone(), Strategy::BuildDev, true).await;
     builder.config.hmr = false;
-
 
     let watching = Arc::new(RwLock::new(false));
     let (sender, mut receiver) = channel::<Message>(2);
@@ -155,10 +155,10 @@ pub async fn watch(base_path: Option<PathBuf>, ip: String) {
     while let Ok(message) = receiver.recv().await {
         if !builder.config.hmr {
             if let Some(mut child) = child.take() {
-                if let Err(err) = child.kill().await {
-                    eprintln!("{}\n{}", err, "Failed to kill love2d process.".red());
+                if let Err(_) = child.kill().await {
+                    tracing::warn!("Failed to kill love2d process.");
                 } else if let Message::CloseLove = message {
-                    println!("{} Closed love.", "[+]".blue());
+                    tracing::debug!("Closed love");
                 };
             }
         }

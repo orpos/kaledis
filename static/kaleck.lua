@@ -173,11 +173,7 @@ local __llk = {
 	channel = nil,
 }
 function report_error(error)
-	if __llk.local_channel ~= nil and error ~= nil and type(error) == "string" then
-		__llk.local_channel:push("error\n")
-		__llk.local_channel:push(love.data.compress("string", "gzip", error))
-		__llk.local_channel:push("-_-EOF-_-")
-	end
+	print(error)
 end
 
 local h_cn = false
@@ -236,6 +232,26 @@ function mysplit(inputstr, sep)
 	return t
 end
 
+local function handle(err)
+	return "ERROR: " .. err
+end
+
+local function reloadFile(file)
+	local success, chunk = pcall(love.filesystem.load, file)
+	if not success then
+		print("Failed to load new chunk")
+		return
+	end
+	if chunk then
+		local ok, err = xpcall(chunk, handle)
+		if not ok then
+			print(err)
+			return "no"
+		end
+	end
+	return "yes"
+end
+
 pool:on("update", function(message)
 	local msgs = mysplit(message, ",")
 	is_loading_new_version = true
@@ -243,22 +259,16 @@ pool:on("update", function(message)
 	should_render_error = false
 	for msg_Id = 0, #msgs, 1 do
 		local msg = msgs[msg_Id]
-		is_loading_new_version = false
-		local success, chunk = pcall(love.filesystem.load, msg)
-		if success then
-			if chunk then
-				local ok, err = pcall(chunk)
-				if not ok then
-					print("Failed to load chunk")
-					print(err)
-					is_loading_new_version = true
-				else
-					print("Reloading...")
-					is_loading_new_version = false
-					clear_packages()
-				end
-			end
+		is_loading_new_version = true
+		clear_packages()
+		print("Reloading")
+		if reloadFile("main.lua") == "no" then
+			print("Failed to load main")
 		end
+		-- if reloadFile(msg) then
+		-- 	print("Failed to load ", msg)
+		-- end
+		is_loading_new_version = false
 	end
 end)
 
@@ -329,7 +339,7 @@ function love.run()
 			end)
 			if not ok then
 				should_render_error = true
-				print(error)
+				report_error(error)
 			end
 		end -- will pass 0 if love.timer is disabled
 		if love.graphics and love.graphics.isActive() then

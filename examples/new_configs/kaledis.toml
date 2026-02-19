@@ -1,10 +1,11 @@
-# "$schema" = "https://raw.githubusercontent.com/orpos/kaledis/refs/heads/main/static/kaledis.schema.json"
+"$schema" = "https://raw.githubusercontent.com/orpos/kaledis/refs/heads/main/static/kaledis.schema.json"
 
 # Used for macos and android apps
 project_name = "gamejam"
 love = "11.5"
 detect_modules = true
 experimental_hmr = true
+
 
 
 [android]
@@ -18,3 +19,4 @@ id="macid"
 code = "src"
 # bundle = ["assets/bundle/*"]
 # external = ["assets/external/*"]
+

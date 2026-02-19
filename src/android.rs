@@ -26,7 +26,7 @@ struct Message {
 
 impl Decoder for MessageCodec {
     type Item = (String, Vec<u8>);
-    type Error = anyhow::Error;
+    type Error = color_eyre::Report;
 
     fn decode(
         &mut self,
@@ -51,18 +51,19 @@ impl Decoder for MessageCodec {
 }
 
 impl DevServer {
-    pub async fn new(addr: String) -> anyhow::Result<Self> {
+    pub async fn new(addr: String) -> color_eyre::Result<Self> {
         let (read, writer) = TcpStream::connect(addr).await?.into_split();
 
         tokio::spawn(async move {
             let mut buffer = Vec::new();
             let mut framed_reader = FramedRead::new(read, MessageCodec);
 
-            while let Some(Ok((key, mut value))) = framed_reader.next().await {
-                value.remove(0);
+            while let Some(Ok((key, value))) = framed_reader.next().await {
+                let mut v: Vec<u8> = value;
+                v.remove(0);
                 buffer.clear();
                 let mut decoder = GzipDecoder::new(&mut buffer);
-                decoder.write(&value).await.unwrap();
+                decoder.write(&v).await.unwrap();
                 decoder.flush().await.unwrap();
 
                 if key == "error" {
@@ -73,7 +74,7 @@ impl DevServer {
 
         Ok(Self { writer })
     }
-    pub async fn dispatch(&mut self, key: &str, contents: Vec<u8>) -> anyhow::Result<()> {
+    pub async fn dispatch(&mut self, key: &str, contents: Vec<u8>) -> color_eyre::Result<()> {
         self.writer.write(key.as_bytes()).await?;
         self.writer.write(b"\n").await?;
 
@@ -88,17 +89,21 @@ impl DevServer {
         Ok(())
     }
     // You have to asure to send the buffer afterwards
-    pub async fn report_loading(&mut self) -> anyhow::Result<()> {
+    pub async fn report_loading(&mut self) -> color_eyre::Result<()> {
         self.dispatch("receiving", vec![]).await?;
         Ok(())
     }
 
-    pub async fn clean_assets(&mut self) -> anyhow::Result<()> {
+    pub async fn clean_assets(&mut self) -> color_eyre::Result<()> {
         self.dispatch("clean_assets", vec![]).await?;
         Ok(())
     }
 
-    pub async fn send_asset(&mut self, path: &PathBuf, contents: Vec<u8>) -> anyhow::Result<()> {
+    pub async fn send_asset(
+        &mut self,
+        path: &PathBuf,
+        contents: Vec<u8>,
+    ) -> color_eyre::Result<()> {
         let mut buffer: Vec<u8> = vec![];
 
         buffer
@@ -110,7 +115,7 @@ impl DevServer {
         self.dispatch("asset_upload", buffer).await?;
         Ok(())
     }
-    pub async fn send_code(&mut self, code: Vec<u8>) -> anyhow::Result<()> {
+    pub async fn send_code(&mut self, code: Vec<u8>) -> color_eyre::Result<()> {
         sleep(Duration::from_millis(200)).await;
         self.dispatch("load", code).await?;
 

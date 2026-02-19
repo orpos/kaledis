@@ -5,8 +5,8 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Context;
 use async_watcher::AsyncDebouncer;
+use color_eyre::eyre::Context;
 use colored::Colorize;
 use console::Term;
 use itertools::Itertools;
@@ -163,6 +163,7 @@ pub async fn watch(base_path: Option<PathBuf>) {
             if let Some(mut child) = child.take() {
                 if let Err(err) = child.kill().await {
                     eprintln!("{}\n{}", err, "Failed to kill love2d process.".red());
+                    tracing::warn!("Failed to kill love2d process.");
                 } else if let Message::CloseLove = message {
                     println!("{} Closed love.", "[+]".blue());
                 };

@@ -1,6 +1,8 @@
 * dynamic generated types for lua libraries
 * Bindgen generator
 * Make the polyfill better
+* add support for love2d 12 and add the config
+
 
 * Hot module replacement (experimental)
 * tree shaking ( experimental, you put the flag -o when building)

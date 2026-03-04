@@ -2,7 +2,7 @@ use fs_err::tokio::{File, create_dir_all, remove_dir_all};
 use tokio::{io::AsyncWriteExt, process::Command};
 use tracing::info;
 
-use crate::{commands::build::Builder, home_manager::Platform};
+use crate::{commands::build::Builder, home_manager::Target};
 
 macro_rules! create {
     ($name: expr, $value :expr) => {{
@@ -20,7 +20,6 @@ macro_rules! create {
             .expect("Failed to create folder");
     }};
 }
-#[tracing::instrument(skip(builder, data))]
 pub async fn build_android(builder: &Builder, data: &[u8]) -> color_eyre::Result<()> {
     let Some(config) = &builder.config.android else {
         eprintln!("No valid android config, skipping android build...");
@@ -37,7 +36,7 @@ pub async fn build_android(builder: &Builder, data: &[u8]) -> color_eyre::Result
     home.ensure_apktool().await?;
 
     let apk = home
-        .get_path(love_version, Platform::Android)
+        .get_path(love_version, Target::Android)
         .await
         .join("love2d.apk");
 
@@ -77,8 +76,8 @@ pub async fn build_android(builder: &Builder, data: &[u8]) -> color_eyre::Result
     // Creates AndroidManifest.xml
     create!(&android_manifest, config.to_string(project_name).as_bytes());
 
-    let bundle = build_folder.join("assets/game.love");
-    create!(ensure_path => &bundle);
+    let bundle = build_folder.join("assets").join("game.love");
+    create!(ensure_path => &bundle.parent().unwrap());
     create!(&bundle, &data);
 
     info!("Building apk...");

@@ -2,9 +2,6 @@ function love.load()
     -- love.window.setMode(800, 600)
     love.graphics.setBackgroundColor(0,0,0)
 
-    x = 0
-    y = 0
-
     particles = {}
     segments = 12        -- how many slices in the kaleidoscope
     centerX = love.graphics.getWidth()/2

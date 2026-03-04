@@ -1,7 +1,9 @@
+use clap::ValueEnum;
 use color_eyre::eyre::Context;
 use dirs::home_dir;
 use fs_err::tokio::{self as fs, File};
 use reqwest::Client;
+use sha2::Digest;
 use std::{
     io::Cursor,
     path::{Path, PathBuf},
@@ -12,25 +14,28 @@ use zip::ZipArchive;
 
 static APKTOOL_LOCATION: &str =
     "https://github.com/iBotPeaches/Apktool/releases/download/v2.12.1/apktool_2.12.1.jar";
+// Idk but, handling external binaries is something i want to do safely and sparingly
+static APKTOOL_HASH: &str = "66cf4524a4a45a7f56567d08b2c9b6ec237bcdd78cee69fd4a59c8a0243aeafa";
 
 #[cfg(windows)]
-pub static CURRENT_PLATFORM: Platform = Platform::Windows;
+pub static CURRENT_PLATFORM: Target = Target::Windows;
 #[cfg(target_os = "linux")]
-pub static CURRENT_PLATFORM: Platform = Platform::LinuxAppImage;
+pub static CURRENT_PLATFORM: Target = Target::LinuxAppImage;
 #[cfg(target_os = "macos")]
-pub static CURRENT_PLATFORM: Platform = Platform::Macos;
+pub static CURRENT_PLATFORM: Target = Target::Macos;
 
 pub struct HomeManager {
     pub path: PathBuf,
     pub client: Client,
 }
 
-#[derive(AsRefStr, Debug, PartialEq, Eq, Clone)]
-pub enum Platform {
+#[derive(AsRefStr, Debug, PartialEq, Eq, Clone, ValueEnum)]
+pub enum Target {
     Windows,
     LinuxAppImage,
     Android,
     Macos,
+    LoveFile,
 }
 
 impl HomeManager {
@@ -65,9 +70,9 @@ impl HomeManager {
         })
     }
 
-    pub async fn get_path(&self, version: &str, platform: Platform) -> PathBuf {
+    pub async fn get_path(&self, version: &str, platform: Target) -> PathBuf {
         let pth = self.path.join(version).join(platform.as_ref().to_string());
-        if let Platform::Windows = platform {
+        if let Target::Windows = platform {
             return pth.join(format!("love-{}-win64", version));
         }
         pth
@@ -108,10 +113,18 @@ impl HomeManager {
     pub async fn ensure_java(&self) -> color_eyre::Result<()> {
         #[cfg(windows)]
         let url = "https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.30%2B7/OpenJDK11U-jre_x64_windows_hotspot_11.0.30_7.zip";
+        #[cfg(windows)]
+        let hash = hex_literal::hex!("db7fe2f05857074e73ef2bb10bfb95556ad110cf1ba0c82d101f93b3a93862ff");
+
         #[cfg(target_os = "linux")]
         let url = "https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.30%2B7/OpenJDK11U-jre_aarch64_linux_hotspot_11.0.30_7.tar.gz";
+        #[cfg(target_os = "linux")]
+        let hash = hex_literal::hex!("9d6a8d3a33c308bbc7332e4c2e2f9a94fbbc56417863496061ef6defef9c5391");
+        
         #[cfg(target_os = "macos")]
         let url = "https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.30%2B7/OpenJDK11U-jdk_aarch64_mac_hotspot_11.0.30_7.tar.gz";
+        #[cfg(target_os = "macos")]
+        let hash = hex_literal::hex!("d7b52d25d6f7aae2d4d85191d84bc132b80d061006dcd5f76ca79f277c3acb28");
 
         let jv = self.path.join("java");
         if jv.exists() {
@@ -121,6 +134,10 @@ impl HomeManager {
         let response = self.client.get(url).send().await.unwrap();
 
         let bytes = response.bytes().await.unwrap();
+        let result = sha2::Sha256::digest(&bytes);
+        // If this fails, the contents of the java runtime are different from when i got them. 
+        // So it's better to not run then.
+        assert_eq!(result[..], hash);
         #[cfg(windows)]
         {
             use color_eyre::{Section, eyre::Context};
@@ -159,12 +176,13 @@ impl HomeManager {
 
     // Has to be like 11.5 | 11.3 etc
     // version 12 is only available when gh cli is available
-    pub async fn ensure_version(&self, version: &str, platform: Platform) {
+    pub async fn ensure_version(&self, version: &str, platform: Target) {
         let exe_name = match platform {
-            Platform::Android => format!("love-{}-android.apk", version),
-            Platform::LinuxAppImage => format!("love-{}-x86_64.AppImage", version),
-            Platform::Macos => format!("love-{}-macos.zip", version),
-            Platform::Windows => format!("love-{}-win64.zip", version),
+            Target::LoveFile => "".to_string(),
+            Target::Android => format!("love-{}-android.apk", version),
+            Target::LinuxAppImage => format!("love-{}-x86_64.AppImage", version),
+            Target::Macos => format!("love-{}-macos.zip", version),
+            Target::Windows => format!("love-{}-win64.zip", version),
         };
 
         let output_version = self
@@ -189,10 +207,10 @@ impl HomeManager {
         let bytes = response.bytes().await.unwrap();
 
         match platform {
-            Platform::Android | Platform::LinuxAppImage => {
+            Target::Android | Target::LinuxAppImage => {
                 std::fs::create_dir_all(&output_version).unwrap();
                 let mut file = std::fs::File::create_new(output_version.join(
-                    if let Platform::Android = platform {
+                    if let Target::Android = platform {
                         "love2d.apk"
                     } else {
                         "love2d.AppImage"

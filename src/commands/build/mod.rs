@@ -3,7 +3,7 @@ pub mod build_utils;
 pub mod macos;
 pub mod windows;
 
-use std::{path::PathBuf, str::FromStr};
+use std::{path::PathBuf, process::exit, str::FromStr};
 
 use color_eyre::Section;
 use colored::Colorize;
@@ -21,7 +21,7 @@ use crate::{
         manifest::Manifest,
         transpile::{clean_polyfill, process_files},
     },
-    home_manager::{HomeManager, Platform},
+    home_manager::{HomeManager, Target},
     toml_conf::{KaledisConfig, LoveConfig, Modules},
     utils::relative,
     zip_utils::Zipper,
@@ -30,10 +30,8 @@ use build_utils::{Paths, get_transpiler, read_aliases};
 
 #[derive(PartialEq, Eq, Clone)]
 pub enum Strategy {
-    /// Makes the executable
-    BuildAndCompile(Vec<Platform>),
     /// Just creates the love file
-    Build,
+    Build(Vec<Target>),
     /// Just compiles the lua files
     BuildDev,
 }
@@ -66,7 +64,9 @@ impl Builder {
                 "Failed to get love config, you should use either conf.luau or conf.toml.",
             ));
         }
-        panic!("No config file found");
+        dbg!(root);
+        tracing::error!("No config file found!");
+        exit(1)
     }
 
     pub async fn new(root: PathBuf, strategy: Strategy, bundle: bool) -> Self {
@@ -299,18 +299,7 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, bundle: bool) -> color_
             builder.add_assets(None).await;
             builder.transpile().await;
         }
-        Strategy::Build => {
-            let mut zip = Zipper::new();
-            builder.add_assets(Some(&mut zip)).await;
-
-            zip.put_folder_recursively(&root).unwrap();
-
-            let data = zip.finish();
-
-            let mut file = File::create(builder.paths.build.join("final.love")).await?;
-            file.write_all(&data).await?;
-        }
-        Strategy::BuildAndCompile(platforms) => {
+        Strategy::Build(platforms) => {
             let mut zip = Zipper::new();
             builder.add_assets(Some(&mut zip)).await;
             zip.put_folder_recursively(&builder.paths.build)
@@ -318,13 +307,20 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, bundle: bool) -> color_
             let data = zip.finish();
 
             for platform in platforms {
+                // We skip when we use love file because it basically is done at this state
+                if let Target::LoveFile = platform {
+                    let mut file = File::create(builder.paths.build.join("final.love")).await?;
+                    file.write_all(&data).await?;
+                    continue;
+                }
+
                 let home = &builder.home;
                 home.ensure_version(&builder.config.love, platform.clone())
                     .await;
 
                 let platform_path = home.get_path(&builder.config.love, platform.clone()).await;
 
-                if platform != Platform::Android {
+                if platform != Target::Android {
                     let dists = builder.paths.dist.join(platform.as_ref().to_string());
                     create_dir_all(&dists)
                         .await
@@ -336,21 +332,25 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, bundle: bool) -> color_
                 }
 
                 match platform {
-                    Platform::Android => {
+                    Target::LoveFile => {}
+                    Target::Android => {
                         build_android(&builder, &data)
                             .await
                             .expect("Failed to start android server");
                     }
-                    Platform::LinuxAppImage => {
+                    Target::LinuxAppImage => {
                         #[cfg(not(target_os = "linux"))]
-                        panic!(
-                            "AppImage compile is only supported on linux. You can use wsl or docker to build the app image"
-                        );
+                        return Err(color_eyre::eyre::eyre!(
+                            "AppImage compile is only supported on linux"
+                        )
+                        .suggestion("You can use wsl or docker to build the app image"));
+
+                        panic!("AppImage is still not implemented");
                     }
-                    Platform::Macos => {
+                    Target::Macos => {
                         build_macos(&builder, &data).await;
                     }
-                    Platform::Windows => {
+                    Target::Windows => {
                         build_windows(&builder, &data)
                             .await
                             .expect("Failed to build to windows");

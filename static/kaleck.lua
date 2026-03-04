@@ -257,11 +257,11 @@ pool:on("update", function(message)
 	is_loading_new_version = true
 	-- re = false
 	should_render_error = false
+	print("Reloading")
 	for msg_Id = 0, #msgs, 1 do
 		local msg = msgs[msg_Id]
 		is_loading_new_version = true
 		clear_packages()
-		print("Reloading")
 		if reloadFile("main.lua") == "no" then
 			print("Failed to load main")
 		end

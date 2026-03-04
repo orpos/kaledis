@@ -31,8 +31,6 @@ end
 
 function love.draw()
 	-- This will run every time a new frame will be drawn
-	-- love.graphics.print("in real time it is really fast")
-	-- love.graphics.print("like really fast, almost at the speed of tough, but it depends on the file size")
 	love.graphics.print(config.speed)
 
 	-- love.graphics.print(a)

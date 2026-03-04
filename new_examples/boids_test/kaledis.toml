@@ -7,5 +7,12 @@ detect_modules = true
 
 [layout]
 code = "src"
-bundle = ["assets/bundle/*"]
-external = ["assets/external/*"]
+# bundle = ["assets/bundle/*"]
+# external = ["assets/external/*"]
+
+[mac]
+id = "any"
+
+[android]
+version_code = 1
+game_id = "com.any.game"

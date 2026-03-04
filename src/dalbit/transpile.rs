@@ -249,8 +249,9 @@ fn private_process(
     let mut options = Options::new(input).with_configuration({
         let mut config = Configuration::empty();
         if bundle {
-            config = config
-                .with_bundle_configuration(BundleConfiguration::new(BundleRequireMode::default()));
+            config = config.with_bundle_configuration(BundleConfiguration::new(
+                BundleRequireMode::Luau(Default::default()),
+            ));
         }
         config = config.with_generator(GeneratorParameters::RetainLines);
 

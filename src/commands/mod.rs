@@ -1,15 +1,15 @@
-pub mod init;
-pub mod update_polyfill;
 pub mod android;
 pub mod build;
+pub mod init;
+pub mod update_polyfill;
 pub mod watch;
 
-use std::path::PathBuf;
+use std::{default, path::PathBuf};
 
 use clap::{Parser, Subcommand, ValueEnum};
 use tokio::fs;
 
-use crate::{commands::init::replace_bytes, home_manager::Platform, toml_conf::KaledisConfig};
+use crate::{commands::init::replace_bytes, home_manager::Target, toml_conf::KaledisConfig};
 
 // Assets is now more dynamic
 #[derive(ValueEnum, Clone, Debug)]
@@ -24,17 +24,15 @@ pub enum Commands {
     Init { path: Option<PathBuf> },
     #[clap(about = "Setups a feature in your project")]
     Setup { feature: Features },
-    #[clap(about = "Transpiles everything, and builds a '.love' file inside a '.build' directory.")]
+    #[clap(
+        about = "Compiles the project to the specified target, defaults to building only a .love file"
+    )]
     Build {
         path: Option<PathBuf>,
         #[arg(short, long, help = "A config that joins all files in a single one.")]
         one_file: bool,
-    },
-    #[clap(about = "Compiles the entire project to a executable, inside a 'dist' folder.")]
-    Compile {
-        path: Option<PathBuf>,
-        #[arg(short, long, help = "A config that joins all files in a single one.")]
-        one_file: bool,
+        #[arg(short, long, help = "The targets your build will compile.")]
+        platforms: Option<Vec<Target>>,
     },
     #[clap(
         about = "Watches for changes in the project and builds and executes love automatically."
@@ -124,26 +122,21 @@ pub async fn handle_commands(command: Commands) {
                 }
             }
         }
-        Commands::Build { path, one_file } => {
-            build::build(path, build::Strategy::Build, one_file)
-                .await
-                .unwrap();
-        }
-        Commands::Dev { path } => {
-            watch::watch(path).await;
-        }
-        Commands::Compile { path, one_file } => {
+        Commands::Build {
+            path,
+            one_file,
+            platforms,
+        } => {
             build::build(
                 path,
-                build::Strategy::BuildAndCompile(vec![
-                    Platform::Windows,
-                    Platform::Macos,
-                    Platform::Android,
-                ]),
+                build::Strategy::Build(platforms.unwrap_or(vec![Target::LoveFile])),
                 one_file,
             )
             .await
             .unwrap();
+        }
+        Commands::Dev { path } => {
+            watch::watch(path).await;
         }
         Commands::UpdatePolyfill => {
             update_polyfill::update_polyfill().await.unwrap();

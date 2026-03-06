@@ -3,7 +3,6 @@
 * Make the polyfill better
 
 * add support for love2d 12 and add the config
-* fix build windows crash for assets ( i did not test it yet)
 * add automatic icon for all dists ( windows and linux are the most complicated for now)
 
 * make the hot module replacement better

@@ -1,6 +1,6 @@
 use crate::commands::build::Builder;
 use color_eyre::{Section, eyre::Context};
-use fs_err::tokio::{File, hard_link, remove_file};
+use fs_err::tokio::{File, create_dir_all, hard_link, remove_file};
 
 #[tracing::instrument(skip(builder, data))]
 pub async fn build_windows(builder: &Builder, data: &[u8]) -> color_eyre::Result<()> {
@@ -25,17 +25,19 @@ pub async fn build_windows(builder: &Builder, data: &[u8]) -> color_eyre::Result
             .expect("Failed to parse glob")
             .filter_map(Result::ok)
         {
-            hard_link(
-                &path,
-                dists.join(
-                    path.strip_prefix(&builder.paths.root)
-                        .context("Building for windows")
-                        .suggestion("Don't use assets outside the root of your project")
-                        .expect("Failed to strip root"),
-                ),
-            )
-            .await
-            .expect("Failed to link file");
+            let output = dists.join(
+                path.strip_prefix(&builder.paths.root)
+                    .context("Building for windows")
+                    .suggestion("Don't use assets outside the root of your project")
+                    .expect("Failed to strip root"),
+            );
+            create_dir_all(&output.parent().unwrap())
+                .await
+                .expect("Failed to create output file");
+            if output.exists() {
+                remove_file(&output).await.expect("Failed to clean folder");
+            }
+            hard_link(&path, output).await.expect("Failed to link file");
         }
     }
 

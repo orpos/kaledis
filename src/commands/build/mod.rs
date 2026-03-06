@@ -8,7 +8,8 @@ use std::{path::PathBuf, process::exit, str::FromStr};
 use color_eyre::Section;
 use colored::Colorize;
 use fs_err::tokio::{
-    File, canonicalize, copy, create_dir, create_dir_all, hard_link, remove_dir_all, rename,
+    File, canonicalize, copy, create_dir, create_dir_all, hard_link, remove_dir_all, remove_file,
+    rename,
 };
 use indicatif::{MultiProgress, ProgressBar};
 use strum::IntoEnumIterator;
@@ -113,16 +114,16 @@ impl Builder {
         create_dir(&self.paths.build).await?;
         Ok(())
     }
-    // You should handle external assets on your own
-    // Because it involves multi platforms support
-    pub async fn add_assets(&self, zipper: Option<&mut Zipper>) {
+    pub async fn add_assets(&self, zipper: Option<&mut Zipper>, finishing_love: bool) {
         let mut to_link = self.config.layout.external.clone();
 
         let mut p = ProgressBar::new_spinner().with_message("Adding assets...");
         p = self.progress_bar.add(p);
 
-        if self.strategy == Strategy::BuildDev {
-            to_link.extend_from_slice(&self.config.layout.bundle);
+        if self.strategy == Strategy::BuildDev || finishing_love {
+            if !finishing_love {
+                to_link.extend_from_slice(&self.config.layout.bundle);
+            }
             for glb in &to_link {
                 for path in glob::glob(&self.paths.root.join(glb).to_string_lossy())
                     .unwrap()
@@ -137,6 +138,11 @@ impl Builder {
                     create_dir_all(&pth_b.parent().expect("Invalid path"))
                         .await
                         .expect("Failed to create file structure");
+                    if pth_b.exists() {
+                        remove_file(&pth_b)
+                            .await
+                            .expect("Failed to clean previous asset");
+                    }
                     hard_link(&path, &pth_b)
                         .await
                         .expect("Failed to link the file");
@@ -296,12 +302,12 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, bundle: bool) -> color_
 
     match run {
         Strategy::BuildDev => {
-            builder.add_assets(None).await;
+            builder.add_assets(None, false).await;
             builder.transpile().await;
         }
         Strategy::Build(platforms) => {
             let mut zip = Zipper::new();
-            builder.add_assets(Some(&mut zip)).await;
+            builder.add_assets(Some(&mut zip), false).await;
             zip.put_folder_recursively(&builder.paths.build)
                 .expect("Failed to create zip");
             let data = zip.finish();
@@ -309,8 +315,17 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, bundle: bool) -> color_
             for platform in platforms {
                 // We skip when we use love file because it basically is done at this state
                 if let Target::LoveFile = platform {
+                    remove_dir_all(&builder.paths.build)
+                        .await
+                        .expect("Failed to clean build folder");
+                    create_dir_all(&builder.paths.build)
+                        .await
+                        .expect("Failed to create build folder");
                     let mut file = File::create(builder.paths.build.join("final.love")).await?;
                     file.write_all(&data).await?;
+
+                    builder.add_assets(None, true).await;
+
                     continue;
                 }
 
@@ -322,9 +337,11 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, bundle: bool) -> color_
 
                 if platform != Target::Android {
                     let dists = builder.paths.dist.join(platform.as_ref().to_string());
-                    remove_dir_all(&dists)
-                        .await
-                        .expect("Failed to clean folder");
+                    if dists.exists() {
+                        remove_dir_all(&dists)
+                            .await
+                            .expect("Failed to clean folder");
+                    }
                     create_dir_all(&dists)
                         .await
                         .expect("Failed to create output folder");

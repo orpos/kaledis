@@ -5,10 +5,16 @@ use color_eyre::{
 use colored::Colorize;
 use fs_err::tokio::{File, create_dir_all, hard_link};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tracing::warn;
 
 use crate::{commands::build::Builder, toml_conf::KaledisConfig};
 
 pub async fn build_macos(builder: &Builder, data: &[u8]) {
+    if builder.config.mac.is_none() {
+        warn!("No valid macos config, skipping macos build");
+        return;
+    }
+
     println!(
         "{}", "WARNING: only unsigned builds are available for now. i don't have an mac. If you want to publish it officially i recommend using https://github.com/love2d/love/actions/".yellow()
     );

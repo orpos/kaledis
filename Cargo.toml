@@ -1,6 +1,6 @@
 [package]
 name = "kaledis"
-version = "3.0.2"
+version = "4.0.0"
 edition = "2024"
 authors = ["lettuce-magician", "orpos"]
 documentation = "https://github.com/orpos/kaledis"
@@ -60,4 +60,4 @@ tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "fmt"] }
 url = { version = "2.5.3", features = ["serde"] }
 walkdir = "2.5.0"
-zip = "7.4.0"
+zip = "8.2.0"

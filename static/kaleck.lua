@@ -286,7 +286,12 @@ function love.run()
 	thread:start(__llk.local_channel, __llk.channel)
 
 	if love.load then
-		love.load(love.arg.parseGameArguments(arg), arg)
+		local ok, err = pcall(love.load, love.arg.parseGameArguments(arg), arg)
+		-- love.load()
+		if err then
+			print("Failed to initialize love.load, love.load is only called once!")
+			should_render_error = true
+		end
 	end
 
 	-- Workaround for macOS random number generator issue

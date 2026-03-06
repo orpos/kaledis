@@ -176,14 +176,14 @@ pub async fn watch(base_path: Option<PathBuf>) {
             if builder.config.hmr
                 && let Some(files) = &change
             {
-                builder.add_assets(None).await;
+                builder.add_assets(None, false).await;
                 for file in files {
                     builder._transpile_files(&file, &builder.paths.build).await;
                 }
             } else {
                 builder.clean_build_folder().await.unwrap();
                 let modules = builder.transpile().await;
-                builder.add_assets(None).await;
+                builder.add_assets(None, false).await;
                 builder.handle_conf_file(modules).await;
             }
 

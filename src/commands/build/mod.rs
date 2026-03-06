@@ -322,6 +322,9 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, bundle: bool) -> color_
 
                 if platform != Target::Android {
                     let dists = builder.paths.dist.join(platform.as_ref().to_string());
+                    remove_dir_all(&dists)
+                        .await
+                        .expect("Failed to clean folder");
                     create_dir_all(&dists)
                         .await
                         .expect("Failed to create output folder");

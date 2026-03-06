@@ -10,3 +10,6 @@ detect_modules = true
 code = "src"
 bundle = ["assets/a.txt"]
 external = ["assets/external.txt"]
+
+[mac]
+id = "test"

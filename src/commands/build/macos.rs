@@ -1,11 +1,13 @@
-use color_eyre::{Section, eyre::Context};
+use color_eyre::{
+    Section,
+    eyre::{Context, ContextCompat},
+};
 use colored::Colorize;
 use fs_err::tokio::{File, create_dir_all, hard_link};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{commands::build::Builder, toml_conf::KaledisConfig};
 
-#[tracing::instrument(skip(builder, data))]
 pub async fn build_macos(builder: &Builder, data: &[u8]) {
     println!(
         "{}", "WARNING: only unsigned builds are available for now. i don't have an mac. If you want to publish it officially i recommend using https://github.com/love2d/love/actions/".yellow()
@@ -32,17 +34,18 @@ pub async fn build_macos(builder: &Builder, data: &[u8]) {
             .expect("Failed to parse glob")
             .filter_map(Result::ok)
         {
-            hard_link(
-                &path,
-                resources.join(
-                    path.strip_prefix(&builder.paths.root)
-                        .context("Building for macos")
-                        .suggestion("Don't use assets outside the root of your project")
-                        .expect("Failed to strip root"),
-                ),
-            )
-            .await
-            .expect("Failed to link file");
+            let output_path = resources.join(
+                path.strip_prefix(&builder.paths.root)
+                    .context("Building for macos")
+                    .suggestion("Don't use assets outside the root of your project")
+                    .expect("Failed to strip root"),
+            );
+            create_dir_all(output_path.parent().unwrap())
+                .await
+                .expect("Failed to create assets folder");
+            hard_link(&path, output_path)
+                .await
+                .expect("Failed to link file");
         }
     }
 
@@ -71,7 +74,8 @@ async fn rewrite_app_files(config: &KaledisConfig, file: &mut File) -> color_eyr
     let mac = config
         .mac
         .as_ref()
-        .expect("No Mac manifest in kaledis.toml");
+        .wrap_err("No Mac manifest in kaledis.toml")
+        .suggestion("Try adding the mac field on the manifest")?;
     let mut buffer = String::new();
     file.read_to_string(&mut buffer).await?;
     let re = regex::Regex::new("(CFBundleIdentifier.*\n\t<string>)(.*)(</string>)")

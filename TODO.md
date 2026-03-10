@@ -2,13 +2,14 @@
 * Bindgen generator
 * Make the polyfill better
 
-* add support for love2d 12 and add the config
-* add automatic icon for all dists ( windows and linux are the most complicated for now)
 * update docs for the new breaking changes. mainly on assets
-
+* use uber apk signer
+* build wasm and make it a target for kaledis
+* make assets behave more like the typescript alias
 * make the hot module replacement better
 
 Optional:
 * be used in pesde like dalbit
 * Add modding support
-* Live variables
+* vite inspired plugin system
+* Live variables ( this will now be a plugin )

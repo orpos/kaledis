@@ -85,6 +85,27 @@ impl Builder {
         bundle: bool,
     ) -> Self {
         clean_polyfill();
+        let manager = HomeManager::new().await.unwrap();
+        match &strategy {
+            Strategy::Build(targets) => {
+                for target in targets {
+                    if *target == Target::LoveFile {
+                        continue;
+                    }
+                    manager.ensure_version(&config.love, target.clone()).await;
+                }
+            }
+            Strategy::BuildDev => {
+                #[cfg(windows)]
+                manager.ensure_version(&config.love, Target::Windows).await;
+                #[cfg(target_os = "linux")]
+                manager
+                    .ensure_version(&config.love, Target::LinuxAppImage)
+                    .await;
+                #[cfg(target_os = "macos")]
+                manager.ensure_version(&config.love, Target::Macos).await;
+            }
+        }
 
         Self {
             manifest: get_transpiler(bundle, config.polyfill.as_ref())
@@ -94,7 +115,7 @@ impl Builder {
             aliases: read_aliases(&root).await.expect("Failed to read aliases"),
             paths: Paths::from_root(root, &config),
             config: config,
-            home: HomeManager::new().await.unwrap(),
+            home: manager,
             progress_bar: MultiProgress::new(),
             strategy,
             bundle,

@@ -35,6 +35,9 @@ Clone the repo, then use `cargo build` to build the project from scratch *Probab
 
 ## Credits
 - [Dalbit](https://github.com/CavefulGames/dalbit) for the awesome transpiling system.
+- [Editpe](https://github.com/Systemcluster/editpe) for the windows icon manipulation implementation.
+- [Apktool](https://github.com/iBotPeaches/Apktool) for the android implementation in general.
+- [Boon](https://github.com/camchenry/boon) for the macos implementation
 
 ## FAQ
 ### Why the name 'Kaledis'?

@@ -1,0 +1,22 @@
+"$schema" = "https://raw.githubusercontent.com/orpos/kaledis/refs/heads/main/static/kaledis.schema.json"
+
+# Used for macos and android apps
+
+icon = "2342.jpg"
+game_id = "com.game.test"
+project_name = "test"
+love = "12.0"
+modules=["Audio","Data","Event","Font","Graphics","Image","Joystick","Keyboard","Math","Mouse","Physics","Sound","System","Thread","Timer","Touch","Video","Window"]
+
+[android]
+game_id = "as.a.d"
+version_code = 2
+
+[mac]
+id = "aaa"
+
+[layout]
+code = "src"
+bundle = ["assets/bundle/*"]
+external = ["assets/external/*"]
+

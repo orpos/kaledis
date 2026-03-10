@@ -42,7 +42,7 @@ pub fn init(path: Option<PathBuf>) {
 
     let love = Select::new(
         "Select which version of love you want:",
-        vec!["11.5", "11.4", "11.3", "11.2", "11.1", "11.0"],
+        vec!["11.5", "11.4", "11.3", "11.2", "11.1", "11.0", "12.0"],
     )
     .prompt()
     .unwrap();

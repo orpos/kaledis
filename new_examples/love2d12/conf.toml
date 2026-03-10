@@ -1,0 +1,13 @@
+
+"$schema" = "https://raw.githubusercontent.com/orpos/kaledis/refs/heads/main/static/love.schema.json"
+
+# if you want to use a custom luau conf, just remove this file and put an conf.luau in the root folder
+
+[audio]
+
+[project]
+name = "Test"
+console = false
+
+[window]
+resizable = true

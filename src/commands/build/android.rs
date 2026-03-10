@@ -1,4 +1,5 @@
 use fs_err::tokio::{File, create_dir_all, remove_dir_all};
+use image::{GenericImageView, imageops::FilterType};
 use tokio::{io::AsyncWriteExt, process::Command};
 use tracing::info;
 
@@ -70,6 +71,28 @@ pub async fn build_android(builder: &Builder, data: &[u8]) -> color_eyre::Result
         &apk.to_string_lossy(),
     ])
     .await;
+
+    if let Some(icon) = &builder.config.icon {
+        let img = image::open(icon)?;
+
+        for logo in glob::glob(
+            &build_folder
+                .join("res/**/love.png")
+                .to_string_lossy()
+                .to_string(),
+        )?
+        .filter_map(Result::ok)
+        {
+            let (width, height) = {
+                let original_image = image::open(&logo)?;
+                original_image.dimensions()
+            };
+            let resized = img
+                .resize_exact(width, height, FilterType::Lanczos3)
+                .to_rgba8();
+            resized.save(logo)?;
+        }
+    }
 
     let android_manifest = build_folder.join("AndroidManifest.xml");
 

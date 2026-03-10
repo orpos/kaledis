@@ -1,8 +1,9 @@
 use crate::commands::build::Builder;
+use crate::editpe;
 use color_eyre::{Section, eyre::Context};
 use fs_err::tokio::{File, create_dir_all, hard_link, remove_file};
+use tokio::io::AsyncWriteExt;
 
-#[tracing::instrument(skip(builder, data))]
 pub async fn build_windows(builder: &Builder, data: &[u8]) -> color_eyre::Result<()> {
     let dists = builder.paths.dist.join("Windows");
     let exe = dists.join("love.exe");
@@ -12,7 +13,18 @@ pub async fn build_windows(builder: &Builder, data: &[u8]) -> color_eyre::Result
         .await
         .expect("Failed to create final exe");
 
-    tokio::io::copy(&mut exe_file, &mut output).await?;
+    if let Some(icon) = &builder.config.icon {
+        let mut ex = editpe::Image::parse_file(&exe)?;
+        let mut resources = ex.resource_directory().cloned().unwrap_or_default();
+        let img = image::open(builder.paths.root.join(icon))?;
+        resources.set_main_icon(&img)?;
+        ex.set_resource_directory(resources)?;
+        let mut data = vec![];
+        ex.write_writer(&mut data)?;
+        output.write_all(&data).await?;
+    } else {
+        tokio::io::copy(&mut exe_file, &mut output).await?;
+    }
     tokio::io::copy(&mut &data[..], &mut output).await?;
 
     remove_file(exe)

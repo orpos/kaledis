@@ -9,6 +9,8 @@ license-file = "LICENSE.md"
 description = "A new way to LÖVE. Kaledis is a tool for allowing Luau to be used with Love2D via transpiling, alongside providing easier & simpler management of Love2D projects."
 
 [dependencies]
+ahash = "0.8.12"
+aloc = "0.1.7"
 async-compression = { version = "0.4.27", features = ["gzip", "tokio"] }
 async-watcher = "0.3.0"
 auth-git2 = "0.5.8"
@@ -19,6 +21,7 @@ color-eyre = "0.6.5"
 colored = "3.0.0"
 console = { version = "0.16.0", features = ["windows-console-colors"] }
 darklua = "0.17.3"
+debug-ignore = "1.0.5"
 dirs = "6.0.0"
 flate2 = "1.1.9"
 fs-err = { version = "3.2.2", features = ["tokio"] }
@@ -29,11 +32,14 @@ glob = "0.3.3"
 hex = "0.4.3"
 hex-literal = "1.1.0"
 icns = "0.4.0"
+ico = "0.5.0"
 ignore = "0.4.23"
+image = "0.25.10"
 indexmap = "2.10.0"
 indicatif = { version = "0.18.3", features = ["futures", "tokio"] }
 inquire = "0.7.5"
 itertools = "0.14.0"
+log = "0.4.29"
 mlua = { version = "0.11.6", features = ["luau", "vendored"] }
 paste = "1.0.15"
 rayon = "1.11.0"
@@ -49,10 +55,10 @@ strfmt = "0.2.5"
 strum = { version = "0.27.2", features = ["strum_macros"] }
 strum_macros = "0.27.2"
 tar = "0.4.44"
+thiserror = "2.0.18"
 tokio = { version = "1.47.1", features = ["full"] }
 tokio-util = { version = "0.7.18", features = ["codec"] }
 toml = "0.9.5"
-tower-lsp-server = "0.23.0"
 tracing = "0.1.44"
 tracing-error = "0.2.1"
 tracing-indicatif = "0.3.14"
@@ -60,4 +66,5 @@ tracing-log = "0.2.0"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "fmt"] }
 url = { version = "2.5.3", features = ["serde"] }
 walkdir = "2.5.0"
+zerocopy = "0.8.42"
 zip = "8.2.0"

@@ -14,6 +14,7 @@ aloc = "0.1.7"
 async-compression = { version = "0.4.27", features = ["gzip", "tokio"] }
 async-watcher = "0.3.0"
 auth-git2 = "0.5.8"
+backhand = "0.25.1"
 blake3 = "1.8.2"
 clap = { version = "4.5.45", features = ["derive"] }
 clap-serde-derive = "0.2.1"

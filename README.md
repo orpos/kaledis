@@ -38,6 +38,7 @@ Clone the repo, then use `cargo build` to build the project from scratch *Probab
 - [Editpe](https://github.com/Systemcluster/editpe) for the windows icon manipulation implementation.
 - [Apktool](https://github.com/iBotPeaches/Apktool) for the android implementation in general.
 - [Boon](https://github.com/camchenry/boon) for the macos implementation
+- [Backhand](https://github.com/wcampbell0x2a/backhand) for the squashfs implementation for AppImage
 
 ## FAQ
 ### Why the name 'Kaledis'?

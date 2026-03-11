@@ -1,10 +1,17 @@
 pub mod android;
 pub mod build_utils;
+pub mod linux;
 pub mod macos;
 pub mod windows;
 
-use std::{path::PathBuf, process::exit, str::FromStr};
+use std::{
+    io::{BufRead, BufReader, Cursor, Read, Write},
+    path::PathBuf,
+    process::exit,
+    str::FromStr,
+};
 
+use backhand::{FilesystemReader, FilesystemWriter, InnerNode, kind::Kind};
 use color_eyre::Section;
 use colored::Colorize;
 use fs_err::tokio::{
@@ -13,11 +20,13 @@ use fs_err::tokio::{
 };
 use indicatif::{MultiProgress, ProgressBar};
 use strum::IntoEnumIterator;
-use tokio::io::{self, AsyncWriteExt};
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use walkdir::WalkDir;
 
 use crate::{
-    commands::build::{android::build_android, macos::build_macos, windows::build_windows},
+    commands::build::{
+        android::build_android, linux::build_linux, macos::build_macos, windows::build_windows,
+    },
     dalbit::{
         manifest::Manifest,
         transpile::{clean_polyfill, process_files},
@@ -380,16 +389,10 @@ pub async fn build(path: Option<PathBuf>, run: Strategy, bundle: bool) -> color_
                             .expect("Failed to start android server");
                     }
                     Target::LinuxAppImage => {
-                        #[cfg(not(target_os = "linux"))]
-                        return Err(color_eyre::eyre::eyre!(
-                            "AppImage compile is only supported on linux"
-                        )
-                        .suggestion("You can use wsl or docker to build the app image"));
-
-                        panic!("AppImage is still not implemented");
+                        build_linux(&builder, &data).await?;
                     }
                     Target::Macos => {
-                        build_macos(&builder, &data).await;
+                        build_macos(&builder, &data).await?;
                     }
                     Target::Windows => {
                         build_windows(&builder, &data)

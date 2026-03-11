@@ -166,9 +166,7 @@ impl HomeManager {
 
             let jv = self.path.join("java");
             if !jv.exists() {
-                create_dir_all(&jv).await?.context("Extracting the zip")?;
-
-                println!("A");
+                create_dir_all(&jv).await.context("Extracting the zip")?;
 
                 let decoder = GzDecoder::new(Cursor::new(bytes));
                 let mut archive = tar::Archive::new(decoder);
@@ -362,7 +360,8 @@ async fn download_via_gh(
             let zip_path = output_version.join(&zip_name);
             if zip_path.exists() {
                 println!("Extracting {}...", zip_name);
-                let bytes = std::fs::read(&zip_path).context("Failed to read the downloaded zip")?;
+                let bytes =
+                    std::fs::read(&zip_path).context("Failed to read the downloaded zip")?;
                 extract_zip(Cursor::new(bytes.into()), output_version.clone());
             }
         }
@@ -370,7 +369,8 @@ async fn download_via_gh(
             let zip_path = output_version.join("love-macos.zip");
             if zip_path.exists() {
                 println!("Extracting love-macos.zip...");
-                let bytes = std::fs::read(&zip_path).context("Failed to read the downloaded zip")?;
+                let bytes =
+                    std::fs::read(&zip_path).context("Failed to read the downloaded zip")?;
                 extract_zip(Cursor::new(bytes.into()), output_version.clone());
             }
         }

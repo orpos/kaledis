@@ -141,7 +141,7 @@ pub fn process_polyfill(polyfill: &Polyfill) -> color_eyre::Result<InjectPolyfil
         &polyfill_output,
         true,
         None,
-        &vec![],
+        &[],
         None,
         None,
         None,
@@ -194,7 +194,7 @@ fn private_process(
     let tpm = if output.is_dir() {
         &temp_dir().join("result")
     } else {
-        &output
+        output
     };
 
     let mut modifiers = Vec::new();
@@ -340,7 +340,7 @@ fn private_process(
         }
 
         // Here we inject the libraries that are polyfilled
-        let love2d_libraries = vec!["Socket", "Enet", "http", "ftp", "smtp", "mime", "ltn12"];
+        let love2d_libraries = ["Socket", "Enet", "http", "ftp", "smtp", "mime", "ltn12"];
         let internal_socket_modules = vec![
             "dns", "tcp", "udp", "unix", "connect", "bind", "select", "sleep", "gettime",
             "protect", "newtry", "sink", "source", "skip", "choose",
@@ -349,19 +349,13 @@ fn private_process(
             polyfill
                 .as_ref()
                 .map(|x| x.exported.clone())
-                .unwrap_or(HashSet::new()),
+                .unwrap_or_default(),
             HashSet::from_iter(love2d_libraries.iter().map(|x| x.to_string())),
         );
         used_libraries.visit_ast(&ast);
 
-        let is_using_socket = used_libraries
-            .love_used_libraries
-            .get(&"Socket".to_string())
-            .is_some();
-        let is_using_enet = used_libraries
-            .love_used_libraries
-            .get(&"Enet".to_string())
-            .is_some();
+        let is_using_socket = used_libraries.love_used_libraries.contains("Socket");
+        let is_using_enet = used_libraries.love_used_libraries.contains("Enet");
 
         if is_using_enet {
             start_lines.push("local Enet = require(\"enet\")".to_string());
@@ -471,12 +465,12 @@ local Socket={socket=___SOCKET,"#
         }
 
         if path.starts_with(temp_dir()) && output.is_dir() {
-            let out = output.join(path.strip_prefix(&tpm).unwrap());
+            let out = output.join(path.strip_prefix(tpm).unwrap());
             let pth = out.parent().unwrap();
-            fs_err::create_dir_all(&pth).expect("Failed to create dirs");
+            fs_err::create_dir_all(pth).expect("Failed to create dirs");
             fs_err::write(out, new_content).unwrap();
         } else {
-            fs_err::create_dir_all(&path.parent().expect("Failed to get parent"))
+            fs_err::create_dir_all(path.parent().expect("Failed to get parent"))
                 .expect("Failed to create dirs");
             fs_err::write(path, new_content).unwrap();
         }
@@ -503,8 +497,8 @@ pub fn process_files(
 
     private_process(
         manifest,
-        &input_folder,
-        &output_folder,
+        input_folder,
+        output_folder,
         bundle,
         Some(&paths),
         aliases,
@@ -517,5 +511,5 @@ pub fn process_files(
         let value: Vec<Modules> = used_modules.lock().unwrap().iter().cloned().collect();
         return Ok(value);
     }
-    return Ok(vec![]);
+    Ok(vec![])
 }

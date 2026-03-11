@@ -33,7 +33,7 @@ pub(crate) fn parse_file(path: &PathBuf, is_luau: bool) -> Result<Ast> {
 pub fn get_exports_from_last_stmt(target: &ParseTarget) -> Result<Option<HashSet<String>>> {
     let ast = match target {
         ParseTarget::FullMoonAst(ast) => ast,
-        ParseTarget::File(path) => &parse_file(&path, path.ends_with("luau"))?,
+        ParseTarget::File(path) => &parse_file(path, path.ends_with("luau"))?,
     };
     let block = ast.nodes();
 

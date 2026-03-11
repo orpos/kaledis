@@ -34,10 +34,12 @@ impl RuntimeIdentifierBuilder {
 
         let name = strfmt(&self.format, &vars).map_err(|err| err.to_string())?;
 
-        if let Some(keywords) = &self.keywords {
-            if keywords.contains(&name) {
-                Err(format!("Runtime variable `{name}` cannot be set because it contains a reserved keyword."))?;
-            }
+        if let Some(keywords) = &self.keywords
+            && keywords.contains(&name)
+        {
+            Err(format!(
+                "Runtime variable `{name}` cannot be set because it contains a reserved keyword."
+            ))?;
         }
 
         Ok(name)

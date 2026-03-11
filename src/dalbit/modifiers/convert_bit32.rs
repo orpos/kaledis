@@ -1,14 +1,14 @@
 use std::string::ToString;
 use std::{collections::HashMap, str::FromStr};
 
-use full_moon::ast::punctuated::Pair;
 use full_moon::ast::Do;
+use full_moon::ast::punctuated::Pair;
 use full_moon::node::Node;
 use full_moon::tokenizer::{Symbol, Token, TokenType};
 use full_moon::{
     ast::{
-        punctuated::Punctuated, BinOp, Call, Expression, FunctionArgs, FunctionCall, Index, Stmt,
-        Suffix, UnOp, Var,
+        BinOp, Call, Expression, FunctionArgs, FunctionCall, Index, Stmt, Suffix, UnOp, Var,
+        punctuated::Punctuated,
     },
     tokenizer::TokenReference,
     visitors::VisitorMut,
@@ -70,70 +70,70 @@ enum Bit32Method {
 
 impl Bit32Method {
     fn convert(&self, call: &Call) -> Option<Expression> {
-        if let Call::AnonymousCall(args) = call {
-            if let FunctionArgs::Parentheses {
+        if let Call::AnonymousCall(args) = call
+            && let FunctionArgs::Parentheses {
                 parentheses,
                 arguments,
             } = args
-            {
-                let mut iter = arguments.iter();
-                let first_arg = iter.next()?;
+        {
+            let mut iter = arguments.iter();
+            let first_arg = iter.next()?;
 
-                let binop = match self {
-                    Bit32Method::RightShift => {
-                        BinOp::DoubleGreaterThan(TokenReference::symbol(">>").unwrap())
-                    }
-                    Bit32Method::LeftShift => {
-                        BinOp::DoubleLessThan(TokenReference::symbol("<<").unwrap())
-                    }
-                    Bit32Method::And => BinOp::Ampersand(TokenReference::symbol("&").unwrap()),
-                    Bit32Method::Or => BinOp::Pipe(TokenReference::symbol("|").unwrap()),
-                    Bit32Method::Xor => BinOp::Tilde(TokenReference::symbol("~").unwrap()),
-                    Bit32Method::Not => {
-                        let masking_arg = mask_32bit(first_arg.clone());
-                        let parenthese = ast_util::create_parentheses(masking_arg, None);
-                        let bnot_exp = ast_util::create_unary_operator(
-                            UnOp::Tilde(TokenReference::symbol("~").unwrap()),
-                            parenthese,
-                        );
-                        let masking_unop = mask_32bit(bnot_exp);
-                        return Some(ast_util::create_parentheses(
-                            masking_unop,
-                            Some(parentheses.clone()),
-                        ));
-                    }
-                    Bit32Method::Test => {
-                        let second_arg = iter.next()?;
-                        let band_exp = ast_util::create_binary_operator(
-                            first_arg.clone(),
-                            BinOp::Ampersand(TokenReference::symbol("&").unwrap()),
-                            second_arg.clone(),
-                        );
-                        let parenthese = ast_util::create_parentheses(band_exp, None);
-                        let masking_bin_exp = mask_32bit(parenthese);
-                        let not_equal_exp = ast_util::create_binary_operator(
-                            masking_bin_exp,
-                            BinOp::TildeEqual(TokenReference::symbol("~=").unwrap()),
-                            ast_util::create_number("0"),
-                        );
-                        return Some(ast_util::create_parentheses(
-                            not_equal_exp,
-                            Some(parentheses.clone()),
-                        ));
-                    }
-                };
+            let binop = match self {
+                Bit32Method::RightShift => {
+                    BinOp::DoubleGreaterThan(TokenReference::symbol(">>").unwrap())
+                }
+                Bit32Method::LeftShift => {
+                    BinOp::DoubleLessThan(TokenReference::symbol("<<").unwrap())
+                }
+                Bit32Method::And => BinOp::Ampersand(TokenReference::symbol("&").unwrap()),
+                Bit32Method::Or => BinOp::Pipe(TokenReference::symbol("|").unwrap()),
+                Bit32Method::Xor => BinOp::Tilde(TokenReference::symbol("~").unwrap()),
+                Bit32Method::Not => {
+                    let masking_arg = mask_32bit(first_arg.clone());
+                    let parenthese = ast_util::create_parentheses(masking_arg, None);
+                    let bnot_exp = ast_util::create_unary_operator(
+                        UnOp::Tilde(TokenReference::symbol("~").unwrap()),
+                        parenthese,
+                    );
+                    let masking_unop = mask_32bit(bnot_exp);
+                    return Some(ast_util::create_parentheses(
+                        masking_unop,
+                        Some(parentheses.clone()),
+                    ));
+                }
+                Bit32Method::Test => {
+                    let second_arg = iter.next()?;
+                    let band_exp = ast_util::create_binary_operator(
+                        first_arg.clone(),
+                        BinOp::Ampersand(TokenReference::symbol("&").unwrap()),
+                        second_arg.clone(),
+                    );
+                    let parenthese = ast_util::create_parentheses(band_exp, None);
+                    let masking_bin_exp = mask_32bit(parenthese);
+                    let not_equal_exp = ast_util::create_binary_operator(
+                        masking_bin_exp,
+                        BinOp::TildeEqual(TokenReference::symbol("~=").unwrap()),
+                        ast_util::create_number("0"),
+                    );
+                    return Some(ast_util::create_parentheses(
+                        not_equal_exp,
+                        Some(parentheses.clone()),
+                    ));
+                }
+            };
 
-                let second_arg = iter.next()?;
-                let bitop_exp =
-                    ast_util::create_binary_operator(first_arg.clone(), binop, second_arg.clone());
-                let parenthese = ast_util::create_parentheses(bitop_exp, None);
-                let masking_bin_exp = mask_32bit(parenthese);
-                return Some(ast_util::create_parentheses(
-                    masking_bin_exp,
-                    Some(parentheses.clone()),
-                ));
-            }
+            let second_arg = iter.next()?;
+            let bitop_exp =
+                ast_util::create_binary_operator(first_arg.clone(), binop, second_arg.clone());
+            let parenthese = ast_util::create_parentheses(bitop_exp, None);
+            let masking_bin_exp = mask_32bit(parenthese);
+            return Some(ast_util::create_parentheses(
+                masking_bin_exp,
+                Some(parentheses.clone()),
+            ));
         }
+
         None
     }
 }
@@ -157,43 +157,42 @@ impl VisitorMut for ConvertBit32 {
     fn visit_stmt(&mut self, stmt: Stmt) -> Stmt {
         match &stmt {
             Stmt::FunctionCall(func_call) => {
-                if let Some(_) = self.convert(func_call) {
-                    if let Suffix::Call(Call::AnonymousCall(FunctionArgs::Parentheses {
+                if let Some(_) = self.convert(func_call)
+                    && let Suffix::Call(Call::AnonymousCall(FunctionArgs::Parentheses {
                         parentheses,
                         arguments: _,
                     })) = func_call.suffixes().last().unwrap()
-                    {
-                        return Stmt::Do(
-                            Do::new()
-                                .with_do_token(TokenReference::new(
-                                    func_call
-                                        .surrounding_trivia()
-                                        .0
-                                        .into_iter()
-                                        .cloned()
-                                        .collect(),
-                                    Token::new(TokenType::Symbol { symbol: Symbol::Do }),
-                                    vec![Token::new(TokenType::Whitespace {
+                {
+                    return Stmt::Do(
+                        Do::new()
+                            .with_do_token(TokenReference::new(
+                                func_call
+                                    .surrounding_trivia()
+                                    .0
+                                    .into_iter()
+                                    .cloned()
+                                    .collect(),
+                                Token::new(TokenType::Symbol { symbol: Symbol::Do }),
+                                vec![Token::new(TokenType::Whitespace {
+                                    characters: " ".into(),
+                                })],
+                            ))
+                            .with_end_token(TokenReference::new(
+                                Vec::new(),
+                                Token::new(TokenType::Symbol {
+                                    symbol: Symbol::End,
+                                }),
+                                parentheses
+                                    .tokens()
+                                    .1
+                                    .trailing_trivia()
+                                    .cloned()
+                                    .chain(std::iter::once(Token::new(TokenType::Whitespace {
                                         characters: " ".into(),
-                                    })],
-                                ))
-                                .with_end_token(TokenReference::new(
-                                    Vec::new(),
-                                    Token::new(TokenType::Symbol {
-                                        symbol: Symbol::End,
-                                    }),
-                                    parentheses
-                                        .tokens()
-                                        .1
-                                        .trailing_trivia()
-                                        .cloned()
-                                        .chain(std::iter::once(Token::new(TokenType::Whitespace {
-                                            characters: " ".into(),
-                                        })))
-                                        .collect(),
-                                )),
-                        );
-                    }
+                                    })))
+                                    .collect(),
+                            )),
+                    );
                 }
             }
             Stmt::Assignment(assign) => {
@@ -275,10 +274,10 @@ impl VisitorMut for ConvertBit32 {
     ///
     /// Conversion Example: `local x = bit32.band; local y = x(1, 2)` -> `do then; local y = ((1&2)&0xFFFFFFFF)`
     fn visit_expression(&mut self, exp: Expression) -> Expression {
-        if let Expression::FunctionCall(func_call) = &exp {
-            if let Some(exp) = self.convert(func_call) {
-                return exp;
-            }
+        if let Expression::FunctionCall(func_call) = &exp
+            && let Some(exp) = self.convert(func_call)
+        {
+            return exp;
         }
         exp
     }
@@ -305,18 +304,14 @@ impl ConvertBit32 {
                         }
                         let mut iter = var_exp.suffixes();
                         let first = iter.next();
-                        if let Some(first) = first {
+                        if let Some(first) = first
                             // there's an index(ex. `band`)
-                            if let Suffix::Index(index) = first {
-                                let index = index_to_string(index);
-                                if let Some(index) = index {
-                                    if let Ok(method) = Bit32Method::from_str(index.trim()) {
-                                        self.bit32_methods
-                                            .insert(var.to_string().trim().to_owned(), method);
-                                        return true;
-                                    }
-                                }
-                            }
+                            && let Suffix::Index(index) = first && let Some(index) = index_to_string(index)
+                            && let Ok(method) = Bit32Method::from_str(index.trim())
+                        {
+                            self.bit32_methods
+                                .insert(var.to_string().trim().to_owned(), method);
+                            return true;
                         }
                     }
                     Var::Name(_) => {
@@ -356,10 +351,10 @@ impl ConvertBit32 {
             }
             (Some(first), None) => {
                 // there's only a call(ex. `(1, 2)`)
-                if let Suffix::Call(call) = first {
-                    if let Some(method) = self.bit32_methods.get(&prefix) {
-                        return method.convert(call);
-                    }
+                if let Suffix::Call(call) = first
+                    && let Some(method) = self.bit32_methods.get(&prefix)
+                {
+                    return method.convert(call);
                 }
                 None
             }

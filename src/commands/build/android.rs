@@ -22,6 +22,7 @@ macro_rules! create {
     }};
 }
 pub async fn build_android(builder: &Builder, data: &[u8]) -> color_eyre::Result<()> {
+    tracing::warn!("Remember to sign your android build");
     let Some(config) = &builder.config.android else {
         eprintln!("No valid android config, skipping android build...");
         tracing::warn!("No valid android config, skipping android build...");

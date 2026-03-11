@@ -47,10 +47,10 @@ impl Zipper {
         if !folder.is_dir() {
             return Err(color_eyre::eyre::eyre!("Not a directory"));
         };
-        for entry in WalkDir::new(&folder).into_iter().filter_map(Result::ok) {
+        for entry in WalkDir::new(folder).into_iter().filter_map(Result::ok) {
             let path = entry.path();
 
-            let zip_path = path.strip_prefix(&folder).unwrap();
+            let zip_path = path.strip_prefix(folder).unwrap();
             // .join(root.as_ref().unwrap_or(&PathBuf::new()));
 
             if zip_path.as_os_str().is_empty() {
@@ -63,7 +63,7 @@ impl Zipper {
             if path.is_dir() {
                 self.inner.add_directory(name.to_string(), options)?;
             } else {
-                self.add_rootless(path, &folder)?;
+                self.add_rootless(path, folder)?;
             }
         }
         Ok(())

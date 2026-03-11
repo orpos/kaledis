@@ -122,15 +122,15 @@ impl PolyfillCache {
             Some(match Repository::open(path.as_path()) {
                 Ok(repo) => repo,
                 Err(_) => {
-                    if let Err(err) = fs_err::remove_dir_all(path.as_path()) {
-                        if err.kind() != io::ErrorKind::NotFound {
-                            return Err(err.into());
-                        }
+                    if let Err(err) = fs_err::remove_dir_all(path.as_path())
+                        && err.kind() != io::ErrorKind::NotFound
+                    {
+                        return Err(err.into());
                     }
 
                     fs_err::create_dir_all(path.as_path())?;
                     let auth = GitAuthenticator::new();
-                    auth.clone_repo(url, &path.as_path())?
+                    auth.clone_repo(url, path.as_path())?
                 }
             })
         };
@@ -167,7 +167,7 @@ impl PolyfillCache {
         let mut remote = repo.find_remote("origin")?;
         let auth = GitAuthenticator::new();
         auth.fetch(&repo, &mut remote, &["main"], None)
-            .context(format!("Could not fetch git repository"))?;
+            .context("Could not fetch git repository")?;
 
         let mut options = git2::build::CheckoutBuilder::new();
         options.force();
@@ -178,7 +178,7 @@ impl PolyfillCache {
             git2::ResetType::Hard,
             Some(&mut options),
         )
-        .context(format!("Could not reset git repo to fetch_head"))?;
+        .context("Could not reset git repo to fetch_head")?;
 
         Ok(())
     }

@@ -21,10 +21,10 @@ impl OptimizableTableMethod {
     fn try_optimize(&self, arguments: &Arguments) -> Option<Expression> {
         match self {
             OptimizableTableMethod::Create => {
-                if let Arguments::Tuple(tuple) = arguments {
-                    if tuple.len() < 2 {
-                        return Some(Expression::Table(TableExpression::default()));
-                    }
+                if let Arguments::Tuple(tuple) = arguments
+                    && tuple.len() < 2
+                {
+                    return Some(Expression::Table(TableExpression::default()));
                 }
             }
             OptimizableTableMethod::Freeze => match arguments {

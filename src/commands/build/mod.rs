@@ -238,7 +238,14 @@ impl Builder {
             used_modules.extend_from_slice(&cfg.modules);
         }
 
-        p.finish_with_message(format!("{} Built", "[+]".green()));
+        p.finish_with_message(format!(
+            "{} Built {}",
+            "[+]".green(),
+            input
+                .file_name()
+                .map(|x| x.to_string_lossy().to_string())
+                .unwrap_or(String::new())
+        ));
         used_modules
     }
 

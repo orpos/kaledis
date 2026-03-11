@@ -41,7 +41,7 @@ fn print_banner() {
         "{}",
         "█  ████  ██  ████  ██        ██        ██       ███        ███      ██".cyan()
     );
-    println!("");
+    println!();
 }
 
 fn run() -> ExitCode {
@@ -73,7 +73,7 @@ fn main() -> color_eyre::Result<ExitCode> {
     color_eyre::install()?;
 
     let filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,darklua=warn"));
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,darklua=warn,backhand=warn"));
     let indicatif_layer = IndicatifLayer::new();
     let fmt_layer = fmt::layer()
         .with_target(false)

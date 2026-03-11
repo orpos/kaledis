@@ -16,7 +16,8 @@ use zip::ZipArchive;
 static APKTOOL_LOCATION: &str =
     "https://github.com/iBotPeaches/Apktool/releases/download/v2.12.1/apktool_2.12.1.jar";
 // Idk but, handling external binaries is something i want to do safely and sparingly
-static APKTOOL_HASH: &str = "66cf4524a4a45a7f56567d08b2c9b6ec237bcdd78cee69fd4a59c8a0243aeafa";
+static APKTOOL_HASH: &[u8; 32] =
+    &hex_literal::hex!("66cf4524a4a45a7f56567d08b2c9b6ec237bcdd78cee69fd4a59c8a0243aeafa");
 
 #[cfg(windows)]
 pub static CURRENT_PLATFORM: Target = Target::Windows;
@@ -55,11 +56,12 @@ impl HomeManager {
                 .context("Creating version folder")?;
         }
 
-        if let Err(_) = fs::write(
+        if fs::write(
             kaledis_dir.join("globals.d.luau"),
             include_bytes!("../static/globals.d.luau"),
         )
         .await
+        .is_err()
         {
             eprintln!("Failed to create globals.d.luau file, resuming...");
             // todo: log error with debug flag
@@ -72,7 +74,7 @@ impl HomeManager {
     }
 
     pub async fn get_path(&self, version: &str, platform: Target) -> PathBuf {
-        let pth = self.path.join(version).join(platform.as_ref().to_string());
+        let pth = self.path.join(version).join(platform.as_ref());
         if let Target::Windows = platform {
             return pth.join(format!("love-{}-win64", version));
         }
@@ -99,6 +101,10 @@ impl HomeManager {
 
         let response = self.client.get(APKTOOL_LOCATION).send().await.unwrap();
         let bytes = response.bytes().await.unwrap();
+
+        let result = sha2::Sha256::digest(&bytes);
+
+        assert_eq!(result[..], *APKTOOL_HASH);
 
         let mut file = File::create(jv)
             .await
@@ -179,12 +185,8 @@ impl HomeManager {
     // Has to be like 11.5 | 11.3 etc
     // version 12 is only available when gh cli is available
     pub async fn ensure_version(&self, version: &str, platform: Target) {
-        let output_version = self
-            .path
-            .join(&version)
-            .join(&platform.as_ref().to_string());
+        let output_version = self.path.join(version).join(platform.as_ref());
 
-        println!(">> {:?}", version);
         if output_version.exists() {
             return;
         }
@@ -233,7 +235,6 @@ impl HomeManager {
                 ))
                 .unwrap();
                 std::io::copy(&mut Cursor::new(bytes), &mut file).unwrap();
-                return;
             }
             _ => {
                 tokio::task::spawn_blocking(move || {

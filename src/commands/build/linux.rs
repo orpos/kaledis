@@ -1,10 +1,14 @@
-use std::io::{Cursor, Read, Write};
+use std::{
+    io::{Cursor, Read, Write},
+    path::{Path, PathBuf},
+};
 
 use backhand::{
     FilesystemCompressor, FilesystemReader, FilesystemWriter, InnerNode, NodeHeader,
     compression::Compressor, kind::Kind,
 };
-use fs_err::tokio::create_dir_all;
+use color_eyre::{Section, eyre::Context};
+use fs_err::tokio::{File, create_dir_all};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{commands::build::Builder, home_manager::Target};
@@ -74,13 +78,17 @@ fn find_valid_squashfs_offset(data: &[u8]) -> Option<usize> {
 
 fn skip_file_from_squashfs<'a>(
     reader: &FilesystemReader,
-    skip_path: &'a str,
+    skip_paths: Vec<PathBuf>,
+    skip_dir_icon: bool,
 ) -> color_eyre::Result<FilesystemWriter<'a, 'a, 'a>> {
     let mut writer = FilesystemWriter::default();
 
     for node in reader.files() {
         // Skip the file we want to remove
-        if node.fullpath == std::path::Path::new(skip_path) {
+        if skip_paths.contains(&node.fullpath) {
+            continue;
+        }
+        if node.fullpath.ends_with(".DirIcon") && skip_dir_icon {
             continue;
         }
 
@@ -140,14 +148,12 @@ pub async fn build_linux(builder: &Builder, data: &[u8]) -> color_eyre::Result<(
         .paths
         .dist
         .join(Target::LinuxAppImage.as_ref().to_string());
-    let mut file = fs_err::tokio::File::open(
-        builder
-            .home
-            .get_path(&builder.config.love, Target::LinuxAppImage)
-            .await
-            .join("love2d.AppImage"),
-    )
-    .await?;
+    let original = builder
+        .home
+        .get_path(&builder.config.love, Target::LinuxAppImage)
+        .await
+        .join("love2d.AppImage");
+    let mut file = fs_err::tokio::File::open(original).await?;
 
     let mut image_data = vec![];
     file.read_to_end(&mut image_data).await?;
@@ -171,7 +177,16 @@ pub async fn build_linux(builder: &Builder, data: &[u8]) -> color_eyre::Result<(
         }
     }
 
-    let mut writer = skip_file_from_squashfs(&reader, "/bin/love").unwrap();
+    let mut to_skip = vec![
+        Path::new("/bin/love").to_path_buf(),
+        Path::new("/love.desktop").to_path_buf(),
+    ];
+    if builder.config.icon.is_some() {
+        to_skip.push(Path::new("/love.svg").to_path_buf());
+    }
+    // let icon_path = builder.paths.root.join(icon);
+    let mut writer =
+        skip_file_from_squashfs(&reader, to_skip, builder.config.icon.is_some()).unwrap();
     // The AppImage of love2d doesn't support xz
     writer.set_compressor(FilesystemCompressor::new(Compressor::Zstd, None).unwrap());
 
@@ -185,9 +200,69 @@ pub async fn build_linux(builder: &Builder, data: &[u8]) -> color_eyre::Result<(
             ..Default::default()
         },
     )?;
+    let declaration = format!(
+        r#"[Desktop Entry]
+Name={}
+Comment={}
+MimeType=application/x-love-game;
+Exec=/home/runner/work/love/love/installdir/bin/love %f
+Type=Application
+Categories=Development;Game;
+Terminal=false
+Icon=love
+NoDisplay=true"#,
+        builder.config.project_name, builder.config.description
+    );
+    writer.push_file(
+        std::io::Cursor::new(declaration.as_bytes().to_vec()),
+        "/love.desktop",
+        NodeHeader::default(),
+    )?;
+
+    if let Some(icon_pth) = &builder.config.icon {
+        let mut icon = File::open(builder.paths.root.join(icon_pth)).await?;
+        let mut data = vec![];
+        icon.read_to_end(&mut data).await?;
+
+        let pth = Path::new(icon_pth);
+
+        writer.push_file(
+            std::io::Cursor::new(data),
+            PathBuf::new()
+                .join("love")
+                .with_extension(pth.extension().expect("Icon should have extension")),
+            NodeHeader::default(),
+        )?;
+        writer.push_symlink(
+            PathBuf::new()
+                .join("love")
+                .with_extension(pth.extension().expect("Icon should have extension")),
+            PathBuf::new().join(".DirIcon"),
+            NodeHeader::default(),
+        )?;
+    }
+
+    for pattern in &builder.config.layout.external {
+        for path in glob::glob(&builder.paths.root.join(pattern).to_string_lossy())
+            .context("Building for windows")
+            .expect("Failed to parse glob")
+            .filter_map(Result::ok)
+        {
+            let output = PathBuf::new().join("bin").join(
+                path.strip_prefix(&builder.paths.root)
+                    .context("Building for windows")
+                    .suggestion("Don't use assets outside the root of your project")
+                    .expect("Failed to strip root"),
+            );
+            let data = fs_err::tokio::read(&path).await?;
+            writer.push_dir_all(output.parent().unwrap(), NodeHeader::default())?;
+            writer.push_file(std::io::Cursor::new(data), output, NodeHeader::default())?;
+        }
+    }
 
     create_dir_all(&dists).await?;
 
+    fs_err::tokio::remove_file(dists.join("love2d.AppImage")).await?;
     let mut output_file = fs_err::tokio::File::create(
         dists.join(format!("{}.AppImage", builder.config.project_name)),
     )

@@ -406,6 +406,8 @@ pub struct KaledisConfig {
     pub mac: Option<MacosConfig>,
     pub custom_android_manifest: Option<String>,
     pub icon: Option<String>,
+    #[serde(default)]
+    pub description: String,
     pub polyfill: Option<CustomPolyfillConfig>,
     pub layout: LayoutConfig,
     #[serde(default = "defaults::fn_false")]

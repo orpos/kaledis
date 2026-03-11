@@ -12,7 +12,10 @@ type MountPermissions = "read" | "readwrite"
 type CommonPath = "appsavedir" | "appdocuments" | "userhome" | "userappdata" | "userdesktop" | "userdocuments"
 type Variant = any
 type StreamType = "file" | "memory"
+type GamepadType = "unknown" |"xbox360" |"xboxone" |"ps3" |"ps4" |"ps5" |"switchpro" |"amazonluna" |"stadia" |"virtual" |"shield" |"joyconleft" |"joyconright" |"joyconpair"
 type RenderTargetSetup = any
+type JoystickType = "unknown" | "gamepad" | "wheel" | "arcadestick" | "flightstick" | "dancepad" | "guitar" | "drumkit" | "arcadepad" | "throttle";
+type SensorType = "accelerometer" | "gyroscope"
 type DistanceModel = "none"|"inverse"|"inverseclamped"|"linear"|"linearclamped"|"exponent"|"exponentclamped"
 type EffectType = "chorus"|"compressor"|"distortion"|"echo"|"equalizer"|"flanger"|"reverb"|"ringmodulator"
 type EffectWaveform = "sawtooth"|"sine"|"square"|"triangle"
@@ -55,9 +58,11 @@ type VertexWinding = "cw"|"ccw"
 type WrapMode = "clamp"|"repeat"|"mirroredrepeat"|"clampzero"
 type CompressedImageFormat = "DXT1"|"DXT3"|"DXT5"|"BC4"|"BC4s"|"BC5"|"BC5s"|"BC6h"|"BC6hs"|"BC7"|"ETC1"|"ETC2rgb"|"ETC2rgba"|"ETC2rgba1"|"EACr"|"EACrs"|"EACrg"|"EACrgs"|"PVR1rgb2"|"PVR1rgb4"|"PVR1rgba2"|"PVR1rgba4"|"ASTC4x4"|"ASTC5x4"|"ASTC5x5"|"ASTC6x5"|"ASTC6x6"|"ASTC8x5"|"ASTC8x6"|"ASTC8x8"|"ASTC10x5"|"ASTC10x6"|"ASTC10x8"|"ASTC10x10"|"ASTC12x10"|"ASTC12x12"
 type ImageFormat = "tga"|"png"|"jpg"|"bmp"
+type ModifierKey = "capslock" |"numlock" |"scrolllock" |"mode";
 type PixelFormat = "unknown"|"normal"|"hdr"|"r8"|"rg8"|"rgba8"|"srgba8"|"r16"|"rg16"|"rgba16"|"r16f"|"rg16f"|"rgba16f"|"r32f"|"rg32f"|"rgba32f"|"la8"|"rgba4"|"rgb5a1"|"rgb565"|"rgb10a2"|"rg11b10f"|"stencil8"|"depth16"|"depth24"|"depth32f"|"depth24stencil8"|"depth32fstencil8"|"DXT1"|"DXT3"|"DXT5"|"BC4"|"BC4s"|"BC5"|"BC5s"|"BC6h"|"BC6hs"|"BC7"|"ETC1"|"ETC2rgb"|"ETC2rgba"|"ETC2rgba1"|"EACr"|"EACrs"|"EACrg"|"EACrgs"|"PVR1rgb2"|"PVR1rgb4"|"PVR1rgba2"|"PVR1rgba4"|"ASTC4x4"|"ASTC5x4"|"ASTC5x5"|"ASTC6x5"|"ASTC6x6"|"ASTC8x5"|"ASTC8x6"|"ASTC8x8"|"ASTC10x5"|"ASTC10x6"|"ASTC10x8"|"ASTC10x10"|"ASTC12x10"|"ASTC12x12"
 type GamepadAxis = "leftx"|"lefty"|"rightx"|"righty"|"triggerleft"|"triggerright"
-type GamepadButton = "a"|"b"|"x"|"y"|"back"|"guide"|"start"|"leftstick"|"rightstick"|"leftshoulder"|"rightshoulder"|"dpup"|"dpdown"|"dpleft"|"dpright"
+type GamepadButton = "a"|"b"|"x"|"y"|"back"|"guide"|"start"|"leftstick"|"rightstick"|"leftshoulder"|"rightshoulder"|"dpup"|"dpdown"|"dpleft"|"dpright"|"misc1"|"paddle1"|"paddle2"|"paddle3"|"paddle4"|"touchpad"
+type ModifierKey = "capslock" |"numlock" | "scrolllock" |"mode";
 type JoystickHat = "c"|"d"|"l"|"ld"|"lu"|"r"|"rd"|"ru"|"u"
 type JoystickInputType = "axis"|"button"|"hat"
 type KeyConstant = "a"|"b"|"c"|"d"|"e"|"f"|"g"|"h"|"i"|"j"|"k"|"l"|"m"|"n"|"o"|"p"|"q"|"r"|"s"|"t"|"u"|"v"|"w"|"x"|"y"|"z"|"0"|"1"|"2"|"3"|"4"|"5"|"6"|"7"|"8"|"9"|"space"|"!"|"\""|"#"|"$"|"&"|"'"|"("|")"|"*"|"+"|","|"-"|"."|"/"|":"|";"|"<"|"="|">"|"?"|"@"|"["|"\\"|"]"|"^"|"_"|"`"|"kp0"|"kp1"|"kp2"|"kp3"|"kp4"|"kp5"|"kp6"|"kp7"|"kp8"|"kp9"|"kp."|"kp/"|"kp*"|"kp-"|"kp+"|"kpenter"|"kp="|"up"|"down"|"right"|"left"|"home"|"end"|"pageup"|"pagedown"|"insert"|"backspace"|"tab"|"clear"|"return"|"delete"|"f1"|"f2"|"f3"|"f4"|"f5"|"f6"|"f7"|"f8"|"f9"|"f10"|"f11"|"f12"|"f13"|"f14"|"f15"|"numlock"|"capslock"|"scrollock"|"rshift"|"lshift"|"rctrl"|"lctrl"|"ralt"|"lalt"|"rmeta"|"lmeta"|"lsuper"|"rsuper"|"mode"|"compose"|"pause"|"escape"|"help"|"print"|"sysreq"|"break"|"menu"|"power"|"euro"|"undo"|"www"|"mail"|"calculator"|"appsearch"|"apphome"|"appback"|"appforward"|"apprefresh"|"appbookmarks"
@@ -2370,6 +2375,7 @@ declare class Joystick extends Object
 	--- ______________________________
 	--- Gets the button, axis or hat that a virtual gamepad input is bound to.
 	--- The physical locations for the virtual gamepad axes and buttons correspond as closely as possible to the layout of a standard Xbox 360 controller.
+	-- https://love2d.org/wiki/GamepadButton
 	--- @param button The virtual gamepad button to get the binding for.
 	--- @return inputtype The type of input the virtual gamepad button is bound to.
 	--- @return inputindex The index of the Joystick's button, axis or hat that the virtual gamepad button is bound to.
@@ -2421,6 +2427,7 @@ declare class Joystick extends Object
 	function isGamepad(self) : (boolean)
 	--- ______________________________
 	--- Checks if a virtual gamepad button on the Joystick is pressed. If the Joystick is not recognized as a Gamepad or isn't connected, then this function will always return false.
+	--- https://love2d.org/wiki/GamepadButton
 	--- @param buttonN The gamepad button to check.
 	--- @return anyDown True if any supplied button is down, false if not.
 	function isGamepadDown(self, buttonN: GamepadButton) : (boolean)
@@ -2450,6 +2457,44 @@ declare class Joystick extends Object
 	--- @param duration The duration of the vibration in seconds. A negative value means infinite duration.
 	--- @return success True if the vibration was successfully applied, false if not.
 	function setVibration(self, left: number, right: number, duration: number?) : (boolean)
+	--- ______________________________
+	--- Gets whether the specified sensor exists in the Joystick. 
+	--- @param sensorType Type of sensor to check.
+	--- @return available Sensor availability status.
+	function hasSensor(self, sensorType: SensorType) : (boolean)
+	--- ______________________________
+	--- Gets the latest data for the given sensor type for this Joystick. 
+	--- The returned values have meaning based on the sensor type, for example an accelerometer will return acceleration values along each axis. 
+	--- If the sensor was not enabled via Joystick:setSensorEnabled, this function may cause an error. 
+	--- @param sensorType The type of sensor
+	--- @return x,y,z the sensors 1st, 2nd, 3rd value
+	function getSensorData(self, sensorType: SensorType) : (number, number, number)
+	--- ______________________________
+	--- Gets the GamepadType of the Joystick, if it's recognized as a gamepad. 
+	--- @return gamepadtype The type of the gamepad, or "unknown" if it can't be determined.
+	function getGamepadType(self) : (GamepadType)
+	--- ______________________________
+	--- Sets the player index of this Joystick. This corresponds to an indicator light on many common gamepads.
+	--- Note that this is independent from the array index of this Joystick in the table returned by love.joystick.getJoysticks. 
+	--- @param index The 1-based player index to use for this Joystick. 0 clears the set index.
+	function setPlayerIndex(self, index: number) : ()
+	--- ______________________________
+	--- Gets the JoystickType of the Joystick. 
+	--- JoystickTypes are broader categories than GamepadTypes. 
+	--- @return joysticktype The type of the joystick, or "unknown" if it can't be determined.
+	function getJoystickType(self) : (JoystickType)
+	--- ______________________________
+	--- Gets whether the specified sensor is currently enabled on this Joystick. 
+	--- @param sensorType Type of sensor to check.
+	--- @return available Wheter the sensor is currently enabled.
+	function isSensorEnabled(self, sensorType: SensorType) : (boolean)
+	--- ______________________________
+	--- Enables or disables the specified sensor on this Joystick. 
+	--- The given sensor type must exist on this Joystick, otherwise this function may cause an error. 
+	--- @param sensorType Type of sensor to enable or disable.
+	--- @param enable True to enable the given sensor, false to disable it.
+	function setSensorEnabled(self, sensorType: SensorType, enable: boolean) : ()
+
 end
 	--- A Bézier curve object that can evaluate and render Bézier curves of arbitrary degree.
 	--- For more information on Bézier curves check this great article on Wikipedia.
@@ -4221,6 +4266,41 @@ declare class VideoStream extends Object
 	function tell(self) : (number)
 end
 declare love : {
+	--- Provides functionality to access device sensors such as an accelerometer or gyroscope. 
+	sensor : {
+		--- Check if the specified sensor exists in the device. 
+		--- ______________________________
+		--- ### `(sensorType) -> (available)`
+		--- Callback function triggered when a file or folder is done being dragged and dropped into the window. 
+		--- ### Arguments
+		--- * `[sensorType]:` `{string}` Type of sensor to check.
+		--- ### Returns
+		--- * `[available]:` `boolean` Sensor availability status.
+		hasSensor: ((sensorType : SensorType) -> (boolean))
+	},
+	--- Called when the in-device sensor is updated with new values.
+	--- Only sensors enabled with love.sensor.setEnabled will trigger this event. 
+	--- ______________________________
+	--- ### `(sensorType, x, y, z) -> ()`
+	--- Callback function triggered when a file or folder is done being dragged and dropped into the window. 
+	--- ### Arguments
+	--- * `[sensorType]:` `{SensorType}` Type of sensor to check.
+	--- * `[x]:` `{number}` The new sensor 1st value.
+	--- * `[y]:` `{number}` The new sensor 2nd value.
+	--- * `[z]:` `{number}` The new sensor 3rd value.
+	sensorupdated: ((sensorType : SensorType, x: number, y: number, z: number) -> ()),
+	--- Called when a Joystick's sensor is updated with new values. 
+	--- Only Joystick sensors enabled with Joystick:setSensorEnabled will trigger this event.
+	--- ______________________________
+	--- ### `(sensorType, x, y, z) -> ()`
+	--- Callback function triggered when a file or folder is done being dragged and dropped into the window. 
+	--- ### Arguments
+	--- * `[joystick]:` `{Joystick}` Type of sensor to check.
+	--- * `[sensorType]:` `{SensorType}` Type of sensor to check.
+	--- * `[x]:` `{number}` The new sensor 1st value.
+	--- * `[y]:` `{number}` The new sensor 2nd value.
+	--- * `[z]:` `{number}` The new sensor 3rd value.
+	joysticksensorupdated: ((joystick : Joystick, sensorType : SensorType, x: number, y: number, z: number) -> ()),
     --- Called when the active audio device is disconnected (e.g. physically unplugging headphones).
     --- All audio are stopped and loses their playback position when this callback is called. 
     --- Notes: If love.audio.setPlaybackDevice is called inside the callback, true must be returned to prevent LÖVE from re-connecting the audio device again. 
@@ -4429,6 +4509,7 @@ declare love : {
 	gamepadaxis : ((joystick: Joystick, axis: GamepadAxis, value: number) -> ()),
 	--- Called when a Joystick's virtual gamepad button is pressed.
 	--- ______________________________
+	--- https://love2d.org/wiki/GamepadButton
 	--- ### `(joystick,button) -> ()`
 	--- ### Arguments
 	--- * `[joystick]:` `Joystick` The joystick object.
@@ -4436,6 +4517,7 @@ declare love : {
 	gamepadpressed : ((joystick: Joystick, button: GamepadButton) -> ()),
 	--- Called when a Joystick's virtual gamepad button is released.
 	--- ______________________________
+	--- https://love2d.org/wiki/GamepadButton
 	--- ### `(joystick,button) -> ()`
 	--- ### Arguments
 	--- * `[joystick]:` `Joystick` The joystick object.
@@ -7682,6 +7764,7 @@ saveGamepadMappings : ((filename: string) -> (string)) & (() -> (string)),
 	--- LÖVE includes built-in gamepad bindings for many common controllers. This function lets you change the bindings or add new ones for types of Joysticks which aren't recognized as gamepads by default.
 	--- The virtual gamepad buttons and axes are designed around the Xbox 360 controller layout.
 	--- ______________________________
+	--- https://love2d.org/wiki/GamepadButton
 	--- ### `(guid,button,inputtype,inputindex,hatdir) -> (success)`
 	--- ### Arguments
 	--- * `[guid]:` `string` The OS-dependent GUID for the type of Joystick the binding will affect.
@@ -7693,6 +7776,7 @@ saveGamepadMappings : ((filename: string) -> (string)) & (() -> (string)),
 	--- * `[success]:` `boolean` Whether the virtual gamepad button was successfully bound.
 	--- ______________________________
 	--- ### `(guid,axis,inputtype,inputindex,hatdir) -> (success)`
+	--- https://love2d.org/wiki/GamepadButton
 	--- The physical locations for the bound gamepad axes and buttons should correspond as closely as possible to the layout of a standard Xbox 360 controller.
 	--- ### Arguments
 	--- * `[guid]:` `string` The OS-dependent GUID for the type of Joystick the binding will affect.
@@ -7705,6 +7789,15 @@ saveGamepadMappings : ((filename: string) -> (string)) & (() -> (string)),
 setGamepadMapping : ((guid: string, button: GamepadButton, inputtype: JoystickInputType, inputindex: number, hatdir: JoystickHat?) -> (boolean)) & ((guid: string, axis: GamepadAxis, inputtype: JoystickInputType, inputindex: number, hatdir: JoystickHat?) -> (boolean))},
 	--- Provides an interface to the user's keyboard.
 	keyboard : {
+	--- Checks whether a modifier key is active.
+	--- Example of modifier keys are caps lock, num lock, and scroll lock while also have press/release state, additionally also have active state. 
+	--- ______________________________
+	--- ### `(modifier) -> (boolean)`
+	--- ### Arguments
+	--- * `[modifier]:` `ModifierKey` The scancode to get the key from.
+	--- ### Returns
+	--- * `[active]:` `boolean` Wheter the specified modifier key is active or not.
+	isModifierActive: ((modifier: ModifierKey) -> (boolean))
 	--- Gets the key corresponding to the given hardware scancode.
 	--- Unlike key constants, Scancodes are keyboard layout-independent. For example the scancode 'w' will be generated if the key in the same place as the 'w' key on an American keyboard is pressed, no matter what the key is labelled or what the user's operating system settings are.
 	--- Scancodes are useful for creating default controls that have the same physical locations on on all systems.
@@ -8127,6 +8220,15 @@ triangulate : ((polygon: {}) -> ({
 }))},
 	--- Provides an interface to the user's mouse.
 	mouse : {
+	--- Gets the global position of the mouse on the screen. This can be used when implementing custom drag areas in the window.
+	--- The global mouse position is in the same coordinate space as love.window.getPosition and love.window.setPosition. 
+	--- ______________________________
+	--- ### `() -> (x, y, displayindex)`
+	--- ### Returns
+	--- * `[x]:` `number` The x-coordinate of the mouse's global position, within its current display.
+	--- * `[y]:` `number` The y-coordinate of the mouse's global position, within its current display.
+	--- * `[displayindex]:` `number` The index of the display that the mouse is in.
+	getGlobalPosition: (() -> (number, number, number)),
 	--- Gets the current Cursor.
 	--- ______________________________
 	--- ### `() -> (cursor)`

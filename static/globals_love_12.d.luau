@@ -8,8 +8,10 @@ type userdata = typeof(newproxy())
 
 export type cdata = userdata
 export type ctype<T = cdata> = (nelem: number?, ...any) -> T
-
+type MountPermissions = "read" | "readwrite"
+type CommonPath = "appsavedir" | "appdocuments" | "userhome" | "userappdata" | "userdesktop" | "userdocuments"
 type Variant = any
+type StreamType = "file" | "memory"
 type RenderTargetSetup = any
 type DistanceModel = "none"|"inverse"|"inverseclamped"|"linear"|"linearclamped"|"exponent"|"exponentclamped"
 type EffectType = "chorus"|"compressor"|"distortion"|"echo"|"equalizer"|"flanger"|"reverb"|"ringmodulator"
@@ -69,6 +71,7 @@ type PowerState = "unknown"|"battery"|"nobattery"|"charging"|"charged"
 type DisplayOrientation = "unknown"|"landscape"|"landscapeflipped"|"portrait"|"portraitflipped"
 type FullscreenType = "desktop"|"exclusive"|"normal"
 type MessageBoxType = "info"|"warning"|"error"
+type LoadMode = "b" | "t" | "bt"
 
 --- The superclass of all LÖVE types.
 declare class Object
@@ -4036,6 +4039,24 @@ end
 	--- Contains raw audio samples.
 	--- You can not play SoundData back directly. You must wrap a Source object around it.
 declare class SoundData extends Data
+    --- ______________________________
+    --- Notes: Samples start from zero. If a SoundData has multiple channels, each sample contains data for all channels.
+    --- This function does not perform sample rate conversion. If the SoundDatas have different sample rate, the resulting audio may played slower or faster depending on the differences. 
+    --- ______________________________
+    --- Copies the specified section of the given SoundData into this one. 
+	--- @param sourcedata The SoundData to copy from.
+	--- @param sourcestart The first sample in the source SoundData to copy from.
+	--- @param samplecount The total number of samples to copy.
+	--- @param deststart The first sample in the destination SoundData to copy to.
+	function copyFrom(self, sourcedata: SoundData, sourcestart: number, samplecount: number, deststart: number) : ()
+    --- ______________________________
+    --- Notes:Samples start from zero. If a SoundData has multiple channels, each sample contains data for all channels. 
+    --- ______________________________
+    --- Copies the specified section of the given SoundData into this one. 
+	--- @param start The first sample the given SoundData to copy from.
+	--- @param samplecount (defaults to -1) The total number of samples to copy to the new SoundData. The default value of -1 copies all samples.
+    --- @returns The new SoundData containing a copy of the specified section of the original SoundData.
+	function slice(self, start: number, samplecount: number?) : SoundData
 	--- ______________________________
 	--- Returns the number of bits per sample.
 	--- @return bitdepth Either 8, or 16.
@@ -4200,6 +4221,45 @@ declare class VideoStream extends Object
 	function tell(self) : (number)
 end
 declare love : {
+    --- Called when the active audio device is disconnected (e.g. physically unplugging headphones).
+    --- All audio are stopped and loses their playback position when this callback is called. 
+    --- Notes: If love.audio.setPlaybackDevice is called inside the callback, true must be returned to prevent LÖVE from re-connecting the audio device again. 
+	--- ______________________________
+	--- ### `(sources) -> (reconnected)`
+	--- Callback function triggered when a file or folder is done being dragged and dropped into the window. 
+	--- ### Arguments
+	--- * `[sources]:` `{string}` List of sources that were playing.
+    --- ### Returns
+	--- * `[reconnected]:` `boolean` Is audio re-connection attempt has been done?
+    audiodisconnected: ((sources: {Source}) -> (boolean)),
+    --- Gets the current running version of LÖVE.
+	--- ______________________________
+	--- ### `(x, y) -> ()`
+	--- Callback function triggered when a file or folder is done being dragged and dropped into the window. 
+	--- ### Arguments
+	--- * `[x]:` `number` The x coordinate of the final position of the drag-and-drop operation, within the window.
+	--- * `[y]:` `number` The y coordinate of the final position of the drag-and-drop operation, within the window.
+	dropcompleted : ((x: number, y: number) -> ()),
+    --- Gets the current running version of LÖVE.
+	--- ______________________________
+	--- ### `(x, y) -> ()`
+	--- Callback function triggered when an in-progress file or folder drag-and-drop operation changes position within the window. 
+	--- ### Arguments
+	--- * `[x]:` `number` The x coordinate of the new position of the drag-and-drop operation, within the window.
+	--- * `[y]:` `number` The y coordinate of the new position of the drag-and-drop operation, within the window.
+	dropmoved : ((x: number, y: number) -> ()),
+    --- Callback function triggered when a file or folder is first dragged onto the window, before the user drops it.
+    ---
+    --- This can be used to change the cursor to something indicating a drag-and-drop operation, for example. 
+    --- ______________________________
+	--- ### `() -> ()`
+    --- 
+    dropbegan : (() -> ()),
+    --- Callback function triggered when the user's system locale preferences have changed. 
+    --- ______________________________
+	--- ### `() -> ()`
+    --- 
+    localechanged : (() -> ()),
 	--- Gets the current running version of LÖVE.
 	--- ______________________________
 	--- ### `() -> (major,minor,revision,codename)`
@@ -4319,11 +4379,13 @@ declare love : {
 	conf : ((t: {identity: string,appendidentity: boolean,version: string,console: boolean,accelerometerjoystick: boolean,externalstorage: boolean,gammacorrect: boolean,audio: {mic: boolean,mixwithsystem: boolean,},window: {title: string,icon: string,width: number,height: number,borderless: boolean,resizable: boolean,minwidth: number,minheight: number,fullscreen: boolean,fullscreentype: string,usedpiscale: boolean,vsync: number,depth: number,stencil: number,msaa: number,display: number,highdpi: boolean,x: number,y: number,},modules: {audio: boolean,event: boolean,graphics: boolean,image: boolean,joystick: boolean,keyboard: boolean,math: boolean,mouse: boolean,physics: boolean,sound: boolean,system: boolean,timer: boolean,touch: boolean,video: boolean,window: boolean,thread: boolean,},}) -> ()),
 	--- Callback function triggered when a directory is dragged and dropped onto the window.
 	--- ______________________________
-	--- ### `(path) -> ()`
+	--- ### `(path, x, y) -> ()`
 	--- Paths passed into this callback are able to be used with love.filesystem.mount, which is the only way to get read access via love.filesystem to the dropped directory. love.filesystem.mount does not generally accept other full platform-dependent directory paths that haven't been dragged and dropped onto the window.
 	--- ### Arguments
 	--- * `[path]:` `string` The full platform-dependent path to the directory. It can be used as an argument to love.filesystem.mount, in order to gain read access to the directory with love.filesystem.
-	directorydropped : ((path: string) -> ()),
+    --- * `[x]:` `Number` The x position of where the file was dropped.
+	--- * `[y]:` `Number` The y position of where the file was dropped.
+	directorydropped : ((path: string, x: number, y: number) -> ()),
 	--- Called when the device display orientation changed, for example, user rotated their phone 180 degrees.
 	--- ______________________________
 	--- ### `(index,orientation) -> ()`
@@ -4345,10 +4407,12 @@ declare love : {
 	errorhandler : ((msg: string) -> ( (() -> (any)))),
 	--- Callback function triggered when a file is dragged and dropped onto the window.
 	--- ______________________________
-	--- ### `(file) -> ()`
+	--- ### `(file, x, y) -> ()`
 	--- ### Arguments
 	--- * `[file]:` `DroppedFile` The unopened File object representing the file that was dropped.
-	filedropped : ((file: DroppedFile) -> ()),
+	--- * `[x]:` `Number` The x position of where the file was dropped.
+	--- * `[y]:` `Number` The y position of where the file was dropped.
+	filedropped : ((file: DroppedFile, x : number, y : number) -> ()),
 	--- Callback function triggered when window receives or loses focus.
 	--- ______________________________
 	--- ### `(focus) -> ()`
@@ -4603,6 +4667,29 @@ declare love : {
 	wheelmoved : ((x: number, y: number) -> ()),
 	--- Provides an interface to create noise with the user's speakers.
 	audio : {
+    --- Gets the currently active playback device. 
+	--- ______________________________
+	--- ### `() -> (device)`
+	--- ### Returns
+    --- * `[device]:` `string` The name of the current playback device.
+    getPlaybackDevice : (() -> (string)),
+    --- Change the audio device to specified device. Also used to reconnect audio device in case of device disconnection. 
+    --- Note: OpenAL-soft 1.22.0 or later is required for this to function. Officially LOVE-distributed binaries (with exception of iOS) ships with latest version of OpenAL-soft. 
+	--- ______________________________
+	--- ### `(name) -> (success, message)`
+    --- ### Parameters
+    --- * `[name]:` `string` Fully qualified device name, or nil to use system default.
+	--- ### Returns
+    --- * `[success]:` `boolean` Did the function succeeded?
+    --- * `[message]:` `string` Error message on failure (nil on succesful).
+    setPlaybackDevice : ((name: string?) -> (boolean, string?)),
+    --- Gets a list of playback devices on the system.
+    --- The first device in the list is the user's default playback device. 
+	--- ______________________________
+	--- ### `() -> (devices)`
+	--- ### Returns
+    --- * `[devices]:` `{string}` The name of the current playback device.
+    getPlaybackDevices : (() -> ({string})),
 	--- Gets a list of the names of the currently enabled effects.
 	--- ______________________________
 	--- ### `() -> (effects)`
@@ -5133,6 +5220,56 @@ quit : ((exitstatus: number?) -> ()) & ((restart: string) -> ()),
 wait : (() -> (Event, Variant, Variant, Variant, Variant, Variant, Variant, Variant))},
 	--- Provides an interface to the user's filesystem.
 	filesystem : {
+    --- Retrieves a path to a directory in the active operating system without requiring exact knowledge of its whereabouts. 
+    --- Note: Desktop does not exist on Android devices, and attempting to retrieve it will fail. 
+	--- ______________________________
+	--- ### `(commonpath) -> (success)`
+	--- ### Arguments
+	--- * `[commonpath]:` `CommonPath` The type of common directory to be sought after.
+	--- ### Returns
+	--- * `[outpath]:` `string` The resultant path to the common directory, if found. Otherwise, returns nil.
+    getFullCommonPath: ((commonpath: CommonPath) -> (string?)),    
+    --- Mounts a full platform-dependent path to a zip file or folder for reading or writing in love.filesystem
+    --- Note: If your app is sandboxed, does not request explicit entitlement, and does not involve user selection, MacOS places some restrictions on write access for certain common path types (notably Documents and Desktop), unless a dialogue is accepted by the user. A user may restrict write access to certain common paths on Linux as well. SaveDir is the safest best for write access. 
+	--- ______________________________
+	--- ### `(archive, mountpoint, permission, appendToPath) -> (success)`
+	--- ### Arguments
+	--- * `[commonpath]:` `CommonPath` The type of common directory to be sought and mounted to.
+    --- * `[mountpoint]:` `string` Virtual filepath in love.filesystem where the resolved common directory is exposed.
+	--- * `[permission]:` `MountPermissions (defaults to "read")` The requested permissions for operating on files and folders in this path after mounting ("read", or "readwrite").
+	--- * `[appendToPath]:` `boolean (defaults to false)` Whether the archive will be searched when reading a filepath before or after already-mounted archives. This includes the game's source and save directories.
+	--- ### Returns
+	--- * `[success]:` `boolean` True if the archive was successfully mounted with the given path and permissions, false otherwise.
+    mountCommonPath: ((commonpath: CommonPath, mountpoint: string, permission: MountPermissions?, appendToPath: boolean?) -> (boolean)),
+    --- Mounts a full platform-dependent path to a zip file or folder for reading or writing in love.filesystem
+    --- Note: Most operating systems allow apps to read from more locations than they're allowed to write to. Therefore, this API will succeed in more situations when the "read" mount permission is used compared to "readwrite". 
+	--- ______________________________
+	--- ### `(archive, mountpoint, permission, appendToPath) -> (success)`
+	--- ### Arguments
+	--- * `[archive]:` `string` The full platform-dependent path to a folder or zip file to mount.
+    --- * `[mountpoint]:` `string` The new path in love.filesystem the archive or the platform-dependent path will be mounted to.
+	--- * `[permission]:` `MountPermissions (defaults to "read")` The requested permissions for operating on files and folders in this path after mounting ("read", or "readwrite").
+	--- * `[appendToPath]:` `boolean (defaults to false)` Whether the archive will be searched when reading a filepath before or after already-mounted archives. This includes the game's source and save directories.
+	--- ### Returns
+	--- * `[success]:` `boolean` True if the archive was successfully mounted with the given path and permissions, false otherwise.
+    mountFullPath: ((archive: string, mountpoint: string, permission: MountPermissions?, appendToPath: boolean?) -> (boolean)),
+    --- Unmounts a zip file or folder previously mounted with love.filesystem.mountFullPath. 
+    --- Note: If there are any files open via love.filesystem in the given archive when this API is called, it will fail and return false. 
+	--- ______________________________
+	--- ### `(archive) -> (success)`
+	--- ### Arguments
+	--- * `[archive]:` `string` The full platform-dependent path to a folder or zip file which is currently mounted via love.filesystem.mountFullPath.
+	--- ### Returns
+	--- * `[success]:` `boolean` True if the archive was successfully unmounted, false otherwise.
+    unmountFullPath: ((archive: string) -> (boolean)),
+    --- Unmounts any mount that exists in relation to a commonly used directory created by love.filesystem.mountCommonPath. 
+	--- ______________________________
+	--- ### `(commonpath) -> (success)`
+	--- ### Arguments
+	--- * `[commonpath]:` `CommonPath` The type of common directory to be sought and unmounted from love.filesystem
+	--- ### Returns
+	--- * `[success]:` `boolean` True if the archive was successfully unmounted, false otherwise.
+    unmountCommonPath: ((commonpath: CommonPath) -> (boolean)),
 	--- Append data to an existing file.
 	--- ______________________________
 	--- ### `(name,data,size) -> (success,errormsg)`
@@ -5253,14 +5390,17 @@ getInfo : ((path: string, filtertype: FileType?) -> ({
 type: FileType,
 size: number,
 modtime: number,
+readonly: boolean
 })) & ((path: string, info: {}) -> ({
 type: FileType,
 size: number,
 modtime: number,
+readonly: boolean
 })) & ((path: string, filtertype: FileType, info: {}) -> ({
 type: FileType,
 size: number,
 modtime: number,
+readonly: boolean
 })),
 	--- Gets the platform-specific absolute path of the directory containing a filepath.
 	--- This can be used to determine whether a file is inside the save directory or the game's source .love.
@@ -5338,13 +5478,15 @@ isFused : (() -> (boolean)),
 lines : ((name: string) -> ( (() -> (string)))),
 	--- Loads a Lua file (but does not run it).
 	--- ______________________________
-	--- ### `(name) -> (chunk,errormsg)`
+	--- ### `(name, mode) -> (chunk,errormsg)`
 	--- ### Arguments
 	--- * `[name]:` `string` The name (and path) of the file.
+	--- * `[mode]:` `LoadMode (defaults to bt)` Controls to only allow precompiled chunk, plain text, or both.
+    --- * b => bytes, t => plaintext, bt => both
 	--- ### Returns
 	--- * `[chunk]:` `a function` The loaded chunk.
 	--- * `[errormsg]:` `string` The error message if file could not be opened.
-load : ((name: string) -> ((...any)->(...any), string)),
+load : ((name: string, mode: LoadMode) -> ((...any)->(...any), string)),
 	--- Mounts a zip file or folder in the game's save directory for reading.
 	--- It is also possible to mount love.filesystem.getSourceBaseDirectory if the game is in fused mode.
 	--- ______________________________
@@ -5375,8 +5517,41 @@ load : ((name: string) -> ((...any)->(...any), string)),
 	--- ### Returns
 	--- * `[success]:` `boolean` True if the archive was successfully mounted, false otherwise.
 mount : ((archive: string, mountpoint: string, appendToPath: boolean?) -> (boolean)) & ((filedata: FileData, mountpoint: string, appendToPath: boolean?) -> (boolean)) & ((data: Data, archivename: string, mountpoint: string, appendToPath: boolean?) -> (boolean)),
+    --- Opens a new File object, which represents an existing or new file on disk.
+    --- Notes: love.filesystem.read, love.filesystem.write, and love.filesystem.append are more convenient functions to use in situations where a file is operated on once rather than multiple times. 
+	--- ______________________________
+	--- ### `(filename,mode) -> (file,errorstr)`
+	--- Creates a File object and opens it for reading, writing, or appending.
+    --- ### Examples:
+    --- #### Open a file and read Everything
+    --- ```lua
+    --- file = love.filesystem.openFile("data.txt", "r")
+    --- data = file:read()
+    --- file:close()
+    --- -- use the data ...
+    --- ```
+	--- ### Arguments
+	--- * `[filename]:` `string` The filename of the file.
+	--- * `[mode]:` `FileMode` The mode to open the file in.
+	--- ### Returns
+	--- * `[file]:` `File` The new File object, or nil if an error occurred.
+	--- * `[errorstr]:` `string` The error string if an error occurred.
+    openFile : ((filename: string, mode: FileMode) -> (File)) & ((filename: string, mode: FileMode) -> (File, string)),
+	--- Opens a new File object outside of love.filesystem paths. 
+    --- Notes: Unlike love.filesystem.openFile which operates on restricted love.filesystem paths, this is more similar to Lua standard io.open. 
+	--- ______________________________
+	--- ### `(filename,mode) -> (file,errorstr)`
+	--- Creates a File object and opens it for reading, writing, or appending.
+	--- ### Arguments
+	--- * `[filename]:` `string` The filename of the file.
+	--- * `[mode]:` `FileMode` The mode to open the file in.
+	--- ### Returns
+	--- * `[file]:` `File` The new File object, or nil if an error occurred.
+	--- * `[errorstr]:` `string` The error string if an error occurred.
+    openNativeFile : ((filename: string, mode: FileMode) -> (File)) & ((filename: string, mode: FileMode) -> (File, string)),
 	--- Creates a new File object.
 	--- It needs to be opened before it can be accessed.
+    --- ... Prefer using openFile
 	--- ______________________________
 	--- ### `(filename) -> (file)`
 	--- Please note that this function will not return any error message (e.g. if you use an invalid filename) because it just creates the File Object. You can still check if the file is valid by using File:open which returns a boolean and an error message if something goes wrong while opening the file.
@@ -8565,6 +8740,12 @@ newDecoder : ((file: File, buffer: number?) -> (Decoder)) & ((filename: string, 
 newSoundData : ((filename: string) -> (SoundData)) & ((file: File) -> (SoundData)) & ((decoder: Decoder) -> (SoundData)) & ((samples: number, rate: number?, bits: number?, channels: number?) -> (SoundData))},
 	--- Provides access to information about the user's system.
 	system : {
+    --- Gets preferred locales in order of user's preference. .
+	--- ______________________________
+	--- ### `() -> (locales)`
+	--- ### Returns
+	--- * `[locales]:` `{string}` A sequence of strings in order of user's preference. Locales are in form xx_YY (or just xx when country is not available) where xx is an ISO-639 language specifier and YY (if available) is an ISO-3166 country code
+    getPreferredLocales :(() -> ({string}))
 	--- Gets text from the clipboard.
 	--- ______________________________
 	--- ### `() -> (text)`
@@ -9328,6 +9509,7 @@ export type LTN12Pump = {
 	step: (src: LTN12Source, snk: LTN12Sink) -> (string?),
 	all: (src: LTN12Source, snk: LTN12Sink) -> (number | nil, string?),
 }
+
 
 declare Socket:{
 	_VERSION: string,

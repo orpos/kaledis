@@ -15,6 +15,7 @@ use tokio::{
     signal,
     sync::broadcast::{Sender, channel},
 };
+use tracing::{info, warn};
 
 use crate::{
     android::DevServer,
@@ -134,7 +135,6 @@ pub async fn watch(base_path: Option<PathBuf>) {
     spawn_keyboard_handler(Arc::clone(&watching), sender.clone()).await;
     spawn_file_reader(watching, &local, sender.clone()).await;
 
-    let mut child: Option<Child> = None;
     builder.clean_build_folder().await.unwrap();
     builder.transpile().await;
     let mut path = builder
@@ -148,7 +148,17 @@ pub async fn watch(base_path: Option<PathBuf>) {
     #[cfg(target_os = "linux")]
     path.push("love2d.AppImage");
 
-    let mut server = None;
+    let sppawn = || {
+        Command::new(&path)
+            .current_dir(&path.parent().unwrap())
+            .arg(&builder.paths.build)
+            .spawn()
+            .context("Spawning the process")
+            .unwrap()
+    };
+    let mut child: Option<Child> = Some(sppawn());
+
+    let mut server: Option<DevServer> = None;
 
     tokio::spawn(async move {
         signal::ctrl_c()
@@ -162,7 +172,7 @@ pub async fn watch(base_path: Option<PathBuf>) {
         if !builder.config.hmr {
             if let Some(mut child) = child.take() {
                 if let Err(err) = child.kill().await {
-                    eprintln!("{}\n{}", err, "Failed to kill love2d process.".red());
+                    tracing::debug!("{}\n{}", err, "Failed to kill love2d process.".red());
                     tracing::warn!("Failed to kill love2d process.");
                 } else if let Message::CloseLove = message {
                     println!("{} Closed love.", "[+]".blue());
@@ -187,29 +197,14 @@ pub async fn watch(base_path: Option<PathBuf>) {
                 builder.handle_conf_file(modules).await;
             }
 
-            if !builder.config.hmr {
-                if let Some(mut child) = child.take() {
-                    child.kill().await.unwrap();
-                }
-
-                child = Some(
-                    Command::new(&path)
-                        .current_dir(&path.parent().unwrap())
-                        .arg(&builder.paths.build)
-                        .spawn()
-                        .context("Spawning the process")
-                        .unwrap(),
-                );
-            } else if let None = child {
-                child = Some(
-                    Command::new(&path)
-                        .current_dir(&path.parent().unwrap())
-                        .arg(&builder.paths.build)
-                        .spawn()
-                        .context("Spawning the process")
-                        .unwrap(),
-                );
-                // In here we already assumed that there is a child and there is hmr
+            if let None = child {
+                child = Some(sppawn());
+            // The child died
+            } else if let Some(chd) = &mut child
+                && let Ok(Some(_)) = chd.try_wait()
+            {
+                info!("Love died, respawning...");
+                child = Some(sppawn());
             } else if let Some(files) = &change {
                 if server.is_none() {
                     server = Some(
@@ -247,10 +242,9 @@ pub async fn watch(base_path: Option<PathBuf>) {
                     );
                 }
                 if let Some(server) = &mut server {
-                    server
-                        .dispatch("update", b"main.lua".to_vec())
-                        .await
-                        .expect("Failed to dispatch update");
+                    if let Err(error) = server.dispatch("update", b"main.lua".to_vec()).await {
+                        warn!("Failed to dispatch update... {:?}", error);
+                    };
                 }
             }
         }

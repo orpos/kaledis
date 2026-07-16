@@ -27,7 +27,7 @@ fn to_module_path<T: Into<PathBuf>>(
     project_root: &PathBuf,
     new_path: T,
 ) -> String {
-    let path_buf: PathBuf = new_path.into();
+    let path_buf: PathBuf = path::absolute(new_path.into()).expect("Failed to resolve import");
     path_buf
         .strip_prefix(project_root_src)
         .unwrap_or_else(|_| path_buf.strip_prefix(project_root).unwrap())

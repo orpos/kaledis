@@ -71,7 +71,7 @@ type FullscreenType = "desktop"|"exclusive"|"normal"
 type MessageBoxType = "info"|"warning"|"error"
 
 --- The superclass of all LÖVE types.
-declare class Object
+declare extern type Object with
 	--- ______________________________
 	--- Destroys the object's Lua reference. The object will be completely deleted if it's not referenced by any other LÖVE object or thread.
 	--- This method can be used to immediately clean up resources without waiting for Lua's garbage collector.
@@ -88,7 +88,7 @@ declare class Object
 	function typeOf(self, name: string) : (boolean)
 end
 --- Attach multiple bodies together to interact in unique ways.
-declare class Joint extends Object
+declare extern type Joint extends Object with
 	--- ______________________________
 	--- Explicitly destroys the Joint. An error will occur if you attempt to use the object after calling this function.
 	--- In 0.7.2, when you don't have time to wait for garbage collection, this function
@@ -142,7 +142,7 @@ end
 --- Shapes are solid 2d geometrical objects which handle the mass and collision of a Body in love.physics.
 --- Shapes are attached to a Body via a Fixture. The Shape object is copied when this happens.
 --- The Shape's position is relative to the position of the Body it has been attached to.
-declare class Shape extends Object
+declare extern type Shape extends Object with
 	--- ______________________________
 	--- Returns the points of the bounding box for the transformed shape.
 	--- @param tx The translation of the shape on the x-axis.
@@ -205,7 +205,7 @@ declare class Shape extends Object
 	function testPoint(self, tx: number, ty: number, tr: number, x: number, y: number) : (boolean)
 end
 --- Represents a file on the filesystem. A function that takes a file path can also take a File.
-declare class File extends Object
+declare extern type File extends Object with
 	--- ______________________________
 	--- Closes a File.
 	--- @return success Whether closing was successful.
@@ -308,7 +308,7 @@ declare class File extends Object
 	function write(self, data: Data, size: number?) : (boolean, string)
 end
 --- The superclass of all data.
-declare class Data extends Object
+declare extern type Data extends Object with
 	--- ______________________________
 	--- Creates a new copy of the Data object.
 	--- @return clone The new copy.
@@ -332,10 +332,10 @@ declare class Data extends Object
 	function getString(self) : (string)
 end
 --- Superclass for all things that can be drawn on screen. This is an abstract type that can't be created directly.
-declare class Drawable extends Object
+declare extern type Drawable extends Object with
 end
 --- Superclass for drawable objects which represent a texture. All Textures can be drawn with Quads. This is an abstract type that can't be created directly.
-declare class Texture extends Drawable
+declare extern type Texture extends Drawable with
 	--- ______________________________
 	--- Gets the DPI scale factor of the Texture.
 	--- The DPI scale factor represents relative pixel density. A DPI scale factor of 2 means the texture has twice the pixel density in each dimension (4 times as many pixels in the same area) compared to a texture with a DPI scale factor of 1.
@@ -458,7 +458,7 @@ declare class Texture extends Drawable
 	function setWrap(self, horiz: WrapMode, vert: WrapMode?, depth: WrapMode?) : ()
 end
 	--- A drawable video.
-declare class Video extends Drawable
+declare extern type Video extends Drawable with
 	--- ______________________________
 	--- Gets the width and height of the Video in pixels.
 	--- @return width The width of the Video.
@@ -519,7 +519,7 @@ declare class Video extends Drawable
 	function tell(self) : (number)
 end	
 --- Represents an audio input device capable of recording sounds.
-declare class RecordingDevice extends Object
+declare extern type RecordingDevice extends Object with
 	--- ______________________________
 	--- Gets the number of bits per sample in the data currently being recorded.
 	--- @return bits The number of bits per sample in the data that's currently being recorded.
@@ -566,7 +566,7 @@ end
 	--- A Source represents audio you can play back.
 	--- You can do interesting things with Sources, like set the volume, pitch, and its position relative to the listener. Please note that positional audio only works for mono (i.e. non-stereo) sources.
 	--- The Source controls (play/pause/stop) act according to the following state table.
-declare class Source extends Object
+declare extern type Source extends Object with
 	--- ______________________________
 	--- Creates an identical copy of the Source in the stopped state.
 	--- Static Sources will use significantly less memory and take much less time to be created if Source:clone is used to create them instead of love.audio.newSource, so this method should be preferred when making multiple Sources which play the same sound.
@@ -800,11 +800,11 @@ declare class Source extends Object
 end
 	--- Data object containing arbitrary bytes in an contiguous memory.
 	--- There are currently no LÖVE functions provided for manipulating the contents of a ByteData, but Data:getPointer can be used with LuaJIT's FFI to access and write to the contents directly.
-declare class ByteData extends Object
+declare extern type ByteData extends Object with
 end
 	--- Represents byte data compressed using a specific algorithm.
 	--- love.data.decompress can be used to de-compress the data (or love.math.decompress in 0.10.2 or earlier).
-declare class CompressedData extends Data
+declare extern type CompressedData extends Data with
 	--- ______________________________
 	--- Gets the compression format of the CompressedData.
 	--- @return format The format of the CompressedData.
@@ -812,10 +812,10 @@ declare class CompressedData extends Data
 end
 	--- Represents a file dropped onto the window.
 	--- Note that the DroppedFile type can only be obtained from love.filedropped callback, and can't be constructed manually by the user.
-declare class DroppedFile extends File
+declare extern type DroppedFile extends File with
 end
 --- Data representing the contents of a file.
-declare class FileData extends Data
+declare extern type FileData extends Data with
 	--- ______________________________
 	--- Gets the extension of the FileData.
 	--- @return ext The extension of the file the FileData represents.
@@ -826,7 +826,7 @@ declare class FileData extends Data
 	function getFilename(self) : (string)
 end
 	--- A GlyphData represents a drawable symbol of a font Rasterizer.
-declare class GlyphData extends Data
+declare extern type GlyphData extends Data with
 	--- ______________________________
 	--- Gets glyph advance.
 	--- @return advance Glyph advance.
@@ -870,7 +870,7 @@ declare class GlyphData extends Data
 	function getWidth(self) : (number)
 end
 	--- A Rasterizer handles font rendering, containing the font data (image or TrueType font) and drawable glyphs.
-declare class Rasterizer extends Object
+declare extern type Rasterizer extends Object with
 	--- ______________________________
 	--- Gets font advance.
 	--- @return advance Font advance.
@@ -915,7 +915,7 @@ end
 	--- A Canvas is used for off-screen rendering. Think of it as an invisible screen that you can draw to, but that will not be visible until you draw it to the actual visible screen. It is also known as "render to texture".
 	--- By drawing things that do not change position often (such as background items) to the Canvas, and then drawing the entire Canvas instead of each item,  you can reduce the number of draw operations performed each frame.
 	--- In versions prior to love.graphics.isSupported("canvas") could be used to check for support at runtime.
-declare class Canvas extends Texture
+declare extern type Canvas extends Texture with
 	--- ______________________________
 	--- Generates mipmaps for the Canvas, based on the contents of the highest-resolution mipmap level.
 	--- The Canvas must be created with mipmaps set to a MipmapMode other than 'none' for this function to work. It should only be called while the Canvas is not the active render target.
@@ -958,7 +958,7 @@ declare class Canvas extends Texture
 end
 
 	--- Defines the shape of characters that can be drawn onto the screen.
-declare class Font extends Object
+declare extern type Font extends Object with
 	--- ______________________________
 	--- Gets the ascent of the Font.
 	--- The ascent spans the distance between the baseline and the top of the glyph that reaches farthest from the baseline.
@@ -1070,7 +1070,7 @@ declare class Font extends Object
 	function setLineHeight(self, height: number) : ()
 end
 	--- Drawable image type.
-declare class Image extends Texture
+declare extern type Image extends Texture with
 	--- ______________________________
 	--- Gets whether the Image was created from CompressedData.
 	--- Compressed images take up less space in VRAM, and drawing a compressed image will generally be more efficient than drawing one created from raw pixel data.
@@ -1092,7 +1092,7 @@ declare class Image extends Texture
 	function replacePixels(self, data: ImageData, slice: number?, mipmap: number?, x: number?, y: number?, reloadmipmaps: boolean?) : ()
 end
 	--- A 2D polygon mesh used for drawing arbitrary textured shapes.
-declare class Mesh extends Drawable
+declare extern type Mesh extends Drawable with
 	--- ______________________________
 	--- Attaches a vertex attribute from a different Mesh onto this Mesh, for use when drawing. This can be used to share vertex attribute data between several different Meshes.
 	--- @param name The name of the vertex attribute to attach.
@@ -1314,7 +1314,7 @@ end
 	--- A ParticleSystem can be used to create particle effects like fire or smoke.
 	--- The particle system has to be created using update it in the update callback to see any changes in the particles emitted.
 	--- The particle system won't create any particles unless you call setParticleLifetime and setEmissionRate.
-declare class ParticleSystem extends Drawable
+declare extern type ParticleSystem extends Drawable with
 	--- ______________________________
 	--- Creates an identical copy of the ParticleSystem in the stopped state.
 	--- Cloned ParticleSystem inherit all the set-able state of the original ParticleSystem, but they are initialized stopped.
@@ -1628,7 +1628,7 @@ declare class ParticleSystem extends Drawable
 end
 	--- A quadrilateral (a polygon with four sides and four corners) with texture coordinate information.
 	--- Quads can be used to select part of a texture to draw. In this way, one large texture atlas can be loaded, and then split up into sub-images.
-declare class Quad extends Object
+declare extern type Quad extends Object with
 	--- ______________________________
 	--- Gets reference texture dimensions initially specified in love.graphics.newQuad.
 	--- @return sw The Texture width used by the Quad.
@@ -1653,7 +1653,7 @@ declare class Quad extends Object
 end
 	--- A Shader is used for advanced hardware-accelerated pixel or vertex manipulation. These effects are written in a language based on GLSL (OpenGL Shading Language) with a few things simplified for easier coding.
 	--- Potential uses for shaders include HDR/bloom, motion blur, grayscale/invert/sepia/any kind of color effect, reflection/refraction, distortions, bump mapping, and much more! Here is a collection of basic shaders and good starting point to learn: https://github.com/vrld/moonshine
-declare class Shader extends Object
+declare extern type Shader extends Object with
 	--- ______________________________
 	--- Returns any warning and error messages from compiling the shader code. This can be used for debugging your shaders if there's anything the graphics hardware doesn't like.
 	--- @return warnings Warning and error messages (if any).
@@ -1823,7 +1823,7 @@ declare class Shader extends Object
 end
 	--- Using a single image, draw any number of identical copies of the image using a single call to love.graphics.draw(). This can be used, for example, to draw repeating copies of a single background image with high performance.
 	--- A SpriteBatch can be even more useful when the underlying image is a texture atlas (a single image file containing many independent images); by adding Quads to the batch, different sub-images from within the atlas can be drawn.
-declare class SpriteBatch extends Drawable
+declare extern type SpriteBatch extends Drawable with
 	--- ______________________________
 	--- Adds a sprite to the batch. Sprites are drawn in the order they are added.
 	--- @param x The position to draw the object (x-axis).
@@ -2047,7 +2047,7 @@ declare class SpriteBatch extends Drawable
 	function setTexture(self, texture: Texture) : ()
 end
 	--- Drawable text.
-declare class Text extends Drawable
+declare extern type Text extends Drawable with
 	--- ______________________________
 	--- Adds additional colored text to the Text object at the specified position.
 	--- @param textstring The text to add to the object.
@@ -2182,7 +2182,7 @@ end
 	--- Represents compressed image data designed to stay compressed in RAM.
 	--- CompressedImageData encompasses standard compressed texture formats such as  DXT1, DXT5, and BC5 / 3Dc.
 	--- You can't draw CompressedImageData directly to the screen. See Image for that.
-declare class CompressedImageData extends Data
+declare extern type CompressedImageData extends Data with
 	--- ______________________________
 	--- Gets the width and height of the CompressedImageData.
 	--- @return width The width of the CompressedImageData.
@@ -2224,7 +2224,7 @@ declare class CompressedImageData extends Data
 end
 	--- Raw (decoded) image data.
 	--- You can't draw ImageData directly to screen. See Image for that.
-declare class ImageData extends Data
+declare extern type ImageData extends Data with
 	--- ______________________________
 	--- Encodes the ImageData and optionally writes it to the save directory.
 	--- @param format The format to encode the image as.
@@ -2319,7 +2319,7 @@ declare class ImageData extends Data
 	function getFormat(self) : (PixelFormat)
 end
 	--- Represents a physical joystick.
-declare class Joystick extends Object
+declare extern type Joystick extends Object with
 	--- ______________________________
 	--- Gets the direction of each axis.
 	--- @return axisDir1 Direction of axis1.
@@ -2450,7 +2450,7 @@ declare class Joystick extends Object
 end
 	--- A Bézier curve object that can evaluate and render Bézier curves of arbitrary degree.
 	--- For more information on Bézier curves check this great article on Wikipedia.
-declare class BezierCurve extends Object
+declare extern type BezierCurve extends Object with
 	--- ______________________________
 	--- Evaluate Bézier curve at parameter t. The parameter must be between 0 and 1 (inclusive).
 	--- This function can be used to move objects along paths or tween parameters. However it should not be used to render the curve, see BezierCurve:render for that purpose.
@@ -2536,7 +2536,7 @@ declare class BezierCurve extends Object
 	function translate(self, dx: number, dy: number) : ()
 end
 	--- A random number generation object which has its own random state.
-declare class RandomGenerator extends Object
+declare extern type RandomGenerator extends Object with
 	--- ______________________________
 	--- Gets the seed of the random number generator object.
 	--- The seed is split into two numbers due to Lua's use of doubles for all number values - doubles can't accurately represent integer  values above 2^53, but the seed value is an integer number in the range of 2^64 - 1.
@@ -2593,7 +2593,7 @@ declare class RandomGenerator extends Object
 end
 	--- Object containing a coordinate system transformation.
 	--- The love.graphics module has several functions and function variants which accept Transform objects.
-declare class Transform extends Object
+declare extern type Transform extends Object with
 	--- ______________________________
 	--- Applies the given other Transform object to this one.
 	--- This effectively multiplies this Transform's internal transformation matrix with the other Transform's (i.e. self * other), and stores the result in this object.
@@ -2743,14 +2743,14 @@ declare class Transform extends Object
 	function translate(self, dx: number, dy: number) : (Transform)
 end
 	--- Represents a hardware cursor.
-declare class Cursor extends Object
+declare extern type Cursor extends Object with
 	--- ______________________________
 	--- Gets the type of the Cursor.
 	--- @return ctype The type of the Cursor.
 	function getType(self) : (CursorType)
 end
 	--- Bodies are objects with velocity and position.
-declare class Body extends Object
+declare extern type Body extends Object with
 	--- ______________________________
 	--- Applies an angular impulse to a body. This makes a single, instantaneous addition to the body momentum.
 	--- A body with with a larger mass will react less. The reaction does '''not''' depend on the timestep, and is equivalent to applying a force continuously for 1 second. Impulses are best used to give a single push to a body. For a continuous push to a body it is better to use Body:applyForce.
@@ -3142,7 +3142,7 @@ declare class Body extends Object
 end
 	--- A ChainShape consists of multiple line segments. It can be used to create the boundaries of your terrain. The shape does not have volume and can only collide with PolygonShape and CircleShape.
 	--- Unlike the PolygonShape, the ChainShape does not have a vertices limit or has to form a convex shape, but self intersections are not supported.
-declare class ChainShape extends Shape
+declare extern type ChainShape extends Shape with
 	--- ______________________________
 	--- Returns a child of the shape as an EdgeShape.
 	--- @param index The index of the child.
@@ -3191,7 +3191,7 @@ declare class ChainShape extends Shape
 	function setPreviousVertex(self, x: number, y: number) : ()
 end
 	--- Circle extends Shape and adds a radius and a local position.
-declare class CircleShape extends Shape
+declare extern type CircleShape extends Shape with
 	--- ______________________________
 	--- Gets the center point of the circle shape.
 	--- @return x The x-component of the center point of the circle.
@@ -3212,7 +3212,7 @@ declare class CircleShape extends Shape
 	function setRadius(self, radius: number) : ()
 end
 	--- Contacts are objects created to manage collisions in worlds.
-declare class Contact extends Object
+declare extern type Contact extends Object with
 	--- ______________________________
 	--- Gets the child indices of the shapes of the two colliding fixtures. For ChainShapes, an index of 1 is the first edge in the chain.
 	--- Used together with Fixture:rayCast or ChainShape:getChildEdge.
@@ -3273,7 +3273,7 @@ declare class Contact extends Object
 	function setRestitution(self, restitution: number) : ()
 end
 	--- Keeps two bodies at the same distance.
-declare class DistanceJoint extends Joint
+declare extern type DistanceJoint extends Joint with
 	--- ______________________________
 	--- Gets the damping ratio.
 	--- @return ratio The damping ratio.
@@ -3300,7 +3300,7 @@ declare class DistanceJoint extends Joint
 	function setLength(self, l: number) : ()
 end
 	--- A EdgeShape is a line segment. They can be used to create the boundaries of your terrain. The shape does not have volume and can only collide with PolygonShape and CircleShape.
-declare class EdgeShape extends Shape
+declare extern type EdgeShape extends Shape with
 	--- ______________________________
 	--- Gets the vertex that establishes a connection to the next shape.
 	--- Setting next and previous EdgeShape vertices can help prevent unwanted collisions when a flat shape slides along the edge and moves over to the new shape.
@@ -3334,7 +3334,7 @@ declare class EdgeShape extends Shape
 	function setPreviousVertex(self, x: number, y: number) : ()
 end
 	--- Fixtures attach shapes to bodies.
-declare class Fixture extends Object
+declare extern type Fixture extends Object with
 	--- ______________________________
 	--- Destroys the fixture.
 	function destroy(self) : ()
@@ -3478,7 +3478,7 @@ declare class Fixture extends Object
 	function testPoint(self, x: number, y: number) : (boolean)
 end
 	--- A FrictionJoint applies friction to a body.
-declare class FrictionJoint extends Joint
+declare extern type FrictionJoint extends Joint with
 	--- ______________________________
 	--- Gets the maximum friction force in Newtons.
 	--- @return force Maximum force in Newtons.
@@ -3497,7 +3497,7 @@ declare class FrictionJoint extends Joint
 	function setMaxTorque(self, torque: number) : ()
 end
 	--- Keeps bodies together in such a way that they act like gears.
-declare class GearJoint extends Joint
+declare extern type GearJoint extends Joint with
 	--- ______________________________
 	--- Get the Joints connected by this GearJoint.
 	--- @return joint1 The first connected Joint.
@@ -3513,7 +3513,7 @@ declare class GearJoint extends Joint
 	function setRatio(self, ratio: number) : ()
 end
 	--- Controls the relative motion between two Bodies. Position and rotation offsets can be specified, as well as the maximum motor force and torque that will be applied to reach the target offsets.
-declare class MotorJoint extends Joint
+declare extern type MotorJoint extends Joint with
 	--- ______________________________
 	--- Gets the target angular offset between the two Bodies the Joint is attached to.
 	--- @return angleoffset The target angular offset in radians: the second body's angle minus the first body's angle.
@@ -3534,7 +3534,7 @@ declare class MotorJoint extends Joint
 	function setLinearOffset(self, x: number, y: number) : ()
 end
 	--- For controlling objects with the mouse.
-declare class MouseJoint extends Joint
+declare extern type MouseJoint extends Joint with
 	--- ______________________________
 	--- Returns the damping ratio.
 	--- @return ratio The new damping ratio.
@@ -3571,7 +3571,7 @@ declare class MouseJoint extends Joint
 	function setTarget(self, x: number, y: number) : ()
 end
 	--- A PolygonShape is a convex polygon with up to 8 vertices.
-declare class PolygonShape extends Shape
+declare extern type PolygonShape extends Shape with
 	--- ______________________________
 	--- Get the local coordinates of the polygon's vertices.
 	--- This function has a variable number of return values. It can be used in a nested fashion with love.graphics.polygon.
@@ -3582,7 +3582,7 @@ declare class PolygonShape extends Shape
 	function getPoints(self) : (number, number, number, number)
 end
 	--- Restricts relative motion between Bodies to one shared axis.
-declare class PrismaticJoint extends Joint
+declare extern type PrismaticJoint extends Joint with
 	--- ______________________________
 	--- Checks whether the limits are enabled.
 	--- @return enabled True if enabled, false otherwise.
@@ -3665,7 +3665,7 @@ declare class PrismaticJoint extends Joint
 	function setUpperLimit(self, upper: number) : ()
 end
 	--- Allows you to simulate bodies connected through pulleys.
-declare class PulleyJoint extends Joint
+declare extern type PulleyJoint extends Joint with
 	--- ______________________________
 	--- Get the total length of the rope.
 	--- @return length The length of the rope in the joint.
@@ -3711,7 +3711,7 @@ declare class PulleyJoint extends Joint
 	function setRatio(self, ratio: number) : ()
 end
 	--- Allow two Bodies to revolve around a shared point.
-declare class RevoluteJoint extends Joint
+declare extern type RevoluteJoint extends Joint with
 	--- ______________________________
 	--- Checks whether limits are enabled.
 	--- @return enabled True if enabled, false otherwise.
@@ -3792,7 +3792,7 @@ declare class RevoluteJoint extends Joint
 	function setUpperLimit(self, upper: number) : ()
 end
 	--- The RopeJoint enforces a maximum distance between two points on two bodies. It has no other effect.
-declare class RopeJoint extends Joint
+declare extern type RopeJoint extends Joint with
 	--- ______________________________
 	--- Gets the maximum length of a RopeJoint.
 	--- @return maxLength The maximum length of the RopeJoint.
@@ -3803,7 +3803,7 @@ declare class RopeJoint extends Joint
 	function setMaxLength(self, maxLength: number) : ()
 end
 	--- A WeldJoint essentially glues two bodies together.
-declare class WeldJoint extends Joint
+declare extern type WeldJoint extends Joint with
 	--- ______________________________
 	--- Returns the damping ratio of the joint.
 	--- @return ratio The damping ratio.
@@ -3826,7 +3826,7 @@ declare class WeldJoint extends Joint
 	function setFrequency(self, freq: number) : ()
 end
 	--- Restricts a point on the second body to a line on the first body.
-declare class WheelJoint extends Joint
+declare extern type WheelJoint extends Joint with
 	--- ______________________________
 	--- Gets the world-space axis vector of the Wheel Joint.
 	--- @return x The x-axis coordinate of the world-space axis vector.
@@ -3887,7 +3887,7 @@ declare class WheelJoint extends Joint
 	function setSpringFrequency(self, freq: number) : ()
 end
 	--- A world is an object that contains all bodies and joints.
-declare class World extends Object
+declare extern type World extends Object with
 	--- ______________________________
 	--- Destroys the world, taking all bodies, joints, fixtures and their shapes with it.
 	--- An error will occur if you attempt to use any of the destroyed objects after calling this function.
@@ -4002,7 +4002,7 @@ declare class World extends Object
 	function update(self, dt: number, velocityiterations: number?, positioniterations: number?) : ()
 end
 	--- An object which can gradually decode a sound file.
-declare class Decoder extends Object
+declare extern type Decoder extends Object with
 	--- ______________________________
 	--- Creates a new copy of current decoder.
 	--- The new decoder will start decoding from the beginning of the audio stream.
@@ -4035,7 +4035,7 @@ declare class Decoder extends Object
 end
 	--- Contains raw audio samples.
 	--- You can not play SoundData back directly. You must wrap a Source object around it.
-declare class SoundData extends Data
+declare extern type SoundData extends Data with
 	--- ______________________________
 	--- Returns the number of bits per sample.
 	--- @return bitdepth Either 8, or 16.
@@ -4082,7 +4082,7 @@ declare class SoundData extends Data
 	function setSample(self, i: number, channel: number, sample: number) : ()
 end
 	--- An object which can be used to send and receive data between different threads.
-declare class Channel extends Object
+declare extern type Channel extends Object with
 	--- ______________________________
 	--- Clears all the messages in the Channel queue.
 	function clear(self) : ()
@@ -4146,7 +4146,7 @@ declare class Channel extends Object
 	function supply(self, value: Variant, timeout: number) : (boolean)
 end
 	--- A Thread is a chunk of code that can run in parallel with other threads. Data can be sent between different threads with Channel objects.
-declare class Thread extends Object
+declare extern type Thread extends Object with
 	--- ______________________________
 	--- Retrieves the error string from the thread if it produced an error.
 	--- @return err The error message, or nil if the Thread has not caused an error.
@@ -4172,7 +4172,7 @@ declare class Thread extends Object
 	function wait(self) : ()
 end
 	--- An object which decodes, streams, and controls Videos.
-declare class VideoStream extends Object
+declare extern type VideoStream extends Object with
 	--- ______________________________
 	--- Gets the filename of the VideoStream.
 	--- @return filename The filename of the VideoStream

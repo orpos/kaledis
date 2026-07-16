@@ -52,6 +52,7 @@ impl Decoder for MessageCodec {
 
 impl DevServer {
     pub async fn new(addr: String) -> color_eyre::Result<Self> {
+        
         let (read, writer) = TcpStream::connect(addr).await?.into_split();
 
         tokio::spawn(async move {

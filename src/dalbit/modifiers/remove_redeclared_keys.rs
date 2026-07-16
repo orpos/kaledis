@@ -4,7 +4,9 @@ use darklua_core::nodes::{
     StringExpression, TableEntry, TableExpression,
 };
 use darklua_core::process::{DefaultVisitor, Evaluator, LuaValue, NodeProcessor, NodeVisitor};
-use darklua_core::rules::{Context, RuleConfiguration, RuleConfigurationError, RuleProperties};
+use darklua_core::rules::{
+    Context, RuleConfiguration, RuleConfigurationError, RuleMetadata, RuleProperties,
+};
 
 use super::runtime_identifier::RuntimeIdentifierBuilder;
 use darklua_core::rules::{Rule, RuleProcessResult};
@@ -140,7 +142,8 @@ impl NodeProcessor for Processor {
                 side_effect_stmts.insert(0, local_assign_stmt.into());
                 let return_stmt = ReturnStatement::one(var);
                 let func_block = Block::new(side_effect_stmts, Some(return_stmt.into()));
-                let func = Expression::Function(Box::new(FunctionExpression::from_block(func_block)));
+                let func =
+                    Expression::Function(Box::new(FunctionExpression::from_block(func_block)));
                 let parenthese_func = ParentheseExpression::new(func);
                 let func_call = FunctionCall::from_prefix(parenthese_func);
                 let call_exp = Expression::Call(Box::new(func_call));
@@ -156,12 +159,14 @@ pub const REMOVE_REDECLARED_KEYS_RULE_NAME: &str = "remove_redeclared_keys";
 #[derive(Debug, PartialEq, Eq)]
 pub struct RemoveRedeclaredKeys {
     runtime_identifier_format: String,
+    metadata: RuleMetadata,
 }
 
 impl Default for RemoveRedeclaredKeys {
     fn default() -> Self {
         Self {
             runtime_identifier_format: "_DARKLUA_REMOVE_REDECLARED_KEYS_{name}{hash}".to_string(),
+            metadata: RuleMetadata::default(),
         }
     }
 }
@@ -194,5 +199,15 @@ impl RuleConfiguration for RemoveRedeclaredKeys {
 
     fn serialize_to_properties(&self) -> RuleProperties {
         RuleProperties::new()
+    }
+
+    fn has_properties(&self) -> bool {
+        false
+    }
+    fn metadata(&self) -> &RuleMetadata {
+        &self.metadata
+    }
+    fn set_metadata(&mut self, metadata: RuleMetadata) {
+        self.metadata = metadata
     }
 }

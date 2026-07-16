@@ -4,7 +4,7 @@ use darklua_core::nodes::{
     Statement, StringExpression, TupleArguments, TypedIdentifier, Variable,
 };
 use darklua_core::process::{DefaultVisitor, NodeProcessor, NodeVisitor};
-use darklua_core::rules::{Context, RuleConfiguration, RuleConfigurationError, RuleProperties};
+use darklua_core::rules::{Context, RuleConfiguration, RuleConfigurationError, RuleMetadata, RuleProperties};
 
 use super::runtime_identifier::RuntimeIdentifierBuilder;
 use darklua_core::rules::{Rule, RuleProcessResult};
@@ -154,12 +154,14 @@ pub const REMOVE_GENERALIZED_ITERATION_MODIFIER_NAME: &str = "remove_generalized
 /// A rule that removes generalized iteration.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RemoveGeneralizedIteration {
+    metadata: RuleMetadata,
     runtime_identifier_format: String,
 }
 
 impl Default for RemoveGeneralizedIteration {
     fn default() -> Self {
         Self {
+            metadata: RuleMetadata::default(),
             runtime_identifier_format: "_DALBIT_REMOVE_GENERALIZED_ITERATION_{name}{hash}"
                 .to_string(),
         }
@@ -194,5 +196,15 @@ impl RuleConfiguration for RemoveGeneralizedIteration {
 
     fn serialize_to_properties(&self) -> RuleProperties {
         RuleProperties::new()
+    }
+
+    fn has_properties(&self) -> bool {
+        false
+    }
+    fn metadata(&self) -> &RuleMetadata {
+        &self.metadata
+    }
+    fn set_metadata(&mut self, metadata: RuleMetadata) {
+        self.metadata = metadata
     }
 }

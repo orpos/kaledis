@@ -6,7 +6,10 @@ use std::path::{self, Path, PathBuf};
 use darklua_core::{
     nodes::{Arguments, Block, Expression, Prefix, StringExpression},
     process::{DefaultVisitor, NodeProcessor, NodeVisitor},
-    rules::{Context, FlawlessRule, RuleConfiguration, RuleConfigurationError, RuleProperties},
+    rules::{
+        Context, FlawlessRule, RuleConfiguration, RuleConfigurationError, RuleMetadata,
+        RuleProperties,
+    },
 };
 
 pub const RELATIVE_PATH_MODIFIER_NAME: &str = "path_modifier";
@@ -118,6 +121,7 @@ impl<'a> NodeProcessor for Processor<'a> {
 
 #[derive(Default, Debug)]
 pub struct ModifyPathModifier {
+    pub metadata: darklua_core::rules::RuleMetadata,
     pub project_root_src: PathBuf,
     pub project_root: PathBuf,
     pub paths: Vec<(String, String)>,
@@ -146,5 +150,17 @@ impl RuleConfiguration for ModifyPathModifier {
 
     fn serialize_to_properties(&self) -> RuleProperties {
         RuleProperties::new()
+    }
+
+    fn has_properties(&self) -> bool {
+        false
+    }
+
+    fn set_metadata(&mut self, metadata: RuleMetadata) {
+        self.metadata = metadata;
+    }
+
+    fn metadata(&self) -> &darklua_core::rules::RuleMetadata {
+        &self.metadata
     }
 }

@@ -208,6 +208,7 @@ fn private_process(
             paths: aliases.to_vec(),
             project_root: paths.root.clone(),
             project_root_src: paths.src.clone(),
+            ..Default::default()
         })));
     }
 

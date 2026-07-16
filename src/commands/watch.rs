@@ -148,7 +148,16 @@ pub async fn watch(base_path: Option<PathBuf>) {
     #[cfg(target_os = "linux")]
     path.push("love2d.AppImage");
 
-    let sppawn = || {
+    let sppawn = async || {
+        #[cfg(target_os="linux")]
+        if let Ok(mut chd) = Command::new("chmod")
+            .current_dir(&path.parent().unwrap())
+            .args(["+x", &path.to_string_lossy()])
+            .spawn()
+            .context("Spawning the process")
+        {
+            chd.wait().await.unwrap();
+        }
         Command::new(&path)
             .current_dir(&path.parent().unwrap())
             .arg(&builder.paths.build)
@@ -156,7 +165,7 @@ pub async fn watch(base_path: Option<PathBuf>) {
             .context("Spawning the process")
             .unwrap()
     };
-    let mut child: Option<Child> = Some(sppawn());
+    let mut child: Option<Child> = Some(sppawn().await);
 
     let mut server: Option<DevServer> = None;
 
@@ -198,13 +207,13 @@ pub async fn watch(base_path: Option<PathBuf>) {
             }
 
             if let None = child {
-                child = Some(sppawn());
+                child = Some(sppawn().await);
             // The child died
             } else if let Some(chd) = &mut child
                 && let Ok(Some(_)) = chd.try_wait()
             {
                 info!("Love died, respawning...");
-                child = Some(sppawn());
+                child = Some(sppawn().await);
             } else if let Some(files) = &change {
                 if server.is_none() {
                     server = Some(

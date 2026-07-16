@@ -4,7 +4,10 @@ use color_eyre::eyre::eyre;
 use darklua_core::{
     nodes::{Arguments, Block, Expression, Prefix, TableExpression},
     process::{DefaultVisitor, NodeProcessor, NodeVisitor},
-    rules::{Context, FlawlessRule, RuleConfiguration, RuleConfigurationError, RuleProperties},
+    rules::{
+        Context, FlawlessRule, RuleConfiguration, RuleConfigurationError, RuleMetadata,
+        RuleProperties,
+    },
 };
 
 pub const OPTIMIZE_TABLE_INITIALIZERS_MODIFIER_NAME: &str = "optimize_table_initializers";
@@ -105,7 +108,9 @@ impl NodeProcessor for Processor {
 }
 
 #[derive(Default, Debug)]
-pub struct OptimizeTableInitializers {}
+pub struct OptimizeTableInitializers {
+    metadata: RuleMetadata,
+}
 
 impl FlawlessRule for OptimizeTableInitializers {
     fn flawless_process(&self, block: &mut Block, _: &Context) {
@@ -125,5 +130,15 @@ impl RuleConfiguration for OptimizeTableInitializers {
 
     fn serialize_to_properties(&self) -> darklua_core::rules::RuleProperties {
         RuleProperties::new()
+    }
+
+    fn has_properties(&self) -> bool {
+        false
+    }
+    fn metadata(&self) -> &RuleMetadata {
+        &self.metadata
+    }
+    fn set_metadata(&mut self, metadata: RuleMetadata) {
+        self.metadata = metadata;
     }
 }

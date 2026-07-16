@@ -1,7 +1,10 @@
 use darklua_core::{
     nodes::{Block, DecimalNumber, Expression, NumberExpression},
     process::{DefaultVisitor, NodeProcessor, NodeVisitor},
-    rules::{Context, FlawlessRule, RuleConfiguration, RuleConfigurationError, RuleProperties},
+    rules::{
+        Context, FlawlessRule, RuleConfiguration, RuleConfigurationError, RuleMetadata,
+        RuleProperties,
+    },
 };
 
 pub const REMOVE_NUMBER_LITERALS_MODIFIER_NAME: &str = "remove_number_literals";
@@ -27,7 +30,9 @@ impl NodeProcessor for Processor {
 }
 
 #[derive(Default, Debug)]
-pub struct RemoveNumberLiterals {}
+pub struct RemoveNumberLiterals {
+    metadata: RuleMetadata,
+}
 
 impl FlawlessRule for RemoveNumberLiterals {
     fn flawless_process(&self, block: &mut Block, _: &Context) {
@@ -47,5 +52,15 @@ impl RuleConfiguration for RemoveNumberLiterals {
 
     fn serialize_to_properties(&self) -> RuleProperties {
         RuleProperties::new()
+    }
+
+    fn has_properties(&self) -> bool {
+        false
+    }
+    fn metadata(&self) -> &RuleMetadata {
+        &self.metadata
+    }
+    fn set_metadata(&mut self, metadata: RuleMetadata) {
+        self.metadata = metadata
     }
 }

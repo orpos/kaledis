@@ -11,6 +11,7 @@ use darklua_core::{
         RuleProperties,
     },
 };
+use fs_err::canonicalize;
 
 pub const RELATIVE_PATH_MODIFIER_NAME: &str = "path_modifier";
 
@@ -27,7 +28,23 @@ fn to_module_path<T: Into<PathBuf>>(
     project_root: &PathBuf,
     new_path: T,
 ) -> String {
-    let path_buf: PathBuf = path::absolute(new_path.into()).expect("Failed to resolve import");
+    let path = new_path.into();
+
+    // first we try it normally, then we try with luau and at last lua
+    let mut path_buf: PathBuf = canonicalize(&path)
+        .unwrap_or_else(|_| {
+            canonicalize(path.with_extension("luau"))
+                .unwrap_or_else(|_| canonicalize(path.with_extension("lua")).unwrap_or_default())
+        })
+        .with_extension("");
+
+    path_buf = PathBuf::from(
+        path_buf
+            .to_string_lossy()
+            // when you canonicalize in windows it leaves this:
+            .trim_start_matches("\\\\?\\"),
+    );
+
     path_buf
         .strip_prefix(project_root_src)
         .unwrap_or_else(|_| path_buf.strip_prefix(project_root).unwrap())

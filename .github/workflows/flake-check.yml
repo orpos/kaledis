@@ -1,0 +1,40 @@
+name: Flake check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            system: x86_64-linux
+          - os: macos-13
+            system: x86_64-darwin
+          - os: macos-latest
+            system: aarch64-darwin
+    runs-on: ${{ matrix.os }}
+    name: build (${{ matrix.system }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Build packages.bin
+        run: nix build .#bin -L
+
+      - name: Check binary landed
+        run: |
+          file result/bin/kaledis
+          ls -la result/bin
+
+      # Building from source natively covers all three runners, but takes
+      # longer; if that's too slow, drop the `if:` guard below to only run
+      # it on x86_64-linux.
+      - name: Build packages.default (from source)
+        run: nix build .#default -L

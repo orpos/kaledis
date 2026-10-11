@@ -1,13 +1,10 @@
 <div align="center">
 <img width=90 height=90 src="./images/image.png" align="center" />
 
-# Kaledis
-
-</div>
-
 Kaledis is a tool for allowing Luau to be used with Love2D via transpiling, alongside providing easier & simpler management of Love2D projects.
 
 It has many resources to make your life much easier when using Love2D:
+
 * Transpiles Luau into compatible Love2D code, allowing type annotations, libraries and other features to be implemented.
 * Automatically manages and provides Love2D installations.
 * Simple commands and CLI, you'll get the hang of it in no time.
@@ -15,7 +12,8 @@ It has many resources to make your life much easier when using Love2D:
 * A more friendly frontend configuration framework, using a TOML file instead of a *conf.lua*
   * If you need to make it dynamic, we allow you to still use a *conf.lua* file.
 
-### From Cargo 
+### From Cargo
+
 ```bash
 cargo install kaledis
 ```
@@ -27,12 +25,74 @@ https://orpos.github.io/kaledis_docs/
 ## Installation
 
 ### From Releases
+
 Go to the Releases page and download the zip corresponding to your system.
 
 ### From Source
+
 Clone the repo, then use `cargo build` to build the project from scratch *Probably all platforms.*
 
+### From Nix
+
+If you have [Nix](https://nixos.org) with flakes enabled, you can run Kaledis without installing anything:
+
+```bash
+nix run github:j-a-sunny/kaledis
+```
+
+Or install it into your profile:
+
+```bash
+nix profile install github:j-a-sunny/kaledis
+```
+
+By default this builds `kaledis` from source (`packages.default`). If you'd rather skip the compile and just fetch the same binary published on the [Releases](../../releases) page, use the `bin` output instead:
+
+```bash
+nix run github:j-a-sunny/kaledis#bin
+nix profile add github:j-a-sunny/kaledis#bin
+```
+
+The `bin` output is only published for `x86_64-linux`, `x86_64-darwin` and `aarch64-darwin`; on other systems (e.g. `aarch64-linux`) use the default source build.
+
+If you've cloned the repo, drop the `github:orpos/kaledis` prefix and run `nix run .` / `nix run .#bin` from the project root instead, or `nix develop` to drop into a shell with the Rust toolchain the project needs.
+
+**Declarative install (NixOS / home-manager)**, by adding kaledis as a flake input to your own system config:
+
+```nix
+# flake.nix
+{
+  inputs = {
+    kaledis.url = "github:j-a-sunny/kaledis";
+  };
+
+  outputs = { self, nixpkgs, kaledis, ... }: {
+    nixosConfigurations.<your-hostname> = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+
+      modules = [
+        {
+          environment.systemPackages = [
+            kaledis.packages.x86_64-linux.default
+          ];
+        }
+      ];
+    };
+  };
+}
+```
+
+```nix
+# home-manager, as a module inside the same flake:
+home-manager.users.<user> = { pkgs, ... }: {
+  home.packages = [ kaledis.packages.${pkgs.system}.default ];
+};
+```
+
+`kaledis.packages.<system>` needs a concrete system string (`x86_64-linux`, `aarch64-darwin`, ...) rather than `system`/`pkgs.system` at the top level of a `nixosSystem` call, since that's evaluated before `pkgs` exists; inside a module (like the home-manager example above) `pkgs.system` works fine.
+
 ## Credits
+
 - [Dalbit](https://github.com/CavefulGames/dalbit) for the awesome transpiling system.
 - [Editpe](https://github.com/Systemcluster/editpe) for the windows icon manipulation implementation.
 - [Apktool](https://github.com/iBotPeaches/Apktool) for the android implementation in general.
@@ -40,9 +100,12 @@ Clone the repo, then use `cargo build` to build the project from scratch *Probab
 - [Backhand](https://github.com/wcampbell0x2a/backhand) for the squashfs implementation for AppImage
 
 ## FAQ
+
 ### Why the name 'Kaledis'?
+
 The name came from the word 'Kalendis', in latin means "moons" or "more than 1 moon". By the fact that Luau and Love2D are "incompatible" and the package solves that problem, it was given this name.
 
 ### Who I contact for source code related stuff?
+
 If you need anything regarding the code, you can contact lettuce-magician and he will forward the topic to orpos (that actually edits the code).
 You can also discuss any issues, PRs and showcases in the official Discord server: https://discord.gg/MKCb3sUChS

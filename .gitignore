@@ -1,5 +1,9 @@
 /target
 love
+
+# Nix build outputs (nix build / nix build .#<name>)
+result
+result-*
 ./.vscode/**/*
 .vscode
 

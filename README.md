@@ -15,45 +15,69 @@ It has many resources to make your life much easier when using Love2D:
 * A more friendly frontend configuration framework, using a TOML file instead of a *conf.lua*
   * If you need to make it dynamic, we allow you to still use a *conf.lua* file.
 
-### From Cargo
-
-```bash
-cargo install kaledis
-```
-
 ### Docs
 
 https://orpos.github.io/kaledis_docs/
 
 ## Installation
 
-### From Releases
 
-Go to the Releases page and download the zip corresponding to your system.
+<details>
+<summary>From Cargo</summary>
 
-### From Source
 
+```bash
+cargo install kaledis
+```
+
+</details>
+
+<details>
+<summary>From Releases</summary>
+
+Go to the [Releases page](https://github.com/orpos/kaledis/releases) and download the zip corresponding to your system.
+</details>
+
+<details>
+<summary>From Rokit</summary>
+If you have Rokit you can add it using
+
+```bash
+rokit init
+rokit add orpos/kaledis
+```
+</details>
+
+<details>
+<summary>From Source</summary>
 Clone the repo, then use `cargo build` to build the project from scratch *Probably all platforms.*
 
-### From Nix
+```bash
+git clone https://github.com/orpos/kaledis
+cargo build
+```
+</details>
+
+<details>
+<summary>From Nix</summary>
 
 If you have [Nix](https://nixos.org) with flakes enabled, you can run Kaledis without installing anything:
 
 ```bash
-nix run github:j-a-sunny/kaledis
+nix run github:orpos/kaledis
 ```
 
 Or install it into your profile:
 
 ```bash
-nix profile install github:j-a-sunny/kaledis
+nix profile install github:orpos/kaledis
 ```
 
 By default this builds `kaledis` from source (`packages.default`). If you'd rather skip the compile and just fetch the same binary published on the [Releases](../../releases) page, use the `bin` output instead:
 
 ```bash
-nix run github:j-a-sunny/kaledis#bin
-nix profile add github:j-a-sunny/kaledis#bin
+nix run github:orpos/kaledis#bin
+nix profile add github:orpos/kaledis#bin
 ```
 
 The `bin` output is only published for `x86_64-linux`, `x86_64-darwin` and `aarch64-darwin`; on other systems (e.g. `aarch64-linux`) use the default source build.
@@ -66,7 +90,7 @@ If you've cloned the repo, drop the `github:orpos/kaledis` prefix and run `nix r
 # flake.nix
 {
   inputs = {
-    kaledis.url = "github:j-a-sunny/kaledis";
+    kaledis.url = "github:orpos/kaledis";
   };
 
   outputs = { self, nixpkgs, kaledis, ... }: {
@@ -93,6 +117,7 @@ home-manager.users.<user> = { pkgs, ... }: {
 ```
 
 `kaledis.packages.<system>` needs a concrete system string (`x86_64-linux`, `aarch64-darwin`, ...) rather than `system`/`pkgs.system` at the top level of a `nixosSystem` call, since that's evaluated before `pkgs` exists; inside a module (like the home-manager example above) `pkgs.system` works fine.
+</details>
 
 ## Credits
 

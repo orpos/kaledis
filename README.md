@@ -1,6 +1,9 @@
 <div align="center">
 <img width=90 height=90 src="./images/image.png" align="center" />
 
+# Kaledis
+</div>
+
 Kaledis is a tool for allowing Luau to be used with Love2D via transpiling, alongside providing easier & simpler management of Love2D projects.
 
 It has many resources to make your life much easier when using Love2D:

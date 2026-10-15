@@ -5,6 +5,13 @@ name = "kaledis/test"
 version = "0.1.0"
 target = "luau"
 
+[graph."marked/jecs@0.11.0 luau"]
+direct = ["jecs", { name = "marked/jecs", version = "^0.11.0", index = "default" }, "standard"]
+
+[graph."marked/jecs@0.11.0 luau".pkg_ref]
+ref_ty = "pesde"
+index_url = "https://github.com/pesde-pkg/index"
+
 [graph."plainenglish/byteparse@1.2.1 luau"]
 direct = ["byteparse", { name = "plainenglish/byteparse", version = "^1.2.1", index = "default" }, "standard"]
 

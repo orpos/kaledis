@@ -1,4 +1,5 @@
 local byteparse= require("@packages/byteparse")
+require("./jecs_example")
 
 function love.load()
     -- This will run once when the game loads

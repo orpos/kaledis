@@ -2,6 +2,7 @@
 // love2d gets with base the root of the project so i just translate it
 
 use std::path::{self, Path, PathBuf};
+use colored::Colorize;
 
 use darklua_core::{
     nodes::{Arguments, Block, Expression, Prefix, StringExpression},
@@ -24,11 +25,16 @@ struct Processor<'a> {
 
 // This exists to stop conflicts with folders with a dot
 fn to_module_path<T: Into<PathBuf>>(
+    original_path: &PathBuf,
     project_root_src: &PathBuf,
     project_root: &PathBuf,
     new_path: T,
 ) -> String {
     let path = new_path.into();
+
+    let file_stripped = original_path
+        .strip_prefix(project_root)
+        .unwrap_or(original_path);
 
     // first we try it normally, then we try with luau and at last lua
     let mut path_buf: PathBuf = canonicalize(&path)
@@ -47,7 +53,18 @@ fn to_module_path<T: Into<PathBuf>>(
 
     path_buf
         .strip_prefix(project_root_src)
-        .unwrap_or_else(|_| path_buf.strip_prefix(project_root).unwrap())
+        .unwrap_or_else(|_| {
+            path_buf.strip_prefix(project_root).unwrap_or_else(|_| {
+                let stripped_file = path.strip_prefix(project_root).unwrap_or(&path);
+                println!(
+                    "{} Unable to resolve require path : {:?};\n when resolving in {}",
+                    "[!]".yellow(),
+                    &stripped_file,
+                    file_stripped.to_string_lossy().red()
+                );
+                &path
+            })
+        })
         .iter()
         // due to love2d custom require we use this to stop conflicts
         // as such this should be enforced in build time and by this rule
@@ -96,6 +113,7 @@ impl<'a> NodeProcessor for Processor<'a> {
                     ))
                     .expect("Failed To Find Module");
                     *expr = StringExpression::from_value(to_module_path(
+                        &self.path.to_path_buf(),
                         self.project_root_src,
                         self.project_root,
                         pth,
@@ -127,6 +145,7 @@ impl<'a> NodeProcessor for Processor<'a> {
                 }
 
                 *expr = StringExpression::from_value(to_module_path(
+                    &self.path.to_path_buf(),
                     self.project_root_src,
                     self.project_root,
                     pth,

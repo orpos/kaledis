@@ -14,10 +14,6 @@ jobs:
         include:
           - os: ubuntu-latest
             system: x86_64-linux
-          - os: macOS-15-intel
-            host: macos
-            arch: x86_64
-            target: x86_64-apple-darwin
           - os: macos-latest
             host: macos
             arch: aarch64

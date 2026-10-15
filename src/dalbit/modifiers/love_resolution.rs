@@ -25,23 +25,23 @@ struct Processor<'a> {
 
 // This exists to stop conflicts with folders with a dot
 fn to_module_path<T: Into<PathBuf>>(
-    original_path: &PathBuf,
+    caller_path: &PathBuf,
     project_root_src: &PathBuf,
     project_root: &PathBuf,
-    new_path: T,
+    require_pathbuf: T,
 ) -> String {
-    let path = new_path.into();
-
-    let file_stripped = original_path
+    let require_path = require_pathbuf.into();
+    let stripped_caller = caller_path
         .strip_prefix(project_root)
-        .unwrap_or(original_path);
+        .unwrap_or(caller_path);
 
     // first we try it normally, then we try with luau and at last lua
-    let mut path_buf: PathBuf = canonicalize(&path)
-        .unwrap_or_else(|_| {
-            canonicalize(path.with_extension("luau"))
-                .unwrap_or_else(|_| canonicalize(path.with_extension("lua")).unwrap_or_default())
-        })
+    let mut path_buf: PathBuf = canonicalize(&require_path)
+        .or(canonicalize(require_path.with_extension("luau")))
+        .or(canonicalize(require_path.with_extension("lua")))
+        .or(canonicalize(require_path.with_file_name("init.luau")))
+        .or(canonicalize(require_path.with_file_name("init.lua")))
+        .unwrap_or_default()
         .with_extension("");
 
     path_buf = PathBuf::from(
@@ -55,14 +55,16 @@ fn to_module_path<T: Into<PathBuf>>(
         .strip_prefix(project_root_src)
         .unwrap_or_else(|_| {
             path_buf.strip_prefix(project_root).unwrap_or_else(|_| {
-                let stripped_file = path.strip_prefix(project_root).unwrap_or(&path);
+                let stripped_file = require_path
+                    .strip_prefix(project_root)
+                    .unwrap_or(&require_path);
                 println!(
                     "{} Unable to resolve require path : {:?};\n when resolving in {}",
                     "[!]".yellow(),
                     &stripped_file,
-                    file_stripped.to_string_lossy().red()
+                    stripped_caller.to_string_lossy().red()
                 );
-                &path
+                &require_path
             })
         })
         .iter()
@@ -78,19 +80,19 @@ fn to_module_path<T: Into<PathBuf>>(
 pub fn find_init_luau_folder(
     project_root: &PathBuf,
     start_dir: impl AsRef<Path>,
-) -> std::io::Result<Option<PathBuf>> {
+) -> Option<PathBuf> {
     let mut current = start_dir.as_ref().to_path_buf();
 
     loop {
         let candidate = current.join("init.luau");
 
         if std::fs::metadata(&candidate).is_ok() {
-            return Ok(Some(current));
+            return Some(current);
         }
 
         if &current == project_root || !current.pop() {
             // reached filesystem root
-            return Ok(None);
+            return None;
         }
     }
 }
@@ -102,47 +104,66 @@ impl<'a> NodeProcessor for Processor<'a> {
             && let Arguments::Tuple(dat) = function_call.mutate_arguments()
             && let Some(Expression::String(expr)) = dat.iter_mut_values().next()
         {
+            let caller = self.path;
+
             let require = expr.get_value();
-            let is_relative = require.starts_with(b"../") || require.starts_with(b"./");
-            for preset in self.paths {
-                if let Some(requested_package) =
-                    require.strip_prefix(format!("@{}/", preset.0).as_bytes())
-                {
-                    let pth = path::absolute(self.project_root.join(&preset.1).join(
-                        PathBuf::from(String::from_utf8_lossy(requested_package).to_string()),
-                    ))
-                    .expect("Failed To Find Module");
-                    *expr = StringExpression::from_value(to_module_path(
-                        &self.path.to_path_buf(),
-                        self.project_root_src,
-                        self.project_root,
-                        pth,
-                    ));
-                    return;
-                };
-            }
-            if is_relative || require.starts_with(b"@self") {
-                let pth: PathBuf;
-                if let Some(data) = require.strip_prefix(b"@self") {
-                    let init_folder = find_init_luau_folder(self.project_root, self.path).unwrap();
-                    let module_path = init_folder.as_ref().unwrap_or(self.project_root).join(
-                        if data.starts_with(b"/") {
-                            String::from_utf8_lossy(data.strip_prefix(b"/").unwrap()).to_string()
-                        } else {
-                            "init".to_string()
-                        },
-                    );
-                    pth = path::absolute(module_path).expect("Failed To Find Module");
+            let require_str = String::from_utf8_lossy(require).to_string();
+
+            let mut aliases = self.paths.to_vec();
+            if require.starts_with(b"@self") {
+                let init_path = find_init_luau_folder(self.project_root, caller);
+                if let Some(path) = init_path {
+                    if let Ok(relative_path) = path.strip_prefix(self.project_root) {
+                        aliases.push((
+                            "self".to_string(),
+                            relative_path.to_string_lossy().to_string(),
+                        ));
+                    } else {
+                        eprintln!(
+                            "{} @self resolved outside of project root \n when working in {:?}",
+                            "[!]".yellow(),
+                            self.path
+                        );
+                    }
                 } else {
-                    pth = path::absolute(
-                        self.path.parent().unwrap().join(
-                            String::from_utf8_lossy(require)
-                                .to_string()
-                                .trim_start_matches("@self/"),
-                        ),
-                    )
-                    .expect("Failed To Find Module");
+                    eprintln!(
+                        "{} Unable to resolve @self \n when working in {:?}",
+                        "[!]".yellow(),
+                        self.path
+                    );
                 }
+            }
+            if let Some(alias) = aliases
+                .iter()
+                .find(|x| require.starts_with(&format!("@{}", x.0).as_bytes()))
+            {
+                let resolved_alias = self.project_root.join(&alias.1);
+                let relative_require = require_str.strip_prefix(&format!("@{}", alias.0)).unwrap().trim_start_matches('/');
+
+                let pth = resolved_alias.join(PathBuf::from(relative_require));
+                *expr = StringExpression::from_value(to_module_path(
+                    &self.path.to_path_buf(),
+                    self.project_root_src,
+                    self.project_root,
+                    pth,
+                ));
+                return;
+            };
+
+            // if we got here, no alias was triggered
+            if require.starts_with(b"../") || require.starts_with(b"./") {
+                let caller_dir = self.path.parent().unwrap();
+                let relative_base = if self.path.file_name().is_some_and(|name| name == "init.luau")
+                {
+                    caller_dir.parent().unwrap_or(caller_dir)
+                } else {
+                    caller_dir
+                };
+                let pth = path::absolute(
+                    relative_base
+                        .join(String::from_utf8_lossy(require).to_string()),
+                )
+                .expect("Failed To Find Module");
 
                 *expr = StringExpression::from_value(to_module_path(
                     &self.path.to_path_buf(),
@@ -150,6 +171,8 @@ impl<'a> NodeProcessor for Processor<'a> {
                     self.project_root,
                     pth,
                 ));
+
+                return;
             }
         }
     }

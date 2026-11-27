@@ -134,7 +134,9 @@ pub async fn watch(base_path: Option<PathBuf>) {
 
     builder.clean_build_folder().await.unwrap();
     builder.add_assets(None, false).await;
-    builder.transpile().await;
+    let modules = builder.transpile().await;
+    builder.handle_conf_file(modules).await;
+    
     let mut path = builder
         .home
         .get_path(&builder.config.love, CURRENT_PLATFORM.clone())
@@ -194,7 +196,7 @@ pub async fn watch(base_path: Option<PathBuf>) {
         }
         if let Message::BuildProject(change) = message {
             if builder.config.hmr
-                && let Some(files) = &change
+            && let Some(files) = &change
             {
                 builder.add_assets(None, false).await;
                 for file in files {
